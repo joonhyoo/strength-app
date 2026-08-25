@@ -5,15 +5,15 @@ export const load: PageServerLoad = async ({ locals: { supabase }, parent }) => 
 	const { user } = await parent();
 
 	// `athletes` comes from the (coach) layout's load and is merged into
-	// page data automatically — no need to re-fetch it here.
-	const { data: invites } = await supabase
-		.from('coach_invites')
-		.select('id, email, created_at')
-		.eq('coach_id', user!.id)
-		.order('created_at', { ascending: false });
-
+	// page data automatically — no need to re-fetch it here. Streamed (not
+	// awaited) so the page shell renders before this resolves.
 	return {
-		pendingInvites: invites ?? []
+		pendingInvites: supabase
+			.from('coach_invites')
+			.select('id, email, created_at')
+			.eq('coach_id', user!.id)
+			.order('created_at', { ascending: false })
+			.then(({ data }) => data ?? [])
 	};
 };
 

@@ -11,13 +11,18 @@
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import type { ExerciseCategory } from '$lib/types';
 
+	// Streamed from the load function — null until the promise resolves, so
+	// the page (including the Add form) renders immediately.
+	let exercises = $state<ExerciseDef[] | null>(null);
+
 	$effect(() => {
-		seedExerciseLibrary(page.data.exercises);
+		(page.data.exercises as Promise<ExerciseDef[]>).then((list) => {
+			exercises = list;
+			seedExerciseLibrary(list);
+		});
 	});
 
 	let tab = $state<'programs' | 'exercises'>('programs');
-
-	let exercises = $state<ExerciseDef[]>(page.data.exercises);
 
 	const categoryLabel: Record<ExerciseCategory, string> = {
 		warmup: 'Warmup',
@@ -37,7 +42,7 @@
 		const name = newName.trim();
 		if (!name) return;
 
-		if (exercises.some((ex) => ex.name.toLowerCase() === name.toLowerCase())) {
+		if (exercises?.some((ex) => ex.name.toLowerCase() === name.toLowerCase())) {
 			addError = 'That exercise already exists.';
 			return;
 		}
@@ -179,7 +184,13 @@
 			<div class="card bg-base-100 shadow-sm">
 				<div class="card-body">
 					<h2 class="card-title text-base">Exercise catalog</h2>
-					{#if exercises.length === 0}
+					{#if exercises === null}
+						<div class="mt-2 flex flex-col gap-2">
+							{#each [0, 1, 2, 3] as n (n)}
+								<div class="h-5 w-full skeleton"></div>
+							{/each}
+						</div>
+					{:else if exercises.length === 0}
 						<p class="py-6 text-center text-base-content/60">No exercises yet.</p>
 					{:else}
 						{#each categoryOptions as cat (cat)}
