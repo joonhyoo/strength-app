@@ -1,23 +1,14 @@
 import { dev } from '$app/environment';
-import { env } from '$env/dynamic/private';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { fail, redirect } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
 import type { Actions, PageServerLoad } from './$types';
 import { roleHome, roleHomeFor } from '$lib/guards';
+import { adminClient } from '$lib/server/supabaseAdmin';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { user } = await parent();
 	if (user) redirect(303, roleHome(user.role));
 	return {};
 };
-
-/** Service-role client, dev quick-login and invite-lookup only — never exposed client-side. */
-function adminClient() {
-	return createClient(PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY!, {
-		auth: { autoRefreshToken: false, persistSession: false }
-	});
-}
 
 export const actions: Actions = {
 	quick_login: async ({ request, locals: { supabase } }) => {

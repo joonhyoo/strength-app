@@ -139,12 +139,7 @@
 			// flight, so the two don't overlap.
 			errorMessage = undefined;
 		},
-		// A wrong code resolves near-instantly, which makes "Verifying..."
-		// flash by too fast to read — hold it for a minimum stretch instead,
-		// and land the error message at the same moment loading stops so it
-		// doesn't pop in before the button's done "loading".
-		onDone: async () => {
-			await new Promise((resolve) => setTimeout(resolve, 250));
+		onDone: () => {
 			loading = false;
 			errorMessage = form?.message;
 		},

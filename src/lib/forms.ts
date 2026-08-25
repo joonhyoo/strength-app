@@ -41,7 +41,12 @@ export function enhanceReplace(
 				// eslint-disable-next-line svelte/no-navigation-without-resolve
 				await goto(result.location, { replaceState: true, invalidateAll: true });
 			} else {
-				await update();
+				// Default `update()` runs a native `<form>.reset()` on a
+				// non-redirect success (e.g. the "agree" step re-rendering the
+				// same email form). That reset doesn't fire an input event, so
+				// it blanks the DOM value without telling `bind:value` — every
+				// field here is already Svelte-state-owned, so skip it.
+				await update({ reset: false });
 			}
 			hooks.onDone?.();
 		};

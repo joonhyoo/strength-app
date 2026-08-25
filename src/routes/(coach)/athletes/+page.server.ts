@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { adminClient } from '$lib/server/supabaseAdmin';
 
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	// `athletes` comes from the (coach) layout's load and is merged into
@@ -27,7 +28,7 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 };
 
 export const actions: Actions = {
-	invite_athlete: async ({ request, locals: { supabase } }) => {
+	invite_athlete: async ({ request, url, locals: { supabase } }) => {
 		const formData = await request.formData();
 		const email = (formData.get('email') as string)?.trim();
 
@@ -45,6 +46,24 @@ export const actions: Actions = {
 							? 'That email is already invited by another coach.'
 							: 'Could not send invite. Please try again.';
 			return fail(400, { message, action: 'invite_athlete' });
+		}
+
+		// Best-effort — the coach_invites row above is what actually gates
+		// account creation, so a failure here (e.g. re-inviting an email whose
+		// auth.users row already exists from a prior, still-unconfirmed invite)
+		// doesn't need to fail the whole action: the athlete can still self-serve
+		// via /auth/login's existing send_code flow even without this email.
+		const admin = adminClient();
+		const { error: emailError } = await admin.auth.admin.inviteUserByEmail(email, {
+			redirectTo: `${url.origin}/auth/confirmed`
+		});
+
+		if (emailError) {
+			console.error('inviteUserByEmail failed:', emailError);
+			return {
+				message: 'Invite created, but the confirmation email may not have sent.',
+				action: 'invite_athlete'
+			};
 		}
 	},
 
