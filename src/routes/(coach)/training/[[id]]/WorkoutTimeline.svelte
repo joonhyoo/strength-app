@@ -6,7 +6,7 @@
 	import ArrowDownLineIcon from '@iconify-svelte/mingcute/arrow-down-line';
 	import { SvelteMap } from 'svelte/reactivity';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
-	import { getWorkoutDay } from '$lib/services/workoutService.svelte';
+	import { getCachedWorkoutDay, getWorkoutDay } from '$lib/services/workoutService.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import type { Exercise, ExerciseCategory } from '$lib/types';
 
@@ -18,13 +18,29 @@
 
 	let exercises = $state<Exercise[]>([]);
 	let loading = $state(true);
+	let loadToken = 0;
 
 	$effect(() => {
-		loading = true;
 		void program.revision;
-		getWorkoutDay(athleteId, dateKey).then((list) => {
+		const id = athleteId;
+		const key = dateKey;
+		// Switching athlete/date (or a revision bump) fires overlapping loads;
+		// only the newest response may write state.
+		const token = ++loadToken;
+
+		const cached = getCachedWorkoutDay(id, key);
+		if (cached) {
+			exercises = cached;
+			loading = false;
+		} else {
+			loading = true;
+		}
+
+		getWorkoutDay(id, key).then((list) => {
+			if (token !== loadToken) return;
 			exercises = list;
 			loading = false;
+			program.setDayStatus(key, list);
 		});
 	});
 

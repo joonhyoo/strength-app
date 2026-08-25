@@ -45,13 +45,18 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 		}
 
 		case 'getStatusMap': {
-			const { athleteId } = data;
-			const { data: workouts } = await supabase
+			const { athleteId, from, to } = data;
+			let query = supabase
 				.from('athlete_workouts')
 				.select(
 					'scheduled_date, athlete_exercises(id, complete, exercises(category), athlete_sets(weight))'
 				)
 				.eq('athlete_id', athleteId);
+
+			if (from) query = query.gte('scheduled_date', from);
+			if (to) query = query.lte('scheduled_date', to);
+
+			const { data: workouts } = await query;
 
 			return json({ data: workouts ?? [] });
 		}

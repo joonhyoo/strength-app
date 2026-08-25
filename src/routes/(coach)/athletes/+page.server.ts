@@ -1,19 +1,28 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals: { supabase }, parent }) => {
-	const { user } = await parent();
-
+export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	// `athletes` comes from the (coach) layout's load and is merged into
 	// page data automatically — no need to re-fetch it here. Streamed (not
 	// awaited) so the page shell renders before this resolves.
+	//
+	// Reads the coach id directly from getClaims() rather than `parent()`:
+	// calling `parent()` here would force the root + coach layout loads to
+	// actually re-execute on every navigation to this page (their own
+	// getClaims()/profile/athletes queries), even when SvelteKit's client-side
+	// invalidation logic says they should be skipped since nothing changed.
+	const { data: claimsData } = await supabase.auth.getClaims();
+	const coachId = claimsData?.claims?.sub;
+
 	return {
-		pendingInvites: supabase
-			.from('coach_invites')
-			.select('id, email, created_at')
-			.eq('coach_id', user!.id)
-			.order('created_at', { ascending: false })
-			.then(({ data }) => data ?? [])
+		pendingInvites: coachId
+			? supabase
+					.from('coach_invites')
+					.select('id, email, created_at')
+					.eq('coach_id', coachId)
+					.order('created_at', { ascending: false })
+					.then(({ data }) => data ?? [])
+			: Promise.resolve([])
 	};
 };
 
