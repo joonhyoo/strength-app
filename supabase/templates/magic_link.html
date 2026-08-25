@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<!--
+			This design is intentionally dark, not light-with-a-dark-variant, so
+			declare "dark" only (not "light dark") — that tells clients this HTML
+			already IS the dark-mode design and stops them auto-applying their own
+			dark-mode color inversion/filter on top of it, which is what actually
+			causes low-contrast/garish results, not the color values themselves.
+		-->
+		<meta name="color-scheme" content="dark" />
+		<meta name="supported-color-schemes" content="dark" />
+	</head>
+	<body
+		style="
+			margin: 0;
+			padding: 0;
+			background-color: #0d0d0f;
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		"
+	>
+		<table
+			width="100%"
+			cellpadding="0"
+			cellspacing="0"
+			style="background-color: #0d0d0f; padding: 40px 0"
+		>
+			<tr>
+				<td align="center">
+					<table
+						width="480"
+						cellpadding="0"
+						cellspacing="0"
+						style="
+							background-color: #141416;
+							border: 1px solid #252528;
+							border-radius: 12px;
+							overflow: hidden;
+						"
+					>
+						<tr>
+							<td style="padding: 0; line-height: 0; font-size: 0">
+								<div style="height: 4px; background-color: #f46036"></div>
+							</td>
+						</tr>
+						<tr>
+							<td style="padding: 32px 40px 4px; text-align: center">
+								<table cellpadding="0" cellspacing="0" style="margin: 0 auto">
+									<tr>
+										<td style="padding-right: 8px; vertical-align: middle">
+											<img
+												src="data:image/png;base64,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"
+												width="20"
+												height="20"
+												alt=""
+												style="display: block; width: 20px; height: 20px"
+											/>
+										</td>
+										<td style="vertical-align: middle">
+											<p
+												style="
+													margin: 0;
+													font-size: 12px;
+													font-weight: 700;
+													letter-spacing: 2px;
+													color: #a8a6a0;
+													text-transform: uppercase;
+												"
+											>
+												Strength App
+											</p>
+										</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+						<tr>
+							<td style="padding: 12px 40px 0; text-align: center">
+								<h1
+									style="
+										margin: 0;
+										font-size: 28px;
+										font-weight: 700;
+										color: #f0efe9;
+										letter-spacing: -0.5px;
+									"
+								>
+									Let's log you in
+								</h1>
+							</td>
+						</tr>
+						<tr>
+							<td style="padding: 16px 40px 0; text-align: center">
+								<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #f0efe9">
+									Use this code to log in to strength-app.
+								</p>
+								<p style="margin: 4px 0 0; font-size: 15px; line-height: 1.5; color: #f0efe9">
+									This code will expire in 60 minutes.
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<td style="padding: 28px 40px 0; text-align: center">
+								<div
+									style="
+										background-color: #0d0d0f;
+										border: 1px solid #252528;
+										border-radius: 8px;
+										padding: 20px 0;
+										margin: 0 auto;
+									"
+								>
+									<span
+										style="
+											font-size: 36px;
+											font-weight: 700;
+											letter-spacing: 12px;
+											color: #f46036;
+											font-family: 'SF Mono', 'Fira Code', monospace;
+										"
+										>{{ .Token }}</span
+									>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td style="padding: 24px 40px 32px; text-align: center">
+								<p style="margin: 0; font-size: 13px; line-height: 1.5; color: #a8a6a0">
+									This code will securely log you in using<br />
+									<strong style="color: #f0efe9">{{ .Email }}</strong>
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<td style="padding: 20px 40px; border-top: 1px solid #252528">
+								<p style="margin: 0; font-size: 12px; color: #a8a6a0; text-align: center">
+									If you didn't request this email, you can safely ignore it.
+								</p>
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+	</body>
+</html>

@@ -1,12 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="brand">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1 viewport-fit=cover" />
-		<meta name="text-scale" content="scale" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" />
+		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/icon-180.png" />
+		<meta name="theme-color" content="#0D0D0F" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="apple-mobile-web-app-title" content="Strength App" />
 		%sveltekit.head%
 	</head>
-	<body data-sveltekit-preload-data="hover">
+	<!--
+		Every link replaces rather than pushes, so the history stack stays at depth 1.
+		iOS keeps its edge-swipe back/forward gesture even in an installed PWA and no
+		web API can suppress it — but with nothing to pop it becomes inert, freeing the
+		full screen width for the day-swipe on /train. Link options are read by walking
+		up the DOM, so declaring it on <body> covers the whole app.
+	-->
+	<body data-sveltekit-preload-data="hover" data-sveltekit-replacestate>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>
