@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Role, User } from '$lib/types';
 
 export const LAST_ROUTE_COOKIE = 'last-route';
@@ -41,4 +42,22 @@ export function needsCoach(user: User | null): boolean {
 
 export function needsUsername(user: User | null): boolean {
 	return user !== null && !user.username;
+}
+
+/**
+ * Resolve the post-auth landing route by querying the user's role fresh.
+ * For use right after an auth mutation (login, OTP verify, profile setup)
+ * where no cached `user` from a parent load is available yet.
+ */
+export async function roleHomeFor(
+	supabase: SupabaseClient,
+	userId: string
+): Promise<ReturnType<typeof roleHome>> {
+	const { data: profile } = await supabase
+		.from('profiles')
+		.select('role')
+		.eq('id', userId)
+		.single();
+
+	return roleHome(profile?.role ?? null);
 }

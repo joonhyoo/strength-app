@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { needsUsername, roleHome } from '$lib/guards';
+import { needsUsername, roleHome, roleHomeFor } from '$lib/guards';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { user } = await parent();
@@ -37,12 +37,8 @@ export const actions: Actions = {
 		}
 
 		const { data: claimsData } = await supabase.auth.getClaims();
-		const { data: profile } = await supabase
-			.from('profiles')
-			.select('role')
-			.eq('id', claimsData?.claims?.sub)
-			.single();
+		const userId = claimsData?.claims?.sub;
 
-		redirect(303, roleHome(profile?.role ?? null));
+		redirect(303, userId ? await roleHomeFor(supabase, userId) : roleHome(null));
 	}
 };

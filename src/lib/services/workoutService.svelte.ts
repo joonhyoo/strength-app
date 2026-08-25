@@ -1,8 +1,6 @@
 import { SvelteMap } from 'svelte/reactivity';
-import type { DayStatus } from '$lib/complete';
+import { CONDITIONING_CATEGORIES, type DayStatus } from '$lib/complete';
 import type { Exercise, ExerciseCategory } from '$lib/types';
-
-const conditioning = ['warmup', 'circuit', 'plyo'];
 
 /**
  * Day + status-map caches for optimistic rendering. A service worker can't do
@@ -76,7 +74,7 @@ function computeDayStatus(
 	if (exercises.length === 0) return 'none';
 
 	const done = exercises.filter((e) => {
-		if (conditioning.includes(e.category)) return e.complete;
+		if (CONDITIONING_CATEGORIES.includes(e.category)) return e.complete;
 		return e.hasWeight;
 	}).length;
 

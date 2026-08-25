@@ -8,21 +8,20 @@ export const load: LayoutServerLoad = async ({ locals: { supabase } }) => {
 		return { user: null };
 	}
 
-	const { data: profile } = await supabase
-		.from('profiles')
-		.select('id, name, role, terms_accepted_at, coach_id')
-		.eq('id', userId)
-		.single();
+	// Independent of each other (both only need userId) — run in parallel
+	// rather than paying for two sequential round-trips.
+	const [{ data: profile }, { data: priv }] = await Promise.all([
+		supabase
+			.from('profiles')
+			.select('id, name, role, terms_accepted_at, coach_id')
+			.eq('id', userId)
+			.single(),
+		supabase.from('profile_private').select('username').eq('id', userId).maybeSingle()
+	]);
 
 	if (!profile) {
 		return { user: null };
 	}
-
-	const { data: priv } = await supabase
-		.from('profile_private')
-		.select('username')
-		.eq('id', userId)
-		.maybeSingle();
 
 	return { user: { ...profile, username: priv?.username ?? null } };
 };

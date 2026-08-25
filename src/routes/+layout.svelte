@@ -2,7 +2,7 @@
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { afterNavigate } from '$app/navigation';
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
 	import { isResumableRoute, LAST_ROUTE_COOKIE } from '$lib/guards';
 
 	let { children } = $props();
@@ -21,6 +21,29 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
+{#if navigating.to}
+	<div
+		class="nav-progress fixed inset-x-0 z-100 h-[3px] bg-primary"
+		style="top: env(safe-area-inset-top)"
+		aria-hidden="true"
+	></div>
+{/if}
 <main class="min-h-screen bg-base-100 pt-[env(safe-area-inset-top)]">
 	{@render children()}
 </main>
+
+<style>
+	.nav-progress {
+		transform-origin: left;
+		animation: nav-progress-grow 8s ease-out forwards;
+	}
+
+	@keyframes nav-progress-grow {
+		from {
+			transform: scaleX(0);
+		}
+		to {
+			transform: scaleX(0.9);
+		}
+	}
+</style>

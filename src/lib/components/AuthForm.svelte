@@ -144,7 +144,7 @@
 		// and land the error message at the same moment loading stops so it
 		// doesn't pop in before the button's done "loading".
 		onDone: async () => {
-			await new Promise((resolve) => setTimeout(resolve, 500));
+			await new Promise((resolve) => setTimeout(resolve, 250));
 			loading = false;
 			errorMessage = form?.message;
 		},
