@@ -1,0 +1,38 @@
+<script lang="ts">
+	import { SvelteMap } from 'svelte/reactivity';
+	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
+	import type { ExerciseCategory } from '$lib/types';
+
+	let { category, activity, plan, complete, onselect } = $props<{
+		category: ExerciseCategory;
+		activity: string;
+		plan: number[];
+		complete: boolean;
+		onselect: () => void;
+	}>();
+
+	const formatPlan = (plan: number[]) => {
+		if (plan.length === 0) return '';
+
+		const counts = new SvelteMap<number, number>();
+
+		for (const reps of plan) {
+			counts.set(reps, (counts.get(reps) ?? 0) + 1);
+		}
+
+		return [...counts.entries()]
+			.map(([num, count]) => (count > 1 ? `${count} x ${num}` : `${num}`))
+			.join(', ');
+	};
+</script>
+
+<button
+	class="flex w-full items-center gap-4 rounded-lg p-2 transition-opacity ease-in-out hover:cursor-pointer active:opacity-50"
+	onclick={onselect}
+>
+	<CategoryIcon {category} {complete} />
+	<div class="text-left leading-tight">
+		<h2 class="text-lg">{activity}</h2>
+		<span class="text-sm">{formatPlan(plan)}</span>
+	</div>
+</button>

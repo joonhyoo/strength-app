@@ -7,3 +7,10 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Generated/local-only — not tracked in git, shouldn't be formatted as source.
+# Prettier doesn't read .gitignore automatically (unlike eslint.config.js's
+# includeIgnoreFile), so these need listing explicitly.
+.claude/
+supabase/.temp/
+supabase/.branches/

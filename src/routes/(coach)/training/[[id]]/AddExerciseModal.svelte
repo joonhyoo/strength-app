@@ -1,0 +1,244 @@
+<script lang="ts">
+	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
+	import {
+		getExerciseLibrary,
+		findExercise,
+		addExerciseDefinition,
+		loadExerciseLibrary
+	} from '$lib/data/exerciseLibrary.svelte';
+	import { getWorkoutDay } from '$lib/services/workoutService.svelte';
+	import type { Exercise, ExerciseCategory } from '$lib/types';
+
+	const NOTE_MAX_HEIGHT_PX = 192; // matches max-h-48
+
+	const supportsFieldSizing = typeof CSS !== 'undefined' && CSS.supports('field-sizing', 'content');
+
+	// `value` is unused in the body (resize reads node.scrollHeight directly)
+	// but is required so `update` re-fires when the bound value changes.
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	function autoGrowNote(node: HTMLTextAreaElement, value: string) {
+		if (supportsFieldSizing) return {};
+
+		const resize = () => {
+			node.style.height = 'auto';
+			node.style.height = `${Math.min(node.scrollHeight, NOTE_MAX_HEIGHT_PX)}px`;
+		};
+
+		resize();
+		node.addEventListener('input', resize);
+
+		return {
+			update: resize,
+			destroy: () => node.removeEventListener('input', resize)
+		};
+	}
+
+	const program = getCoachProgramState();
+
+	const dateKey = $derived(program.selectedDate.toLocaleDateString('fr-CA'));
+
+	const library = $derived(getExerciseLibrary());
+	let editingExercise = $state<Exercise | undefined>(undefined);
+
+	let creatingNew = $state(false);
+	let selectedName = $state('');
+	let newName = $state('');
+	let newCategory = $state<ExerciseCategory>('warmup');
+	let sets = $state(3);
+	let reps = $state(5);
+	let note = $state('');
+	let complete = $state(false);
+
+	$effect(() => {
+		loadExerciseLibrary();
+	});
+
+	$effect(() => {
+		if (program.editingExerciseId !== null && program.selectedAthleteId !== null) {
+			getWorkoutDay(program.selectedAthleteId, dateKey).then((day) => {
+				editingExercise = day.find((exercise) => exercise.id === program.editingExerciseId);
+			});
+		} else {
+			editingExercise = undefined;
+		}
+	});
+
+	$effect(() => {
+		if (!program.modalOpen) return;
+
+		if (editingExercise) {
+			const inLibrary = !!findExercise(editingExercise.activity);
+			creatingNew = !inLibrary;
+			selectedName = inLibrary ? editingExercise.activity : (library[0]?.name ?? '');
+			newName = editingExercise.activity;
+			newCategory = editingExercise.category;
+			sets = editingExercise.plan.length || 3;
+			reps = (editingExercise.plan[0] as number) ?? 5;
+			note = editingExercise.note;
+			complete = editingExercise.complete;
+		} else {
+			creatingNew = false;
+			selectedName = library[0]?.name ?? '';
+			newCategory = 'warmup';
+			sets = 3;
+			reps = 5;
+			note = '';
+			complete = false;
+		}
+	});
+
+	const isEditing = $derived(program.editingExerciseId !== null);
+
+	const category = $derived.by(() => {
+		if (creatingNew) return newCategory;
+		return findExercise(selectedName)?.category ?? 'warmup';
+	});
+
+	const isWeight = $derived(category === 'weight');
+
+	const categoryLabel: Record<ExerciseCategory, string> = {
+		warmup: 'Warmup',
+		circuit: 'Circuit',
+		plyo: 'Plyo',
+		weight: 'Weight'
+	};
+
+	const categoryOptions: ExerciseCategory[] = ['warmup', 'circuit', 'plyo', 'weight'];
+
+	const exerciseName = $derived(creatingNew ? newName.trim() : selectedName);
+
+	let dialog = $state() as HTMLDialogElement;
+
+	$effect(() => {
+		dialog.showModal();
+		return () => {
+			if (dialog.open) dialog.close();
+		};
+	});
+
+	async function submit() {
+		if (!exerciseName) return;
+
+		if (creatingNew) {
+			await addExerciseDefinition({ name: exerciseName, category });
+			selectedName = exerciseName;
+		}
+
+		const exercise: Exercise = {
+			category,
+			activity: exerciseName,
+			plan: isWeight ? Array(sets).fill(reps) : [],
+			performed: isWeight ? Array.from({ length: sets }, () => ({ weight: undefined, reps })) : [],
+			note: note.trim(),
+			complete
+		};
+
+		await program.saveExercise(exercise);
+		program.closeModal();
+	}
+</script>
+
+<dialog bind:this={dialog} class="modal" onclose={() => program.closeModal()}>
+	<div class="modal-box">
+		<h3 class="mb-4 text-lg font-bold">{isEditing ? 'Edit exercise' : 'Add exercise'}</h3>
+
+		<form
+			class="flex flex-col gap-4"
+			onsubmit={(e) => {
+				e.preventDefault();
+				submit();
+			}}
+		>
+			{#if !creatingNew}
+				<label class="form-control w-full">
+					<span class="label">Exercise</span>
+					<select class="select-bordered select" bind:value={selectedName}>
+						{#each categoryOptions as cat (cat)}
+							{@const items = library.filter((item) => item.category === cat)}
+							{#if items.length > 0}
+								<optgroup label={categoryLabel[cat]}>
+									{#each items as item (item.name)}
+										<option value={item.name}>{item.name}</option>
+									{/each}
+								</optgroup>
+							{/if}
+						{/each}
+					</select>
+					<span class="label -mt-1 text-base-content/60">
+						Category: {categoryLabel[category]}
+					</span>
+				</label>
+			{/if}
+
+			{#if creatingNew}
+				<label class="form-control w-full">
+					<span class="label">Exercise name</span>
+					<input
+						class="input-bordered input"
+						type="text"
+						placeholder="e.g. Barbell Back Squat"
+						bind:value={newName}
+					/>
+				</label>
+
+				<label class="form-control w-full">
+					<span class="label">Category</span>
+					<select class="select-bordered select" bind:value={newCategory}>
+						{#each categoryOptions as cat (cat)}
+							<option value={cat}>{categoryLabel[cat]}</option>
+						{/each}
+					</select>
+				</label>
+			{/if}
+
+			{#if !isEditing}
+				<label class="flex items-center gap-2 text-sm">
+					<input
+						type="checkbox"
+						class="toggle toggle-sm"
+						bind:checked={creatingNew}
+						disabled={isEditing && !editingExercise}
+					/>
+					New exercise
+				</label>
+			{/if}
+
+			{#if isWeight}
+				<div class="grid grid-cols-2 gap-4">
+					<label class="form-control w-full">
+						<span class="label">Sets</span>
+						<input class="input-bordered input" type="number" min="1" bind:value={sets} />
+					</label>
+					<label class="form-control w-full">
+						<span class="label">Reps per set</span>
+						<input class="input-bordered input" type="number" min="1" bind:value={reps} />
+					</label>
+				</div>
+			{/if}
+
+			<label class="form-control w-full">
+				<span class="label">Note</span>
+				<textarea
+					use:autoGrowNote={note}
+					class="textarea-bordered textarea field-sizing-content max-h-48 resize-none"
+					rows="3"
+					placeholder={isWeight
+						? 'e.g. 4s eccentric, explode up.'
+						: 'e.g. 3 x 5\nReset between every jump.'}
+					bind:value={note}
+				></textarea>
+			</label>
+
+			<div class="modal-action">
+				<button
+					type="button"
+					class="btn bg-error/10 text-error hover:bg-error/20"
+					onclick={() => program.closeModal()}
+				>
+					Cancel
+				</button>
+				<button class="btn btn-primary" type="submit" disabled={!exerciseName}> Save </button>
+			</div>
+		</form>
+	</div>
+</dialog>

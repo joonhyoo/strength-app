@@ -1,0 +1,91 @@
+<script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
+	import { seedExerciseLibrary } from '$lib/data/exerciseLibrary.svelte';
+	import MonthGrid from '$lib/components/MonthGrid.svelte';
+	import WorkoutTimeline from './WorkoutTimeline.svelte';
+	import AddExerciseModal from './AddExerciseModal.svelte';
+	import type { Athlete } from '$lib/types';
+
+	const program = getCoachProgramState();
+
+	const athletes = $derived(page.data.athletes as Athlete[]);
+
+	const athlete = $derived(athletes.find((a) => a.id === page.params.id) ?? null);
+
+	$effect(() => {
+		if (athlete) {
+			program.selectAthlete(athlete.id);
+			program.loadStatusMap();
+		} else {
+			program.selectAthlete(null);
+			program.statusMap.clear();
+		}
+	});
+
+	$effect(() => {
+		if (typeof document === 'undefined') return;
+		const handler = () => {
+			if (athlete) program.loadStatusMap();
+		};
+		document.addEventListener('visibilitychange', handler);
+		return () => document.removeEventListener('visibilitychange', handler);
+	});
+
+	$effect(() => {
+		seedExerciseLibrary(page.data.exerciseLibrary);
+	});
+
+	function onAthleteChange(id: string) {
+		// Replaces rather than pushes; see the note in src/app.html.
+		goto(resolve(id ? `/training/${id}` : '/training'), { replaceState: true });
+	}
+</script>
+
+<svelte:head>
+	<title>Strength App — Training</title>
+</svelte:head>
+
+<div class="my-4 grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
+	<aside class="card h-fit bg-base-100 shadow-sm">
+		<div class="card-body">
+			<label class="form-control w-full">
+				<span class="label">Athlete</span>
+				<select
+					class="select-bordered select"
+					value={athlete?.id ?? ''}
+					onchange={(e) => onAthleteChange(e.currentTarget.value)}
+				>
+					<option value="">Select athlete…</option>
+					{#each athletes as option (option.id)}
+						<option value={option.id}>{option.name}</option>
+					{/each}
+				</select>
+			</label>
+
+			<h2 class="mt-2 font-semibold text-base-content/70">Calendar</h2>
+
+			<MonthGrid
+				selectedDate={program.selectedDate}
+				dayStatus={(dateKey) => program.statusMap.get(dateKey) ?? 'none'}
+				onselect={(date) => program.selectDate(date)}
+			/>
+		</div>
+	</aside>
+
+	{#if athlete}
+		<WorkoutTimeline athleteId={athlete.id} date={program.selectedDate} />
+	{:else}
+		<div class="card bg-base-100 shadow-sm">
+			<div class="card-body items-center py-16 text-center">
+				<p class="text-base-content/60">Select an athlete to view and schedule their workouts.</p>
+			</div>
+		</div>
+	{/if}
+</div>
+
+{#if athlete && program.modalOpen}
+	<AddExerciseModal />
+{/if}

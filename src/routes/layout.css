@@ -2,3 +2,62 @@
 @plugin 'daisyui' {
 	logs: false;
 }
+
+html,
+body {
+	overscroll-behavior: none;
+}
+
+@theme {
+	--color-background: #0d0d0f;
+	--color-card: #141416;
+	--color-secondary: #1e1e22;
+	--color-border: #252528;
+	--color-muted-fg: #6b6968;
+	--color-secondary-fg: #a8a6a0;
+
+	--color-foreground: #f0efe9;
+	--color-cream: #f1e0c5;
+	--color-primary: #f46036;
+	--color-danger: #d7263d;
+	--color-sky: #38bdf8;
+	--color-lime: #bfff00;
+
+	--background-image-brand-gradient: linear-gradient(90deg, #f1e0c5 0%, #f46036 50%, #d7263d 100%);
+}
+
+/* Maps brand palette onto DaisyUI theme slots (see testing-notes.md). */
+[data-theme='brand'] {
+	color-scheme: dark;
+	--color-base-100: #0d0d0f; /* background */
+	--color-base-200: #141416; /* card */
+	--color-base-300: #252528; /* border — matches existing border-base-300/bg-base-300 divider usage */
+	--color-base-content: #f0efe9; /* foreground */
+
+	--color-primary: #f46036;
+	--color-primary-content: #0d0d0f;
+	--color-secondary: #38bdf8; /* sky */
+	--color-secondary-content: #0d0d0f;
+	--color-accent: #f1e0c5; /* cream */
+	--color-accent-content: #0d0d0f;
+	--color-neutral: #1e1e22; /* secondary surface */
+	--color-neutral-content: #f0efe9;
+
+	--color-info: #38bdf8; /* sky */
+	--color-info-content: #0d0d0f;
+	--color-success: #bfff00; /* lime */
+	--color-success-content: #0d0d0f;
+	--color-warning: oklch(82% 0.189 84.429); /* no brand equivalent, kept from stock dark theme */
+	--color-warning-content: oklch(41% 0.112 45.904);
+	--color-error: #d7263d; /* danger */
+	--color-error-content: #f0efe9;
+
+	--radius-selector: 0.5rem;
+	--radius-field: 0.25rem;
+	--radius-box: 0.5rem;
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+	--border: 1px;
+	--depth: 1;
+	--noise: 0;
+}

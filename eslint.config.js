@@ -8,9 +8,15 @@ import ts from 'typescript-eslint';
 import svelteConfig from './svelte.config.js';
 
 const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
+// includeIgnoreFile only reads the root .gitignore — the Supabase CLI drops its
+// own supabase/.gitignore (ignoring supabase/.temp, supabase/.branches) which
+// ESLint never sees, so those generated files (e.g. a minified Deno edge-runtime
+// bundle) get linted as if they were source. Ignore them explicitly instead.
+const supabaseGitignorePath = path.resolve(import.meta.dirname, 'supabase/.gitignore');
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
+	includeIgnoreFile(supabaseGitignorePath, 'supabase/.gitignore'),
 	js.configs.recommended,
 	ts.configs.recommended,
 	svelte.configs.recommended,

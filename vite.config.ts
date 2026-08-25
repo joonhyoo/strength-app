@@ -5,6 +5,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	server: { allowedHosts: ['strength-app.hyuji.dev'] },
 	test: {
 		expect: { requireAssertions: true },
 		projects: [
