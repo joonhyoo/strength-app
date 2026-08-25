@@ -9,23 +9,34 @@
 
 	let { form }: { form: ActionData } = $props();
 
-	const athletes = $derived(page.data.athletes as Athlete[]);
-	const pendingInvites = $derived(
-		page.data.pendingInvites as { id: string; email: string; created_at: string }[]
-	);
+	// `athletes`/`pendingInvites` are streamed from their `load` functions —
+	// null until the promise resolves, so the rest of the page can render
+	// immediately instead of waiting on them.
+	let athletes = $state<Athlete[] | null>(null);
+	let pendingInvites = $state<{ id: string; email: string; created_at: string }[] | null>(null);
+
+	$effect(() => {
+		(page.data.athletes as Promise<Athlete[]>).then((list) => (athletes = list));
+	});
+	$effect(() => {
+		(page.data.pendingInvites as Promise<{ id: string; email: string; created_at: string }[]>).then(
+			(list) => (pendingInvites = list)
+		);
+	});
 
 	let inviting = $state(false);
 	let removing = $state(false);
 	let query = $state('');
 
-	const filteredAthletes = $derived(
-		query.trim()
-			? athletes.filter((a) => {
-					const q = query.trim().toLowerCase();
-					return a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q);
-				})
-			: athletes
-	);
+	const filteredAthletes = $derived.by(() => {
+		if (athletes === null) return null;
+		const q = query.trim().toLowerCase();
+		return q
+			? athletes.filter(
+					(a) => a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)
+				)
+			: athletes;
+	});
 </script>
 
 <svelte:head>
@@ -62,7 +73,12 @@
 				<p class="mt-1 text-xs text-error">{form.message}</p>
 			{/if}
 
-			{#if pendingInvites.length}
+			{#if pendingInvites === null}
+				<div class="mt-3 flex flex-col gap-2">
+					<div class="h-4 w-full skeleton"></div>
+					<div class="h-4 w-2/3 skeleton"></div>
+				</div>
+			{:else if pendingInvites.length}
 				<ul class="mt-3 flex flex-col gap-1">
 					{#each pendingInvites as invite (invite.id)}
 						<li class="flex items-center justify-between gap-2 text-sm">
@@ -84,7 +100,7 @@
 		<div class="card-body">
 			<div class="flex items-center justify-between gap-2">
 				<h2 class="card-title text-base">Your athletes</h2>
-				<span class="text-sm text-base-content/60">{athletes.length}</span>
+				<span class="text-sm text-base-content/60">{athletes?.length ?? ''}</span>
 			</div>
 
 			{#if form?.message && form?.action === 'remove_athlete'}
@@ -98,7 +114,18 @@
 				bind:value={query}
 			/>
 
-			{#if filteredAthletes.length}
+			{#if filteredAthletes === null}
+				<div class="mt-3 flex flex-col divide-y divide-base-200">
+					{#each [0, 1, 2] as n (n)}
+						<div class="flex items-center justify-between gap-2 py-2">
+							<div class="flex flex-col gap-1">
+								<div class="h-4 w-32 skeleton"></div>
+								<div class="h-3 w-40 skeleton"></div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{:else if filteredAthletes.length}
 				<ul class="mt-3 flex flex-col divide-y divide-base-200">
 					{#each filteredAthletes as athlete (athlete.id)}
 						<li class="flex items-center justify-between gap-2 py-1">
@@ -137,7 +164,7 @@
 				</ul>
 			{:else}
 				<p class="mt-4 text-sm text-base-content/60">
-					{athletes.length
+					{(athletes?.length ?? 0)
 						? 'No athletes match your search.'
 						: 'No athletes yet — invite one above.'}
 				</p>

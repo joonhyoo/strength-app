@@ -11,9 +11,15 @@
 
 	const program = getCoachProgramState();
 
-	const athletes = $derived(page.data.athletes as Athlete[]);
+	// Streamed from the (coach) layout's load — null until the promise
+	// resolves, so the rest of the page can render immediately.
+	let athletes = $state<Athlete[] | null>(null);
 
-	const athlete = $derived(athletes.find((a) => a.id === page.params.id) ?? null);
+	$effect(() => {
+		(page.data.athletes as Promise<Athlete[]>).then((list) => (athletes = list));
+	});
+
+	const athlete = $derived(athletes?.find((a) => a.id === page.params.id) ?? null);
 
 	$effect(() => {
 		if (athlete) {
@@ -35,7 +41,9 @@
 	});
 
 	$effect(() => {
-		seedExerciseLibrary(page.data.exerciseLibrary);
+		(page.data.exerciseLibrary as Promise<Parameters<typeof seedExerciseLibrary>[0]>).then(
+			seedExerciseLibrary
+		);
 	});
 
 	function onAthleteChange(id: string) {
@@ -53,16 +61,20 @@
 		<div class="card-body">
 			<label class="form-control w-full">
 				<span class="label">Athlete</span>
-				<select
-					class="select-bordered select"
-					value={athlete?.id ?? ''}
-					onchange={(e) => onAthleteChange(e.currentTarget.value)}
-				>
-					<option value="">Select athlete…</option>
-					{#each athletes as option (option.id)}
-						<option value={option.id}>{option.name}</option>
-					{/each}
-				</select>
+				{#if athletes === null}
+					<div class="h-10 w-full skeleton"></div>
+				{:else}
+					<select
+						class="select-bordered select"
+						value={athlete?.id ?? ''}
+						onchange={(e) => onAthleteChange(e.currentTarget.value)}
+					>
+						<option value="">Select athlete…</option>
+						{#each athletes as option (option.id)}
+							<option value={option.id}>{option.name}</option>
+						{/each}
+					</select>
+				{/if}
 			</label>
 
 			<h2 class="mt-2 font-semibold text-base-content/70">Calendar</h2>
@@ -75,7 +87,14 @@
 		</div>
 	</aside>
 
-	{#if athlete}
+	{#if athletes === null}
+		<div class="card bg-base-100 shadow-sm">
+			<div class="card-body gap-3">
+				<div class="h-6 w-40 skeleton"></div>
+				<div class="h-32 w-full skeleton"></div>
+			</div>
+		</div>
+	{:else if athlete}
 		<WorkoutTimeline athleteId={athlete.id} date={program.selectedDate} />
 	{:else}
 		<div class="card bg-base-100 shadow-sm">
