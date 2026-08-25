@@ -4,13 +4,8 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals: { supabase }, parent }) => {
 	const { user } = await parent();
 
-	const { data: athletes } = await supabase
-		.from('profiles')
-		.select('id, name, email, coach_id')
-		.eq('coach_id', user!.id)
-		.eq('role', 'athlete')
-		.order('name');
-
+	// `athletes` comes from the (coach) layout's load and is merged into
+	// page data automatically — no need to re-fetch it here.
 	const { data: invites } = await supabase
 		.from('coach_invites')
 		.select('id, email, created_at')
@@ -18,7 +13,6 @@ export const load: PageServerLoad = async ({ locals: { supabase }, parent }) => 
 		.order('created_at', { ascending: false });
 
 	return {
-		athletes: athletes ?? [],
 		pendingInvites: invites ?? []
 	};
 };

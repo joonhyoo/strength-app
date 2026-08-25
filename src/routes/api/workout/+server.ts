@@ -1,5 +1,29 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+/** Look up an exercise definition by name, creating it if it doesn't exist yet. */
+async function getOrCreateExerciseId(
+	supabase: SupabaseClient,
+	name: string,
+	category: string
+): Promise<string | null> {
+	const { data: existing } = await supabase
+		.from('exercises')
+		.select('id')
+		.eq('name', name)
+		.maybeSingle();
+
+	if (existing) return existing.id;
+
+	const { data: created } = await supabase
+		.from('exercises')
+		.insert({ name, category })
+		.select('id')
+		.single();
+
+	return created?.id ?? null;
+}
 
 export const POST: RequestHandler = async ({ request, locals: { supabase } }) => {
 	const body = await request.json();
@@ -47,25 +71,11 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 			if (workoutErr || !workout) return error(500, 'Failed to create workout');
 
-			// Get or create exercise definition
-			let exerciseId: string | null;
-			const { data: existing } = await supabase
-				.from('exercises')
-				.select('id')
-				.eq('name', exercise.activity)
-				.maybeSingle();
-
-			if (existing) {
-				exerciseId = existing.id;
-			} else {
-				const { data: created } = await supabase
-					.from('exercises')
-					.insert({ name: exercise.activity, category: exercise.category })
-					.select('id')
-					.single();
-				exerciseId = created?.id ?? null;
-			}
-
+			const exerciseId = await getOrCreateExerciseId(
+				supabase,
+				exercise.activity,
+				exercise.category
+			);
 			if (!exerciseId) return error(500, 'Failed to create exercise');
 
 			// Get max position
@@ -110,25 +120,11 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 		case 'updateExercise': {
 			const { athleteExerciseId, exercise } = data;
 
-			// Get or create exercise definition
-			let exerciseId: string | null;
-			const { data: existing } = await supabase
-				.from('exercises')
-				.select('id')
-				.eq('name', exercise.activity)
-				.maybeSingle();
-
-			if (existing) {
-				exerciseId = existing.id;
-			} else {
-				const { data: created } = await supabase
-					.from('exercises')
-					.insert({ name: exercise.activity, category: exercise.category })
-					.select('id')
-					.single();
-				exerciseId = created?.id ?? null;
-			}
-
+			const exerciseId = await getOrCreateExerciseId(
+				supabase,
+				exercise.activity,
+				exercise.category
+			);
 			if (!exerciseId) return error(500, 'Failed to create exercise');
 
 			// Delete old sets

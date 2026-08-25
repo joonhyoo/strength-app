@@ -2,28 +2,22 @@ import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { fail, redirect } from '@sveltejs/kit';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import type { Actions, PageServerLoad } from './$types';
-import { roleHome } from '$lib/guards';
+import { roleHome, roleHomeFor } from '$lib/guards';
 
-export const load: PageServerLoad = async ({ locals: { supabase } }) => {
-	const { data } = await supabase.auth.getClaims();
-	const userId = data?.claims?.sub;
-
-	if (userId) {
-		const { data: profile } = await supabase
-			.from('profiles')
-			.select('role')
-			.eq('id', userId)
-			.single();
-
-		if (profile) {
-			redirect(303, roleHome(profile.role));
-		}
-	}
-
+export const load: PageServerLoad = async ({ parent }) => {
+	const { user } = await parent();
+	if (user) redirect(303, roleHome(user.role));
 	return {};
 };
+
+/** Service-role client, dev quick-login and invite-lookup only — never exposed client-side. */
+function adminClient() {
+	return createClient(PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY!, {
+		auth: { autoRefreshToken: false, persistSession: false }
+	});
+}
 
 export const actions: Actions = {
 	quick_login: async ({ request, locals: { supabase } }) => {
@@ -36,9 +30,7 @@ export const actions: Actions = {
 		// signInWithPassword. Instead, use the service-role key (dev-only, never
 		// set in prod) to mint a magic-link token, then redeem it through the
 		// normal verifyOtp flow so the session cookies get set correctly.
-		const admin = createClient(PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY!, {
-			auth: { autoRefreshToken: false, persistSession: false }
-		});
+		const admin = adminClient();
 
 		const { data, error: linkError } = await admin.auth.admin.generateLink({
 			type: 'magiclink',
@@ -75,9 +67,7 @@ export const actions: Actions = {
 		// user is on — checked server-side via the service-role key so this
 		// lookup isn't exposed as a public RPC (which would let anyone
 		// enumerate invited emails via supabase.rpc(...) from a browser console).
-		const admin = createClient(PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY!, {
-			auth: { autoRefreshToken: false, persistSession: false }
-		});
+		const admin = adminClient();
 
 		const { data: invite, error: inviteError } = await admin
 			.from('coach_invites')
@@ -157,17 +147,3 @@ export const actions: Actions = {
 		redirect(303, '/auth/login');
 	}
 };
-
-/** Resolve the post-login landing route from the user's profile role. */
-async function roleHomeFor(
-	supabase: SupabaseClient,
-	userId: string
-): Promise<ReturnType<typeof roleHome>> {
-	const { data: profile } = await supabase
-		.from('profiles')
-		.select('role')
-		.eq('id', userId)
-		.single();
-
-	return roleHome(profile?.role ?? null);
-}
