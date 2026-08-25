@@ -83,6 +83,23 @@ function computeDayStatus(
 	return 'exists';
 }
 
+/**
+ * Derives a day's status from exercises already in hand (e.g. a day just
+ * re-fetched after an edit), so a status-map dot can update without a
+ * separate `getAthleteStatusMap` round trip.
+ */
+export function dayStatusFromExercises(
+	exercises: Pick<Exercise, 'complete' | 'category' | 'performed'>[]
+): DayStatus {
+	return computeDayStatus(
+		exercises.map((e) => ({
+			complete: e.complete,
+			category: e.category,
+			hasWeight: e.performed.length > 0 && e.performed.every((p) => !!p.weight)
+		}))
+	);
+}
+
 export async function getWorkoutDay(athleteId: string, dateKey: string): Promise<Exercise[]> {
 	const res = await fetch('/api/workout', {
 		method: 'POST',
@@ -169,12 +186,13 @@ function cacheStatusMap(athleteId: string, map: SvelteMap<string, DayStatus>) {
 }
 
 export async function getAthleteStatusMap(
-	athleteId: string
+	athleteId: string,
+	range?: { from: string; to: string }
 ): Promise<SvelteMap<string, DayStatus>> {
 	const res = await fetch('/api/workout', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ action: 'getStatusMap', data: { athleteId } })
+		body: JSON.stringify({ action: 'getStatusMap', data: { athleteId, ...range } })
 	});
 
 	// A failed request is not an answer — leave any cached map standing
@@ -182,7 +200,12 @@ export async function getAthleteStatusMap(
 	if (!res.ok) return getCachedStatusMap(athleteId) ?? new SvelteMap();
 
 	const { data: workouts } = await res.json();
-	const map = new SvelteMap<string, DayStatus>();
+	// A ranged fetch only covers part of the athlete's history — start from
+	// whatever's already cached and merge in, rather than replacing it
+	// wholesale and losing dots for days outside this window.
+	const map = range
+		? (getCachedStatusMap(athleteId) ?? new SvelteMap<string, DayStatus>())
+		: new SvelteMap<string, DayStatus>();
 
 	// Plain Map: function-local scratch space used to build `map` (the actual
 	// SvelteMap returned below) — never itself read reactively.

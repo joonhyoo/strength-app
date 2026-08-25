@@ -7,7 +7,11 @@ import {
 	moveExercise as moveScheduledExercise,
 	setExerciseComplete
 } from '$lib/services/programService.svelte';
-import { getAthleteStatusMap, getCachedStatusMap } from '$lib/services/workoutService.svelte';
+import {
+	getAthleteStatusMap,
+	getCachedStatusMap,
+	dayStatusFromExercises
+} from '$lib/services/workoutService.svelte';
 import type { DayStatus } from '$lib/complete';
 import type { Exercise } from '$lib/types';
 
@@ -50,13 +54,14 @@ class CoachProgramState {
 		} else {
 			await addExerciseToDay(this.selectedAthleteId, dateKey, exercise);
 		}
-		await this.loadStatusMap();
+		// The revision bump makes WorkoutTimeline re-fetch this day, which then
+		// reports the fresh status via setDayStatus — no separate status-map
+		// round trip needed just to update one dot.
 		this.revision++;
 	}
 
 	async removeExercise(athleteExerciseId: string) {
 		await removeScheduledExercise(athleteExerciseId);
-		await this.loadStatusMap();
 		this.revision++;
 	}
 
@@ -67,8 +72,12 @@ class CoachProgramState {
 
 	async toggleExerciseComplete(athleteExerciseId: string, complete: boolean) {
 		await setExerciseComplete(athleteExerciseId, complete);
-		await this.loadStatusMap();
 		this.revision++;
+	}
+
+	/** Updates one day's dot locally from exercises already fetched, avoiding a full status-map refetch. */
+	setDayStatus(dateKey: string, exercises: Exercise[]) {
+		this.statusMap.set(dateKey, dayStatusFromExercises(exercises));
 	}
 
 	async loadStatusMap() {
@@ -78,7 +87,15 @@ class CoachProgramState {
 		const cached = getCachedStatusMap(this.selectedAthleteId);
 		if (cached) this.statusMap = cached;
 
-		this.statusMap = await getAthleteStatusMap(this.selectedAthleteId);
+		const DAY_MS = 24 * 60 * 60 * 1000;
+		const now = Date.now();
+		const from = new Date(now - 180 * DAY_MS);
+		const to = new Date(now + 60 * DAY_MS);
+
+		this.statusMap = await getAthleteStatusMap(this.selectedAthleteId, {
+			from: from.toLocaleDateString('fr-CA'),
+			to: to.toLocaleDateString('fr-CA')
+		});
 	}
 }
 
