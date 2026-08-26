@@ -135,6 +135,8 @@ end;
 $$ language plpgsql security definer
    set search_path = public;
 
+revoke all on function handle_new_user() from public;
+
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
