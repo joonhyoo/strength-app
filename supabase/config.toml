@@ -261,7 +261,7 @@ port = 465
 user = "resend"
 pass = "env(RESEND_API_KEY)"
 # admin_email = "onboarding@resend.dev"
-admin_email = "help@noreply.hyuji.dev"
+admin_email = "auth@noreply.hyuji.dev"
 sender_name = "Strength App"
 
 [auth.email.template.invite]
