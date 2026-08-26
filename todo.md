@@ -21,7 +21,6 @@ Real but not urgent at under 10 users.
 - [ ] Generate `src/database.types.ts` — `app.d.ts` imports a file that doesn't exist. `skipLibCheck` hides it, so it passes both build and svelte-check, but every Supabase query is effectively untyped
 - [ ] `robots.txt` allows all crawling (harmless — every route redirects when unauthenticated)
 - [ ] `manifest.json`: still no maskable icon (would need new artwork with a safe-zone design — `id`/`scope`/proper `name` casing already fixed, 2026-08-25)
-- [ ] Fix the `config.toml` template path — `./supabase/templates/…` resolves to `supabase/supabase/templates/…`
 - [ ] Delete `supabase/snippets/` — two "Untitled query" files, one a stale v1 schema with a hardcoded seeded UUID
 - [ ] `export const prerender = true` on `src/routes/auth/error/+page.svelte` — the only static route; everything else is SSR-on-demand because the root layout calls `getClaims()` every request
 - [ ] Trim the build: `playwright` and the `supabase` CLI are devDependencies and install on every Vercel build. Drop the dev-only Tailscale `allowedHosts` entry in `vite.config.ts`

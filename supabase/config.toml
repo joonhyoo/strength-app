@@ -161,7 +161,9 @@ site_url = "http://192.168.0.251:5173"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 external_url = "http://192.168.0.251:54321/auth/v1"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = []
+# Covers the coach-invite confirmation link's redirectTo when testing from
+# localhost instead of the LAN IP in site_url above.
+additional_redirect_urls = ["http://localhost:5173/auth/confirmed", "http://127.0.0.1:5173/auth/confirmed"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -247,6 +249,10 @@ otp_expiry = 3600
 subject = "Your sign-in code"
 content_path = "./supabase/templates/magic_link.html"
 
+[auth.email.template.confirmation]
+subject = "Confirm your email to get started"
+content_path = "./supabase/templates/confirmation.html"
+
 # Use a production-ready SMTP server
 [auth.email.smtp]
 enabled = true
@@ -258,10 +264,9 @@ pass = "env(RESEND_API_KEY)"
 admin_email = "help@noreply.hyuji.dev"
 sender_name = "Strength App"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+[auth.email.template.invite]
+subject = "You've been invited to Strength App"
+content_path = "./supabase/templates/invite.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
