@@ -1,7 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** Look up an exercise definition by name, creating it if it doesn't exist yet. */
-export async function getOrCreateExercise(supabase: SupabaseClient, name: string, category: string) {
+export async function getOrCreateExercise(
+	supabase: SupabaseClient,
+	name: string,
+	category: string
+) {
 	const { data: existing } = await supabase
 		.from('exercises')
 		.select('id, name, category')

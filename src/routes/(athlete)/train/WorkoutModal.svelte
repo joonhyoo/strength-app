@@ -2,10 +2,10 @@
 	import ArrowLeftFillIcon from '@iconify-svelte/mingcute/arrow-left-fill';
 	import ArrowRightFillIcon from '@iconify-svelte/mingcute/arrow-right-fill';
 	import { getWorkoutState } from '$lib/workoutState.svelte';
+	import { CONDITIONING_CATEGORIES } from '$lib/complete';
 
 	const workout = getWorkoutState();
 
-	const conditioning = ['warmup', 'circuit', 'plyo'];
 	let dialog = $state() as HTMLDialogElement;
 
 	$effect(() => {
@@ -26,7 +26,7 @@
 						{workout.selected.note}
 					</div>
 				{/if}
-				{#if !conditioning.includes(workout.selected.category)}
+				{#if !CONDITIONING_CATEGORIES.includes(workout.selected.category)}
 					<table class="table">
 						<thead>
 							<tr>
@@ -64,7 +64,7 @@
 				{/if}
 			</div>
 			<div class="modal-action mb-10 flex-col">
-				{#if conditioning.includes(workout.selected.category)}
+				{#if CONDITIONING_CATEGORIES.includes(workout.selected.category)}
 					<div>
 						<button
 							class={['btn', workout.isComplete(workout.selected) ? 'btn-success' : 'btn-soft']}

@@ -10,6 +10,7 @@
 	} from '$lib/data/exerciseLibrary.svelte';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import type { ExerciseCategory } from '$lib/types';
+	import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '$lib/data/categories';
 
 	// Streamed from the load function — null until the promise resolves, so
 	// the page (including the Add form) renders immediately.
@@ -23,14 +24,6 @@
 	});
 
 	let tab = $state<'programs' | 'exercises'>('programs');
-
-	const categoryLabel: Record<ExerciseCategory, string> = {
-		warmup: 'Warmup',
-		circuit: 'Circuit',
-		plyo: 'Plyo',
-		weight: 'Weight'
-	};
-	const categoryOptions: ExerciseCategory[] = ['warmup', 'circuit', 'plyo', 'weight'];
 
 	let newName = $state('');
 	let newCategory = $state<ExerciseCategory>('warmup');
@@ -166,8 +159,8 @@
 						<label class="form-control w-full">
 							<span class="label">Category</span>
 							<select class="select-bordered select" bind:value={newCategory}>
-								{#each categoryOptions as cat (cat)}
-									<option value={cat}>{categoryLabel[cat]}</option>
+								{#each CATEGORY_OPTIONS as cat (cat)}
+									<option value={cat}>{CATEGORY_LABEL[cat]}</option>
 								{/each}
 							</select>
 						</label>
@@ -193,14 +186,14 @@
 					{:else if exercises.length === 0}
 						<p class="py-6 text-center text-base-content/60">No exercises yet.</p>
 					{:else}
-						{#each categoryOptions as cat (cat)}
+						{#each CATEGORY_OPTIONS as cat (cat)}
 							{@const items = exercises.filter((ex) => ex.category === cat)}
 							{#if items.length > 0}
 								<div class="mt-3 first:mt-0">
 									<h3
 										class="mb-1 text-xs font-semibold tracking-wide text-base-content/60 uppercase"
 									>
-										{categoryLabel[cat]}
+										{CATEGORY_LABEL[cat]}
 									</h3>
 									<ul class="flex flex-col divide-y divide-base-200">
 										{#each items as item (item.id)}
@@ -217,8 +210,8 @@
 																class="select-bordered select select-sm"
 																bind:value={editCategory}
 															>
-																{#each categoryOptions as c (c)}
-																	<option value={c}>{categoryLabel[c]}</option>
+																{#each CATEGORY_OPTIONS as c (c)}
+																	<option value={c}>{CATEGORY_LABEL[c]}</option>
 																{/each}
 															</select>
 														</div>

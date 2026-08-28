@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { enhanceReplace } from '$lib/forms';
+	import CenteredColumn from '$lib/components/CenteredColumn.svelte';
 	import type { ActionData } from './$types';
 
 	let { form }: { form: ActionData } = $props();
@@ -16,9 +17,7 @@
 	<title>Strength App — Set up your profile</title>
 </svelte:head>
 
-<div
-	class="mx-auto flex min-h-[calc(100dvh-env(safe-area-inset-top))] max-w-md flex-col justify-center px-4 py-6"
->
+<CenteredColumn>
 	<div class="card bg-base-100 shadow-sm">
 		<div class="card-body">
 			<h2 class="card-title">Set up your profile</h2>
@@ -67,4 +66,4 @@
 			</form>
 		</div>
 	</div>
-</div>
+</CenteredColumn>

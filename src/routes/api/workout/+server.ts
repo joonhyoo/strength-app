@@ -53,7 +53,11 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 			if (workoutErr || !workout) return error(500, 'Failed to create workout');
 
-			const exerciseRecord = await getOrCreateExercise(supabase, exercise.activity, exercise.category);
+			const exerciseRecord = await getOrCreateExercise(
+				supabase,
+				exercise.activity,
+				exercise.category
+			);
 			if (!exerciseRecord) return error(500, 'Failed to create exercise');
 
 			// Get max position
@@ -98,7 +102,11 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 		case 'updateExercise': {
 			const { athleteExerciseId, exercise } = data;
 
-			const exerciseRecord = await getOrCreateExercise(supabase, exercise.activity, exercise.category);
+			const exerciseRecord = await getOrCreateExercise(
+				supabase,
+				exercise.activity,
+				exercise.category
+			);
 			if (!exerciseRecord) return error(500, 'Failed to create exercise');
 
 			// Delete old sets
@@ -107,7 +115,11 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			// Update exercise
 			const { error: updateErr } = await supabase
 				.from('athlete_exercises')
-				.update({ exercise_id: exerciseRecord.id, note: exercise.note, complete: exercise.complete })
+				.update({
+					exercise_id: exerciseRecord.id,
+					note: exercise.note,
+					complete: exercise.complete
+				})
 				.eq('id', athleteExerciseId);
 
 			if (updateErr) return error(500, 'Failed to update exercise');

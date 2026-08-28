@@ -9,19 +9,19 @@
 
 	let { form }: { form: ActionData } = $props();
 
+	type PendingInvite = { id: string; email: string; created_at: string };
+
 	// `athletes`/`pendingInvites` are streamed from their `load` functions —
 	// null until the promise resolves, so the rest of the page can render
 	// immediately instead of waiting on them.
 	let athletes = $state<Athlete[] | null>(null);
-	let pendingInvites = $state<{ id: string; email: string; created_at: string }[] | null>(null);
+	let pendingInvites = $state<PendingInvite[] | null>(null);
 
 	$effect(() => {
 		(page.data.athletes as Promise<Athlete[]>).then((list) => (athletes = list));
 	});
 	$effect(() => {
-		(page.data.pendingInvites as Promise<{ id: string; email: string; created_at: string }[]>).then(
-			(list) => (pendingInvites = list)
-		);
+		(page.data.pendingInvites as Promise<PendingInvite[]>).then((list) => (pendingInvites = list));
 	});
 
 	let inviting = $state(false);

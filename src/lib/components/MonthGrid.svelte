@@ -1,6 +1,7 @@
 <script lang="ts">
 	import LeftFillIcon from '@iconify-svelte/mingcute/left-fill';
 	import RightFillIcon from '@iconify-svelte/mingcute/right-fill';
+	import type { DayStatus } from '$lib/complete';
 
 	let {
 		selectedDate,
@@ -8,11 +9,11 @@
 		onselect
 	}: {
 		selectedDate: Date;
-		dayStatus: (dateKey: string) => 'none' | 'exists' | 'in_progress' | 'complete';
+		dayStatus: (dateKey: string) => DayStatus;
 		onselect: (date: Date) => void;
 	} = $props();
 
-	const dotColor: Record<'none' | 'exists' | 'in_progress' | 'complete', string> = {
+	const dotColor: Record<DayStatus, string> = {
 		none: '',
 		exists: 'bg-error',
 		in_progress: 'bg-warning',
