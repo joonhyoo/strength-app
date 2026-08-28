@@ -1,4 +1,5 @@
 import type { LayoutServerLoad } from './$types';
+import type { Role } from '$lib/types';
 
 export const load: LayoutServerLoad = async ({ locals: { supabase } }) => {
 	const { data: claimsData } = await supabase.auth.getClaims();
@@ -23,5 +24,9 @@ export const load: LayoutServerLoad = async ({ locals: { supabase } }) => {
 		return { user: null };
 	}
 
-	return { user: { ...profile, username: priv?.username ?? null } };
+	// profiles.role is `text` at the DB level (see database.types.ts), but a
+	// check constraint (`role in ('coach', 'athlete')`) already guarantees
+	// it can only be one of these two values — narrowing here, once, at the
+	// read boundary, rather than re-asserting it at every call site below.
+	return { user: { ...profile, role: profile.role as Role, username: priv?.username ?? null } };
 };
