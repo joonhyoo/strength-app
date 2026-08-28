@@ -1,6 +1,11 @@
 /// <reference types="@sveltejs/kit" />
 /// <reference lib="webworker" />
 
+// This file's mere presence is what makes SvelteKit auto-register it on
+// every route (kit.serviceWorker.register defaults to true, never
+// overridden in svelte.config.js) — no navigator.serviceWorker.register()
+// call exists anywhere in src/, and none is needed.
+
 import { build, files, version } from '$service-worker';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;

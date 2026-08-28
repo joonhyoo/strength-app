@@ -161,9 +161,13 @@ site_url = "http://192.168.0.251:5173"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 external_url = "http://192.168.0.251:54321/auth/v1"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# Covers the coach-invite confirmation link's redirectTo when testing from
-# localhost instead of the LAN IP in site_url above.
-additional_redirect_urls = ["http://localhost:5173/auth/confirmed", "http://127.0.0.1:5173/auth/confirmed"]
+# Covers the coach-invite confirmation link's redirectTo — the LAN-IP entry
+# is the one that actually matters (matches site_url, used for real testing
+# over SSH); localhost/127.0.0.1 kept for completeness. inviteUserByEmail's
+# real SMTP-mailer path silently falls back to bare site_url when redirectTo
+# isn't in this list — verified this is stricter than generateLink's/verify's
+# own handling, which accepted an unlisted redirectTo without complaint.
+additional_redirect_urls = ["http://localhost:5173/auth/confirmed", "http://127.0.0.1:5173/auth/confirmed", "http://192.168.0.251:5173/auth/confirmed"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

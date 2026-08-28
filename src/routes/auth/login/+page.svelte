@@ -1,16 +1,17 @@
 <script lang="ts">
 	import AuthForm from '$lib/components/AuthForm.svelte';
-	import type { ActionData } from './$types.js';
+	import type { ActionData, PageData } from './$types.js';
 
 	interface Props {
+		data: PageData;
 		form: ActionData;
 	}
 
-	let { form }: Props = $props();
+	let { data, form }: Props = $props();
 </script>
 
 <svelte:head>
 	<title>Strength App — Sign In</title>
 </svelte:head>
 
-<AuthForm {form} />
+<AuthForm confirmed={data.confirmed} {form} />

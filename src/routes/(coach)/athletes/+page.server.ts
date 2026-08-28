@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 };
 
 export const actions: Actions = {
-	invite_athlete: async ({ request, url, locals: { supabase } }) => {
+	invite_athlete: async ({ request, locals: { supabase } }) => {
 		const formData = await request.formData();
 		const email = (formData.get('email') as string)?.trim();
 
@@ -54,9 +54,7 @@ export const actions: Actions = {
 		// doesn't need to fail the whole action: the athlete can still self-serve
 		// via /auth/login's existing send_code flow even without this email.
 		const admin = adminClient();
-		const { error: emailError } = await admin.auth.admin.inviteUserByEmail(email, {
-			redirectTo: `${url.origin}/auth/confirmed`
-		});
+		const { error: emailError } = await admin.auth.admin.inviteUserByEmail(email);
 
 		if (emailError) {
 			console.error('inviteUserByEmail failed:', emailError);

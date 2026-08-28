@@ -4,10 +4,10 @@ import type { Actions, PageServerLoad } from './$types';
 import { roleHome, roleHomeFor } from '$lib/guards';
 import { adminClient } from '$lib/server/supabaseAdmin';
 
-export const load: PageServerLoad = async ({ parent }) => {
+export const load: PageServerLoad = async ({ parent, url }) => {
 	const { user } = await parent();
 	if (user) redirect(303, roleHome(user.role));
-	return {};
+	return { confirmed: url.searchParams.get('confirmed') === '1' };
 };
 
 export const actions: Actions = {
