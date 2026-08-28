@@ -239,7 +239,7 @@
 	</div>
 
 	{#if confirmed && !(showVerify && !showEmailStep)}
-		<p class="mb-4 text-center text-sm text-base-content/60">Email confirmed! Sign in to continue.</p>
+		<p class="text-success mb-2 text-sm ">Email confirmed! Sign in to continue.</p>
 	{/if}
 
 	{#if errorMessage}
