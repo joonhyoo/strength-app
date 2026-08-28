@@ -14,3 +14,8 @@ bun.lockb
 .claude/
 supabase/.temp/
 supabase/.branches/
+
+# Generated (tracked in git, unlike the above) — output of
+# `supabase gen types typescript`, always in the CLI's own 2-space style.
+# Reformatting it would just drift back on every regeneration.
+src/database.types.ts

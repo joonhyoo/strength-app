@@ -17,6 +17,9 @@ const supabaseGitignorePath = path.resolve(import.meta.dirname, 'supabase/.gitig
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
 	includeIgnoreFile(supabaseGitignorePath, 'supabase/.gitignore'),
+	// Generated (tracked in git, so not covered by the ignore files above) —
+	// output of `supabase gen types typescript`, not hand-authored source.
+	{ ignores: ['src/database.types.ts'] },
 	js.configs.recommended,
 	ts.configs.recommended,
 	svelte.configs.recommended,
