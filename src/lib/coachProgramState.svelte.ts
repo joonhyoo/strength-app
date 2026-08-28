@@ -19,7 +19,7 @@ class CoachProgramState {
 	selectedAthleteId = $state<string | null>(null);
 	selectedDate = $state<Date>(new Date());
 	modalOpen = $state(false);
-	editingExerciseId = $state<string | null>(null);
+	editingExercise = $state<Exercise | null>(null);
 	statusMap = $state<SvelteMap<string, DayStatus>>(new SvelteMap());
 	revision = $state(0);
 
@@ -32,25 +32,26 @@ class CoachProgramState {
 	}
 
 	openModal() {
-		this.editingExerciseId = null;
+		this.editingExercise = null;
 		this.modalOpen = true;
 	}
 
-	openEdit(athleteExerciseId: string) {
-		this.editingExerciseId = athleteExerciseId;
+	openEdit(exercise: Exercise) {
+		this.editingExercise = exercise;
 		this.modalOpen = true;
 	}
 
 	closeModal() {
 		this.modalOpen = false;
-		this.editingExerciseId = null;
+		this.editingExercise = null;
 	}
 
 	async saveExercise(exercise: Exercise) {
 		if (this.selectedAthleteId === null) return;
 		const dateKey = this.selectedDate.toLocaleDateString('fr-CA');
-		if (this.editingExerciseId !== null) {
-			await updateScheduledExercise(this.editingExerciseId, exercise);
+		const editingId = this.editingExercise?.id;
+		if (editingId) {
+			await updateScheduledExercise(editingId, exercise);
 		} else {
 			await addExerciseToDay(this.selectedAthleteId, dateKey, exercise);
 		}

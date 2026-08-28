@@ -6,7 +6,6 @@
 	import { seedExerciseLibrary } from '$lib/data/exerciseLibrary.svelte';
 	import MonthGrid from '$lib/components/MonthGrid.svelte';
 	import WorkoutTimeline from './WorkoutTimeline.svelte';
-	import AddExerciseModal from './AddExerciseModal.svelte';
 	import type { Athlete } from '$lib/types';
 
 	const program = getCoachProgramState();
@@ -106,5 +105,13 @@
 </div>
 
 {#if athlete && program.modalOpen}
-	<AddExerciseModal />
+	{#await import('./AddExerciseModal.svelte') then { default: AddExerciseModal }}
+		<AddExerciseModal />
+	{:catch}
+		<p
+			class="fixed inset-x-0 bottom-4 z-50 mx-auto w-fit rounded-lg bg-error px-4 py-2 text-sm text-error-content shadow-lg"
+		>
+			Couldn't load — please reload the page.
+		</p>
+	{/await}
 {/if}

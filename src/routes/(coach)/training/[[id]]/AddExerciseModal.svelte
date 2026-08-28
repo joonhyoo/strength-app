@@ -6,8 +6,8 @@
 		addExerciseDefinition,
 		loadExerciseLibrary
 	} from '$lib/data/exerciseLibrary.svelte';
-	import { getWorkoutDay } from '$lib/services/workoutService.svelte';
 	import type { Exercise, ExerciseCategory } from '$lib/types';
+	import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '$lib/data/categories';
 
 	const NOTE_MAX_HEIGHT_PX = 192; // matches max-h-48
 
@@ -35,10 +35,8 @@
 
 	const program = getCoachProgramState();
 
-	const dateKey = $derived(program.selectedDate.toLocaleDateString('fr-CA'));
-
 	const library = $derived(getExerciseLibrary());
-	let editingExercise = $state<Exercise | undefined>(undefined);
+	const editingExercise = $derived(program.editingExercise);
 
 	let creatingNew = $state(false);
 	let selectedName = $state('');
@@ -51,16 +49,6 @@
 
 	$effect(() => {
 		loadExerciseLibrary();
-	});
-
-	$effect(() => {
-		if (program.editingExerciseId !== null && program.selectedAthleteId !== null) {
-			getWorkoutDay(program.selectedAthleteId, dateKey).then((day) => {
-				editingExercise = day.find((exercise) => exercise.id === program.editingExerciseId);
-			});
-		} else {
-			editingExercise = undefined;
-		}
 	});
 
 	$effect(() => {
@@ -87,7 +75,7 @@
 		}
 	});
 
-	const isEditing = $derived(program.editingExerciseId !== null);
+	const isEditing = $derived(program.editingExercise !== null);
 
 	const category = $derived.by(() => {
 		if (creatingNew) return newCategory;
@@ -95,15 +83,6 @@
 	});
 
 	const isWeight = $derived(category === 'weight');
-
-	const categoryLabel: Record<ExerciseCategory, string> = {
-		warmup: 'Warmup',
-		circuit: 'Circuit',
-		plyo: 'Plyo',
-		weight: 'Weight'
-	};
-
-	const categoryOptions: ExerciseCategory[] = ['warmup', 'circuit', 'plyo', 'weight'];
 
 	const exerciseName = $derived(creatingNew ? newName.trim() : selectedName);
 
@@ -153,10 +132,10 @@
 				<label class="form-control w-full">
 					<span class="label">Exercise</span>
 					<select class="select-bordered select" bind:value={selectedName}>
-						{#each categoryOptions as cat (cat)}
+						{#each CATEGORY_OPTIONS as cat (cat)}
 							{@const items = library.filter((item) => item.category === cat)}
 							{#if items.length > 0}
-								<optgroup label={categoryLabel[cat]}>
+								<optgroup label={CATEGORY_LABEL[cat]}>
 									{#each items as item (item.name)}
 										<option value={item.name}>{item.name}</option>
 									{/each}
@@ -165,7 +144,7 @@
 						{/each}
 					</select>
 					<span class="label -mt-1 text-base-content/60">
-						Category: {categoryLabel[category]}
+						Category: {CATEGORY_LABEL[category]}
 					</span>
 				</label>
 			{/if}
@@ -184,8 +163,8 @@
 				<label class="form-control w-full">
 					<span class="label">Category</span>
 					<select class="select-bordered select" bind:value={newCategory}>
-						{#each categoryOptions as cat (cat)}
-							<option value={cat}>{categoryLabel[cat]}</option>
+						{#each CATEGORY_OPTIONS as cat (cat)}
+							<option value={cat}>{CATEGORY_LABEL[cat]}</option>
 						{/each}
 					</select>
 				</label>
