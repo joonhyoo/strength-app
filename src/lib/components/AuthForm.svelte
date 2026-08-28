@@ -25,9 +25,10 @@
 
 	interface Props {
 		form: AuthFormData | null | undefined;
+		confirmed?: boolean;
 	}
 
-	let { form }: Props = $props();
+	let { form, confirmed = false }: Props = $props();
 
 	let loading = $state(false);
 	// svelte-ignore state_referenced_locally -- intentional one-time seed from
@@ -76,7 +77,17 @@
 	// reload wipes — restore it from localStorage so a reload (or the PWA
 	// getting backgrounded and reopened) doesn't strand the user back on the
 	// email screen mid-verification. See src/lib/authCodeCooldown.ts.
-	const pending = getPendingVerify();
+	//
+	// Landing here with `confirmed=1` (fresh from /auth/confirmed) takes
+	// priority over a leftover pending verification from an earlier visit —
+	// otherwise the restored code-entry screen silently hides the "Email
+	// confirmed" banner below them, since the two are mutually exclusive.
+	// svelte-ignore state_referenced_locally -- `confirmed` reflects the URL
+	// at this SSR'd load, a one-time read same as `form` below, not something
+	// that changes live within the component's lifetime.
+	if (confirmed) clearPendingVerify();
+	// svelte-ignore state_referenced_locally -- see above, this is deliberate.
+	const pending = confirmed ? null : getPendingVerify();
 	let showVerify = $state(!!pending);
 	let verifyEmail = $state(pending?.email ?? '');
 	let verifyAgreed = $state(pending?.agreed ?? false);
@@ -168,7 +179,11 @@
 		onDone: () => {
 			loading = false;
 			errorMessage = form?.message;
-		}
+		},
+		// emailValue is bind:value-owned state seeded once from form?.email, not
+		// resynced every render — a native reset would blank the DOM without
+		// telling it (see src/lib/forms.ts).
+		resetOnSuccess: false
 	});
 
 	const testAccounts = [
@@ -222,6 +237,10 @@
 					: 'Sign in'}
 		</h1>
 	</div>
+
+	{#if confirmed && !(showVerify && !showEmailStep)}
+		<p class="text-success mb-2 text-sm ">Email confirmed! Sign in to continue.</p>
+	{/if}
 
 	{#if errorMessage}
 		<div class="mb-4 rounded-lg bg-error/10 p-3 text-center text-sm text-error">

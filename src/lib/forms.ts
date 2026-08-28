@@ -14,6 +14,14 @@ export function enhanceReplace(
 		onDone?: () => void;
 		onRedirect?: () => void;
 		confirm?: () => boolean;
+		/**
+		 * Whether a non-redirect success should run a native `<form>.reset()`.
+		 * Defaults to `true` (SvelteKit's own default) — set `false` only for a
+		 * form with a `bind:value` field seeded once from `form?.x` (not kept in
+		 * sync every render), since a native reset blanks that field's DOM value
+		 * without firing the `input` event `bind:value` needs to resync.
+		 */
+		resetOnSuccess?: boolean;
 	} = {}
 ): SubmitFunction {
 	return ({ cancel }) => {
@@ -41,12 +49,7 @@ export function enhanceReplace(
 				// eslint-disable-next-line svelte/no-navigation-without-resolve
 				await goto(result.location, { replaceState: true, invalidateAll: true });
 			} else {
-				// Default `update()` runs a native `<form>.reset()` on a
-				// non-redirect success (e.g. the "agree" step re-rendering the
-				// same email form). That reset doesn't fire an input event, so
-				// it blanks the DOM value without telling `bind:value` — every
-				// field here is already Svelte-state-owned, so skip it.
-				await update({ reset: false });
+				await update({ reset: hooks.resetOnSuccess ?? true });
 			}
 			hooks.onDone?.();
 		};

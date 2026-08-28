@@ -30,9 +30,7 @@ Real but not urgent at under 10 users.
 
 - Create a design palette (impeccable)
 - Add url link for video demo (figure that out)
-- Coach can view all created exercises
-- Coach can edit created exercises
-- Move Privacy Policy / Terms of Service to a separate domain instead of in-app routes. Currently `src/routes/privacy` and `src/routes/terms`, linked from the consent checkbox shown at the "agree" step of sign-up (`src/lib/components/AuthForm.svelte`) and the athlete profile page (`src/routes/(athlete)/profile/+page.svelte`). When moved, update both links to point externally and decide whether to keep or remove the in-app routes.
+- Visual for what cycle/lift they are doing (labels or smth figure it out)
 
 ## Scaled approach for multiple groups of athletes (highly unlikely for project scope)
 
