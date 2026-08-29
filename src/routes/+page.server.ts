@@ -13,7 +13,16 @@ export const load: PageServerLoad = async ({ parent, cookies }) => {
 	// the cookie is stale or tampered with — an invalid/wrong-role value
 	// still gets caught by the (athlete)/(coach) layout guards on load.
 	const lastRoute = cookies.get(LAST_ROUTE_COOKIE);
-	const decoded = lastRoute && decodeURIComponent(lastRoute);
+	// A malformed value (bad percent-encoding) throws here rather than
+	// failing the `isResumableRoute` check below — since the cookie is
+	// client-controlled, decode defensively rather than let a tampered
+	// cookie 500 the root route.
+	let decoded: string | null = null;
+	try {
+		decoded = lastRoute ? decodeURIComponent(lastRoute) : null;
+	} catch {
+		// Falls through to roleHome() below.
+	}
 	const destination = decoded && isResumableRoute(decoded) ? decoded : roleHome(user?.role ?? null);
 
 	redirect(303, destination);

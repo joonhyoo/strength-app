@@ -4,11 +4,12 @@
 	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
 	import ArrowUpLineIcon from '@iconify-svelte/mingcute/arrow-up-line';
 	import ArrowDownLineIcon from '@iconify-svelte/mingcute/arrow-down-line';
-	import { SvelteMap } from 'svelte/reactivity';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getCachedWorkoutDay, getWorkoutDay } from '$lib/services/workoutService.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
-	import type { Exercise, ExerciseCategory } from '$lib/types';
+	import type { Exercise } from '$lib/types';
+	import { CATEGORY_LABEL } from '$lib/data/categories';
+	import { formatPlan } from '$lib/formatPlan';
 
 	const program = getCoachProgramState();
 
@@ -44,26 +45,6 @@
 		});
 	});
 
-	const categoryLabel: Record<ExerciseCategory, string> = {
-		warmup: 'Warmup',
-		circuit: 'Circuit',
-		plyo: 'Plyo',
-		weight: 'Weight'
-	};
-
-	const formatPlan = (plan: number[]) => {
-		if (plan.length === 0) return '';
-
-		const counts = new SvelteMap<number, number>();
-		for (const reps of plan) {
-			counts.set(reps, (counts.get(reps) ?? 0) + 1);
-		}
-
-		return [...counts.entries()]
-			.map(([num, count]) => (count > 1 ? `${count} x ${num}` : `${num}`))
-			.join(', ');
-	};
-
 	async function handleRemove(id: string) {
 		await program.removeExercise(id);
 	}
@@ -97,7 +78,7 @@
 								<div class="flex items-baseline gap-2">
 									<span class="font-medium">{exercise.activity}</span>
 									<span class="text-xs text-base-content/50"
-										>{categoryLabel[exercise.category]}</span
+										>{CATEGORY_LABEL[exercise.category]}</span
 									>
 								</div>
 								{#if formatPlan(exercise.plan) || exercise.note}
@@ -130,7 +111,7 @@
 								<button
 									class="btn text-secondary btn-ghost btn-xs"
 									aria-label={`Edit ${exercise.activity}`}
-									onclick={() => exercise.id && program.openEdit(exercise.id)}
+									onclick={() => exercise.id && program.openEdit(exercise)}
 								>
 									<EditBoxLineIcon height="1.2em" />
 								</button>

@@ -1,29 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import type { SupabaseClient } from '@supabase/supabase-js';
-
-/** Look up an exercise definition by name, creating it if it doesn't exist yet. */
-async function getOrCreateExerciseId(
-	supabase: SupabaseClient,
-	name: string,
-	category: string
-): Promise<string | null> {
-	const { data: existing } = await supabase
-		.from('exercises')
-		.select('id')
-		.eq('name', name)
-		.maybeSingle();
-
-	if (existing) return existing.id;
-
-	const { data: created } = await supabase
-		.from('exercises')
-		.insert({ name, category })
-		.select('id')
-		.single();
-
-	return created?.id ?? null;
-}
+import { getOrCreateExercise } from '$lib/server/exercises';
 
 export const POST: RequestHandler = async ({ request, locals: { supabase } }) => {
 	const body = await request.json();
@@ -76,12 +53,12 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 			if (workoutErr || !workout) return error(500, 'Failed to create workout');
 
-			const exerciseId = await getOrCreateExerciseId(
+			const exerciseRecord = await getOrCreateExercise(
 				supabase,
 				exercise.activity,
 				exercise.category
 			);
-			if (!exerciseId) return error(500, 'Failed to create exercise');
+			if (!exerciseRecord) return error(500, 'Failed to create exercise');
 
 			// Get max position
 			const { data: maxPos } = await supabase
@@ -99,7 +76,7 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 				.from('athlete_exercises')
 				.insert({
 					athlete_workout_id: workout.id,
-					exercise_id: exerciseId,
+					exercise_id: exerciseRecord.id,
 					position,
 					note: exercise.note,
 					complete: exercise.complete
@@ -125,12 +102,12 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 		case 'updateExercise': {
 			const { athleteExerciseId, exercise } = data;
 
-			const exerciseId = await getOrCreateExerciseId(
+			const exerciseRecord = await getOrCreateExercise(
 				supabase,
 				exercise.activity,
 				exercise.category
 			);
-			if (!exerciseId) return error(500, 'Failed to create exercise');
+			if (!exerciseRecord) return error(500, 'Failed to create exercise');
 
 			// Delete old sets
 			await supabase.from('athlete_sets').delete().eq('athlete_exercise_id', athleteExerciseId);
@@ -138,7 +115,11 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			// Update exercise
 			const { error: updateErr } = await supabase
 				.from('athlete_exercises')
-				.update({ exercise_id: exerciseId, note: exercise.note, complete: exercise.complete })
+				.update({
+					exercise_id: exerciseRecord.id,
+					note: exercise.note,
+					complete: exercise.complete
+				})
 				.eq('id', athleteExerciseId);
 
 			if (updateErr) return error(500, 'Failed to update exercise');
@@ -219,10 +200,16 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 		}
 
 		case 'updateSet': {
-			const { setId, field, value } = data;
-			const update: Record<string, unknown> = {
-				[field]: field === 'reps' ? (value ? Number(value) : null) : value
-			};
+			const { setId, value } = data;
+			// Narrow via `unknown`, not the `data`/`field` `any` above — `any`
+			// isn't narrowed by an equality check the way `unknown` is.
+			const field: unknown = data.field;
+			if (field !== 'weight' && field !== 'reps') return error(400, 'Invalid field');
+			// A computed key (`{ [field]: value }`) doesn't type-check against
+			// athlete_sets' real column shape even once `field` is narrowed —
+			// TS widens a computed key back to a string index signature rather
+			// than distributing over the union. Branching avoids that entirely.
+			const update = field === 'reps' ? { reps: value ? Number(value) : null } : { weight: value };
 			const { error: updateErr } = await supabase
 				.from('athlete_sets')
 				.update(update)

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { SvelteMap } from 'svelte/reactivity';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import type { ExerciseCategory } from '$lib/types';
+	import { formatPlan } from '$lib/formatPlan';
 
 	let { category, activity, plan, complete, onselect } = $props<{
 		category: ExerciseCategory;
@@ -10,20 +10,6 @@
 		complete: boolean;
 		onselect: () => void;
 	}>();
-
-	const formatPlan = (plan: number[]) => {
-		if (plan.length === 0) return '';
-
-		const counts = new SvelteMap<number, number>();
-
-		for (const reps of plan) {
-			counts.set(reps, (counts.get(reps) ?? 0) + 1);
-		}
-
-		return [...counts.entries()]
-			.map(([num, count]) => (count > 1 ? `${count} x ${num}` : `${num}`))
-			.join(', ');
-	};
 </script>
 
 <button

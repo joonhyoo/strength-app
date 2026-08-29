@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { getOrCreateExercise } from '$lib/server/exercises';
 
 export const POST: RequestHandler = async ({ request, locals: { supabase } }) => {
 	const body = await request.json();
@@ -17,22 +18,9 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 		case 'create': {
 			const { name, category } = data;
-			const { data: existing } = await supabase
-				.from('exercises')
-				.select('id')
-				.eq('name', name)
-				.maybeSingle();
-
-			if (existing) return json({ data: existing });
-
-			const { data: created, error: createErr } = await supabase
-				.from('exercises')
-				.insert({ name, category })
-				.select('id')
-				.single();
-
-			if (createErr) return error(500, 'Failed to create exercise');
-			return json({ data: created });
+			const exercise = await getOrCreateExercise(supabase, name, category);
+			if (!exercise) return error(500, 'Failed to create exercise');
+			return json({ data: exercise });
 		}
 
 		case 'update': {

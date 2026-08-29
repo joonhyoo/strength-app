@@ -1,10 +1,12 @@
+<script lang="ts">
+	import CenteredColumn from '$lib/components/CenteredColumn.svelte';
+</script>
+
 <svelte:head>
 	<title>Strength App — Waiting for coach</title>
 </svelte:head>
 
-<div
-	class="mx-auto flex min-h-[calc(100dvh-env(safe-area-inset-top))] max-w-md flex-col justify-center px-4 py-6"
->
+<CenteredColumn>
 	<div class="card bg-base-100 shadow-sm">
 		<div class="card-body">
 			<h2 class="card-title">Not linked to a coach yet</h2>
@@ -14,4 +16,4 @@
 			</p>
 		</div>
 	</div>
-</div>
+</CenteredColumn>
