@@ -1,7 +1,12 @@
 import type { LayoutServerLoad } from './$types';
 import type { Role } from '$lib/types';
 
-export const load: LayoutServerLoad = async ({ locals: { supabase } }) => {
+export const load: LayoutServerLoad = async ({ url, locals: { supabase } }) => {
+	// `/` is a prerendered, user-agnostic splash shell (see src/routes/+page.ts)
+	// that redirects client-side. Return early so the build never resolves a
+	// session for it and no user data is baked into that shared, cacheable HTML.
+	if (url.pathname === '/') return { user: null };
+
 	const { data: claimsData } = await supabase.auth.getClaims();
 	const userId = claimsData?.claims?.sub;
 
