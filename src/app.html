@@ -6,6 +6,7 @@
 		<link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/icon-180.png" />
+		<link rel="apple-touch-startup-image" href="%sveltekit.assets%/splash.png" />
 		<meta name="theme-color" content="#0D0D0F" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
@@ -21,6 +22,54 @@
 		up the DOM, so declaring it on <body> covers the whole app.
 	-->
 	<body data-sveltekit-preload-data="tap" data-sveltekit-replacestate>
+		<!--
+			Static splash painted on the first byte of HTML, before any JS loads
+			or hydrates — so a cold PWA launch shows the mark on the app's dark
+			ground instead of a blank white flash. Removed by the root
+			+layout.svelte once mounted (fade via .is-hiding); the inline script
+			below is a fallback for the no-JS-hydration case. Inline only — the
+			CSP/offline path can't depend on an external stylesheet or image.
+		-->
+		<div id="app-splash" aria-hidden="true">
+			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="96" height="96">
+				<defs>
+					<linearGradient id="splashGradient" x1="0" y1="0" x2="1" y2="1">
+						<stop offset="0%" stop-color="#F1E0C5" />
+						<stop offset="50%" stop-color="#F46036" />
+						<stop offset="100%" stop-color="#D7263D" />
+					</linearGradient>
+				</defs>
+				<path
+					fill="url(#splashGradient)"
+					d="M 21.6,7.231 L 21.6,15.603 A 0.645,0.645 0 0,1 21.308,16.109 L 21.033,16.273 C 19.665,17.065 18.46,17.762 17.243,18.464 L 17.243,9.41 L 9.404,4.878 C 10.761,4.099 12.113,3.313 13.471,2.538 A 0.647,0.647 0 0,1 14.055,2.538 L 21.599,6.894 L 21.599,7.231 L 21.6,7.231 M 14.549,11.792 L 14.549,18.071 A 0.484,0.484 0 0,1 14.329,18.451 L 14.124,18.574 C 13.097,19.168 12.194,19.691 11.281,20.217 L 11.281,13.427 L 5.402,10.028 C 6.419,9.444 7.433,8.854 8.452,8.272 A 0.485,0.485 0 0,1 8.89,8.272 L 14.548,11.54 L 14.548,11.792 L 14.549,11.792 M 9.26,15.213 L 9.26,19.923 A 0.363,0.363 0 0,1 9.096,20.207 L 8.941,20.3 C 8.172,20.745 7.494,21.137 6.81,21.532 L 6.81,16.439 L 2.4,13.89 C 3.163,13.452 3.923,13.009 4.687,12.573 A 0.364,0.364 0 0,1 5.016,12.573 L 9.259,15.024 L 9.259,15.213 L 9.26,15.213"
+				/>
+			</svg>
+		</div>
+		<style>
+			#app-splash {
+				position: fixed;
+				inset: 0;
+				z-index: 2147483647;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				background: #0d0d0f;
+				opacity: 1;
+				transition: opacity 0.25s ease-out;
+			}
+			#app-splash.is-hiding {
+				opacity: 0;
+			}
+		</style>
+		<script>
+			// Fallback only — the app normally removes #app-splash on mount.
+			addEventListener('load', function () {
+				setTimeout(function () {
+					var s = document.getElementById('app-splash');
+					if (s) s.remove();
+				}, 4000);
+			});
+		</script>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>
