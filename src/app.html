@@ -22,6 +22,31 @@
 		up the DOM, so declaring it on <body> covers the whole app.
 	-->
 	<body data-sveltekit-preload-data="tap" data-sveltekit-replacestate>
+		<script>
+			// Cold-launch bootstrap. `/` is a prerendered, user-agnostic splash
+			// shell the service worker serves from cache with no round-trip; this
+			// runs the instant that cached HTML is parsed — before any framework
+			// JS — and sends a returning user straight to their real route.
+			// Wrong guesses self-correct: the (athlete)/(coach) guards re-check
+			// auth + role on the destination. See src/routes/+page.svelte.
+			(function () {
+				if (location.pathname !== '/') return;
+				var RESUMABLE =
+					/^\/(train|profile|records|calendar|dashboard|training|library|athletes)(\/|$)/;
+				function read(name) {
+					var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+					if (!m) return null;
+					try {
+						return decodeURIComponent(m[1]);
+					} catch (e) {
+						return null;
+					}
+				}
+				var last = read('last-route');
+				var dest = last && RESUMABLE.test(last) ? last : read('home') || '/auth/login';
+				if (dest && dest !== '/') location.replace(dest);
+			})();
+		</script>
 		<!--
 			Static splash painted on the first byte of HTML, before any JS loads
 			or hydrates — so a cold PWA launch shows the mark on the app's dark

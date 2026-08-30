@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { HOME_COOKIE, LAST_ROUTE_COOKIE } from '$lib/guards';
 
 // Where the coach-invite confirmation link lands. Unlike GoTrue's own
 // /auth/v1/verify redirect endpoint — which reports success/failure only in
@@ -7,7 +8,7 @@ import type { PageServerLoad } from './$types';
 // directly (invite.html sends `?token_hash={{ .TokenHash }}`, not
 // {{ .ConfirmationURL }}), so verification happens right here and the
 // result is an ordinary {data, error} this load can branch on.
-export const load: PageServerLoad = async ({ url, locals: { supabase } }) => {
+export const load: PageServerLoad = async ({ url, locals: { supabase }, cookies }) => {
 	const tokenHash = url.searchParams.get('token_hash');
 
 	const { error } = tokenHash
@@ -20,6 +21,8 @@ export const load: PageServerLoad = async ({ url, locals: { supabase } }) => {
 	// athlete goes through the normal OTP-code flow for their first real
 	// sign-in.
 	await supabase.auth.signOut();
+	cookies.delete(HOME_COOKIE, { path: '/' });
+	cookies.delete(LAST_ROUTE_COOKIE, { path: '/' });
 
 	redirect(303, error ? '/auth/login' : '/auth/login?confirmed=1');
 };

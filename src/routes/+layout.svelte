@@ -4,30 +4,48 @@
 	import { afterNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { isResumableRoute, LAST_ROUTE_COOKIE } from '$lib/guards';
+	import { HOME_COOKIE, isResumableRoute, LAST_ROUTE_COOKIE, roleHome } from '$lib/guards';
 
 	let { children } = $props();
 
-	// Dismiss the static splash from src/app.html now that the app has
-	// hydrated and is painting real content. Fade first, then remove.
-	onMount(() => {
+	const COOKIE_MAX_AGE = 60 * 60 * 24 * 180; // 180 days
+
+	function writeCookie(name: string, value: string) {
+		const secure = location.protocol === 'https:' ? '; Secure' : '';
+		document.cookie =
+			`${name}=${encodeURIComponent(value)}; path=/; ` +
+			`max-age=${COOKIE_MAX_AGE}; SameSite=Lax${secure}`;
+	}
+
+	// Dismiss the static splash from src/app.html once a real content route is
+	// on screen. Guarded against `/` — that route is a bare splash shell that
+	// immediately redirects, so removing the splash there would flash an empty
+	// page while the destination loads.
+	function dismissSplash() {
+		if (page.url.pathname === '/') return;
 		const splash = document.getElementById('app-splash');
 		if (!splash) return;
 		splash.classList.add('is-hiding');
 		splash.addEventListener('transitionend', () => splash.remove(), { once: true });
 		setTimeout(() => splash.remove(), 600);
-	});
+	}
 
-	// Remembers the last route so a closed-and-relaunched PWA (which always
-	// re-requests `/`, per manifest start_url) can resume there instead of
-	// always landing back on the section home — see src/routes/+page.server.ts.
+	onMount(dismissSplash);
+
 	afterNavigate(() => {
-		if (!isResumableRoute(page.url.pathname)) return;
-		const path = page.url.pathname + page.url.search;
-		const secure = location.protocol === 'https:' ? '; Secure' : '';
-		document.cookie =
-			`${LAST_ROUTE_COOKIE}=${encodeURIComponent(path)}; path=/; ` +
-			`max-age=${60 * 60 * 24 * 180}; SameSite=Lax${secure}`;
+		dismissSplash();
+
+		// Keep the client-readable role-home hint fresh, so the prerendered `/`
+		// shell can route a returning user without a server lookup — covers
+		// anyone who authenticated before this cookie was introduced.
+		const role = page.data.user?.role;
+		if (role) writeCookie(HOME_COOKIE, roleHome(role));
+
+		// Remembers the last route so a closed-and-relaunched PWA (which always
+		// re-requests `/`, per manifest start_url) can resume there.
+		if (isResumableRoute(page.url.pathname)) {
+			writeCookie(LAST_ROUTE_COOKIE, page.url.pathname + page.url.search);
+		}
 	});
 </script>
 

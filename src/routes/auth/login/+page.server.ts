@@ -1,7 +1,14 @@
 import { dev } from '$app/environment';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { roleHome, roleHomeFor } from '$lib/guards';
+import { HOME_COOKIE, LAST_ROUTE_COOKIE, roleHome, roleHomeFor } from '$lib/guards';
+
+const HOME_COOKIE_OPTS = {
+	path: '/' as const,
+	httpOnly: false,
+	sameSite: 'lax' as const,
+	maxAge: 60 * 60 * 24 * 180 // 180 days
+};
 import { adminClient } from '$lib/server/supabaseAdmin';
 
 export const load: PageServerLoad = async ({ parent, url }) => {
@@ -11,7 +18,7 @@ export const load: PageServerLoad = async ({ parent, url }) => {
 };
 
 export const actions: Actions = {
-	quick_login: async ({ request, locals: { supabase } }) => {
+	quick_login: async ({ request, locals: { supabase }, cookies }) => {
 		if (!dev) return fail(404, { message: 'Not found' });
 
 		const formData = await request.formData();
@@ -41,7 +48,9 @@ export const actions: Actions = {
 			return fail(400, { message: 'Quick login failed' });
 		}
 
-		redirect(303, await roleHomeFor(supabase, otpData.user.id));
+		const home = await roleHomeFor(supabase, otpData.user.id);
+		cookies.set(HOME_COOKIE, home, HOME_COOKIE_OPTS);
+		redirect(303, home);
 	},
 
 	send_code: async ({ request, locals: { supabase } }) => {
@@ -99,7 +108,7 @@ export const actions: Actions = {
 		return { step: 'verify', email, agreed: invited };
 	},
 
-	verify_code: async ({ request, locals: { supabase } }) => {
+	verify_code: async ({ request, locals: { supabase }, cookies }) => {
 		const formData = await request.formData();
 		const email = formData.get('email') as string;
 		const token = formData.get('token') as string;
@@ -130,11 +139,17 @@ export const actions: Actions = {
 			await supabase.rpc('accept_terms');
 		}
 
-		redirect(303, await roleHomeFor(supabase, otpData.user.id));
+		const home = await roleHomeFor(supabase, otpData.user.id);
+		cookies.set(HOME_COOKIE, home, HOME_COOKIE_OPTS);
+		redirect(303, home);
 	},
 
-	logout: async ({ locals: { supabase } }) => {
+	logout: async ({ locals: { supabase }, cookies }) => {
 		await supabase.auth.signOut();
+		// Clear the launch hints so a relaunch after logout goes straight to
+		// /auth/login instead of bouncing through a section guard.
+		cookies.delete(HOME_COOKIE, { path: '/' });
+		cookies.delete(LAST_ROUTE_COOKIE, { path: '/' });
 		redirect(303, '/auth/login');
 	}
 };

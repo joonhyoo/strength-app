@@ -6,14 +6,19 @@
 // overridden in svelte.config.js) — no navigator.serviceWorker.register()
 // call exists anywhere in src/, and none is needed.
 
-import { build, files, version } from '$service-worker';
+import { build, files, prerendered, version } from '$service-worker';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
 const CACHE = `strength-app-${version}`;
 
-/** Build output is content-hashed and `files` are static — both are safe to cache-first. */
-const PRECACHE = [...build, ...files];
+// Build output is content-hashed and `files` are static — both safe to
+// cache-first. `prerendered` here is just `/` (the splash shell) and
+// `/auth/error`: both are rendered at build time with no request context, so
+// they carry zero session data and are the one class of navigation safe to
+// serve from a shared cache — see the fetch handler's block comment below.
+// Precaching `/` is what lets a cold PWA launch paint instantly.
+const PRECACHE = [...build, ...files, ...prerendered];
 const PRECACHE_SET = new Set(PRECACHE);
 
 sw.addEventListener('install', (event) => {
@@ -52,7 +57,10 @@ sw.addEventListener('fetch', (event) => {
 		(async () => {
 			const cache = await caches.open(CACHE);
 
-			// Hashed build assets can never go stale, so skip the network entirely.
+			// Hashed build assets never go stale; the prerendered `/` shell and
+			// `/auth/error` are static and version-busted via CACHE. Skip the
+			// network entirely for all of them — this is what makes a cold PWA
+			// launch (a navigation to `/`) paint with no round-trip.
 			if (PRECACHE_SET.has(url.pathname)) {
 				const hit = await cache.match(url.pathname);
 				if (hit) return hit;
