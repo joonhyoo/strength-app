@@ -6,12 +6,79 @@
 		<link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/icon-180.png" />
-		<link rel="apple-touch-startup-image" href="%sveltekit.assets%/splash.png" />
 		<meta name="theme-color" content="#0D0D0F" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<meta name="apple-mobile-web-app-title" content="Strength App" />
+
+		<!--
+			iOS launch images. A PWA with no matching `apple-touch-startup-image`
+			shows a blank screen during launch; these bridge that gap with the
+			same dark ground + centred mark as #app-splash. Portrait only — this
+			app is used upright. Regenerate: bash scripts/gen-ios-splash.sh
+		-->
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-640-1136.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-750-1334.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-828-1792.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-1125-2436.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-1242-2208.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-1242-2688.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-1170-2532.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-1179-2556.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-1284-2778.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-1290-2796.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-1206-2622.png"
+		/>
+		<link
+			rel="apple-touch-startup-image"
+			media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+			href="%sveltekit.assets%/apple-splash-1320-2868.png"
+		/>
+
 		<style>
 			/* Painted before any external stylesheet or framework JS, so the first
 			   frame of a cold PWA launch is the app's dark ground — never a white
@@ -34,17 +101,18 @@
 			#app-splash.is-hiding {
 				opacity: 0;
 			}
-			/* The mark breathes gently while the app loads. */
+			/* The mark breathes gently while the app loads. Starts at full
+			   opacity so it appears solid the instant it paints — no fade-in. */
 			#app-splash svg {
 				animation: app-splash-pulse 2.2s ease-in-out infinite;
 			}
 			@keyframes app-splash-pulse {
 				0%,
 				100% {
-					opacity: 0.5;
+					opacity: 1;
 				}
 				50% {
-					opacity: 1;
+					opacity: 0.55;
 				}
 			}
 			@media (prefers-reduced-motion: reduce) {
