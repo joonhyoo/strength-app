@@ -36,6 +36,23 @@
 	// whichever week is open then turns into a set of paste targets.
 	const clipboard = $derived(builder.sessionClipboard);
 
+	// True while the expanded week is an optimistic copy still reconciling with
+	// the server — the grid is frozen (inert) so an edit can't hit a temp id.
+	const weekPending = $derived(!!expandedWeek && builder.pendingWeekIds.has(expandedWeek.id));
+
+	let copyBusy = $state(false);
+	let copyError = $state('');
+	let pasteBusy = $state(false);
+	let pasteError = $state('');
+
+	async function handleCopyPreviousWeek() {
+		copyBusy = true;
+		copyError = '';
+		const res = await builder.copyPreviousWeek(cycle.id);
+		copyBusy = false;
+		if (res && !res.ok) copyError = res.error ?? 'Could not copy the week.';
+	}
+
 	async function handlePasteInto(
 		dayNumber: number,
 		dowLabel: string,
@@ -49,7 +66,11 @@
 			)
 		)
 			return;
-		await builder.pasteSession(expandedWeek.id, dayNumber, Boolean(existing));
+		pasteBusy = true;
+		pasteError = '';
+		const res = await builder.pasteSession(expandedWeek.id, dayNumber, Boolean(existing));
+		pasteBusy = false;
+		if (res && !res.ok) pasteError = res.error ?? 'Could not paste the session.';
 	}
 
 	async function handleDeleteCycle() {
@@ -121,6 +142,7 @@
 					week.id
 						? 'border-primary text-primary'
 						: 'border-base-300 bg-base-200 text-base-content hover:border-primary'}"
+					class:animate-pulse={builder.pendingWeekIds.has(week.id)}
 					aria-label={`Week ${i + 1}`}
 					onclick={() => builder.toggleWeek(week.id)}
 				>
@@ -130,10 +152,14 @@
 			{#if cycle.weeks.length > 0}
 				<button
 					type="button"
-					class="flex items-center justify-center rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-sm text-primary hover:bg-primary/10"
+					class="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-sm text-primary hover:bg-primary/10 disabled:opacity-50"
 					aria-label={`Copy the last week of ${cycle.name} into a new week`}
-					onclick={() => builder.copyPreviousWeek(cycle.id)}
+					disabled={copyBusy}
+					onclick={handleCopyPreviousWeek}
 				>
+					{#if copyBusy}
+						<span class="loading loading-xs loading-spinner"></span>
+					{/if}
 					Copy previous week
 				</button>
 			{/if}
@@ -146,9 +172,22 @@
 				<PlusLineIcon height="1.2em" />
 			</button>
 		</div>
+		{#if copyError}
+			<p class="mt-1 text-xs text-error">{copyError}</p>
+		{/if}
 
 		{#if expandedWeek}
-			<div class="mt-3 border-t border-dashed border-base-300 pt-3">
+			<div
+				class="mt-3 border-t border-dashed border-base-300 pt-3"
+				class:opacity-60={weekPending}
+				inert={weekPending}
+			>
+				{#if weekPending}
+					<p class="mb-2 flex items-center gap-2 text-xs text-base-content/60">
+						<span class="loading loading-xs loading-spinner"></span>
+						Copying week…
+					</p>
+				{/if}
 				{#if clipboard}
 					<div
 						class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm"
@@ -166,6 +205,9 @@
 							Done
 						</button>
 					</div>
+					{#if pasteError}
+						<p class="mb-3 text-xs text-error">{pasteError}</p>
+					{/if}
 				{/if}
 				<div class="overflow-x-auto">
 					<div class="sticky left-0 z-10 mb-2 flex w-fit items-center gap-2 bg-base-100 pr-3">
@@ -190,10 +232,10 @@
 									clipboard.sourceDayNumber === dayNumber}
 								<button
 									type="button"
-									class="flex min-h-[4.6rem] flex-col gap-1 rounded-lg border p-2 text-left transition-colors {isSource
+									class="flex min-h-[4.6rem] flex-col gap-1 rounded-lg border p-2 text-left transition-colors disabled:opacity-60 {isSource
 										? 'border-base-300 bg-base-200 opacity-60'
 										: 'border-dashed border-primary/60 bg-primary/5 hover:bg-primary/15'}"
-									disabled={isSource}
+									disabled={isSource || pasteBusy}
 									onclick={() => handlePasteInto(dayNumber, dowLabel, session)}
 								>
 									<span class="text-[0.64rem] tracking-wide text-base-content/50 uppercase"
@@ -214,11 +256,14 @@
 								</button>
 							{:else if session}
 								{@const isOpen = builder.expandedSessionId === session.id}
+								{@const sessionPending = builder.pendingSessionIds.has(session.id)}
 								<button
 									type="button"
 									class="min-h-[4.6rem] rounded-lg border p-2 text-left {isOpen
 										? 'border-primary shadow-[inset_0_0_0_1px_var(--color-primary)]'
 										: 'border-base-300 bg-base-100 hover:border-primary'}"
+									class:animate-pulse={sessionPending}
+									inert={sessionPending}
 									onclick={() => builder.toggleSession(session.id)}
 								>
 									<span class="text-[0.64rem] tracking-wide text-base-content/50 uppercase"
@@ -259,7 +304,8 @@
 				</div>
 
 				{#if expandedSession}
-					<div class="mt-3">
+					{@const sessionPending = builder.pendingSessionIds.has(expandedSession.id)}
+					<div class="mt-3" class:opacity-60={sessionPending} inert={sessionPending}>
 						<div class="mb-2 flex items-center justify-between border-b border-base-300 pb-2">
 							<span class="font-semibold">{expandedSession.name}</span>
 							<span class="flex gap-1">

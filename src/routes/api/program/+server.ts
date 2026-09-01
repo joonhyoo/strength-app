@@ -3,6 +3,8 @@ import type { RequestHandler } from './$types';
 import { getOrCreateExercise } from '$lib/server/exercises';
 import {
 	loadProgramDetail,
+	loadWeekDetail,
+	loadSessionDetail,
 	checkAssignConflicts as checkAssignConflictsImpl,
 	checkShiftConflicts as checkShiftConflictsImpl,
 	resolveBreadcrumb
@@ -158,9 +160,12 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 		case 'duplicateWeek': {
 			// Deep-copies sourceWeekId's sessions/exercises/sets into a new week
-			// appended to the same cycle — same nested-copy shape as
-			// pasteWorkoutDay in api/workout/+server.ts, one level deeper
-			// (week -> sessions -> program_exercises -> program_sets).
+			// appended to the same cycle. Inserts are batched one level at a time
+			// (all sessions, then all exercises, then all sets) rather than
+			// row-by-row, so the client's optimistically-rendered copy reconciles
+			// in ~a dozen round-trips instead of ~2 per exercise. Any failure
+			// after the week row exists deletes it (cascading) — a half-built
+			// week must never be left for the next getProgram to surface.
 			const { sourceWeekId } = data;
 
 			const { data: sourceWeek } = await supabase
@@ -189,47 +194,81 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 			if (weekErr || !newWeek) return error(500, 'Failed to duplicate week');
 
-			const { data: sessions } = await supabase
-				.from('sessions')
-				.select(
-					'day_number, name, program_exercises(position, note, exercise_id, program_sets(set_number, target_reps))'
-				)
-				.eq('week_id', sourceWeekId);
-
-			for (const session of sessions ?? []) {
-				const { data: newSession, error: sessionErr } = await supabase
+			try {
+				const { data: sessions } = await supabase
 					.from('sessions')
-					.insert({ week_id: newWeek.id, day_number: session.day_number, name: session.name })
-					.select('id')
-					.single();
+					.select(
+						'day_number, name, program_exercises(position, note, exercise_id, program_sets(set_number, target_reps))'
+					)
+					.eq('week_id', sourceWeekId);
 
-				if (sessionErr || !newSession) continue;
+				const sourceSessions = sessions ?? [];
 
-				for (const pe of session.program_exercises ?? []) {
-					const { data: newExercise } = await supabase
-						.from('program_exercises')
-						.insert({
-							session_id: newSession.id,
-							exercise_id: pe.exercise_id,
-							position: pe.position,
-							note: pe.note
-						})
-						.select('id')
-						.single();
-
-					if (newExercise && pe.program_sets?.length) {
-						await supabase.from('program_sets').insert(
-							pe.program_sets.map((s) => ({
-								program_exercise_id: newExercise.id,
-								set_number: s.set_number,
-								target_reps: s.target_reps
+				if (sourceSessions.length > 0) {
+					const { data: newSessions, error: sessErr } = await supabase
+						.from('sessions')
+						.insert(
+							sourceSessions.map((s) => ({
+								week_id: newWeek.id,
+								day_number: s.day_number,
+								name: s.name
 							}))
-						);
+						)
+						.select('id, day_number');
+
+					if (sessErr || !newSessions) throw new Error('session insert failed');
+
+					const sessionIdByDay = new Map(newSessions.map((s) => [s.day_number, s.id]));
+					const allSets: {
+						program_exercise_id: string;
+						set_number: number;
+						target_reps: number;
+					}[] = [];
+
+					for (const src of sourceSessions) {
+						const newSessionId = sessionIdByDay.get(src.day_number);
+						const pes = src.program_exercises ?? [];
+						if (!newSessionId || pes.length === 0) continue;
+
+						const { data: newPes, error: peErr } = await supabase
+							.from('program_exercises')
+							.insert(
+								pes.map((pe) => ({
+									session_id: newSessionId,
+									exercise_id: pe.exercise_id,
+									position: pe.position,
+									note: pe.note
+								}))
+							)
+							.select('id, position');
+
+						if (peErr || !newPes) throw new Error('exercise insert failed');
+
+						const peIdByPosition = new Map(newPes.map((pe) => [pe.position, pe.id]));
+						for (const pe of pes) {
+							const newPeId = peIdByPosition.get(pe.position);
+							if (!newPeId) continue;
+							for (const s of pe.program_sets ?? []) {
+								allSets.push({
+									program_exercise_id: newPeId,
+									set_number: s.set_number,
+									target_reps: s.target_reps
+								});
+							}
+						}
+					}
+
+					if (allSets.length > 0) {
+						const { error: setErr } = await supabase.from('program_sets').insert(allSets);
+						if (setErr) throw new Error('set insert failed');
 					}
 				}
+			} catch {
+				await supabase.from('weeks').delete().eq('id', newWeek.id);
+				return error(500, 'Failed to duplicate week');
 			}
 
-			return json({ data: newWeek });
+			return json({ data: await loadWeekDetail(supabase, newWeek.id) });
 		}
 
 		case 'removeWeek': {
@@ -297,30 +336,54 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 			if (sessionErr || !newSession) return error(500, 'Failed to copy session');
 
-			for (const pe of sourceSession.program_exercises ?? []) {
-				const { data: newExercise } = await supabase
-					.from('program_exercises')
-					.insert({
-						session_id: newSession.id,
-						exercise_id: pe.exercise_id,
-						position: pe.position,
-						note: pe.note
-					})
-					.select('id')
-					.single();
+			try {
+				const pes = sourceSession.program_exercises ?? [];
 
-				if (newExercise && pe.program_sets?.length) {
-					await supabase.from('program_sets').insert(
-						pe.program_sets.map((s) => ({
-							program_exercise_id: newExercise.id,
-							set_number: s.set_number,
-							target_reps: s.target_reps
-						}))
-					);
+				if (pes.length > 0) {
+					const { data: newPes, error: peErr } = await supabase
+						.from('program_exercises')
+						.insert(
+							pes.map((pe) => ({
+								session_id: newSession.id,
+								exercise_id: pe.exercise_id,
+								position: pe.position,
+								note: pe.note
+							}))
+						)
+						.select('id, position');
+
+					if (peErr || !newPes) throw new Error('exercise insert failed');
+
+					const peIdByPosition = new Map(newPes.map((pe) => [pe.position, pe.id]));
+					const allSets: {
+						program_exercise_id: string;
+						set_number: number;
+						target_reps: number;
+					}[] = [];
+
+					for (const pe of pes) {
+						const newPeId = peIdByPosition.get(pe.position);
+						if (!newPeId) continue;
+						for (const s of pe.program_sets ?? []) {
+							allSets.push({
+								program_exercise_id: newPeId,
+								set_number: s.set_number,
+								target_reps: s.target_reps
+							});
+						}
+					}
+
+					if (allSets.length > 0) {
+						const { error: setErr } = await supabase.from('program_sets').insert(allSets);
+						if (setErr) throw new Error('set insert failed');
+					}
 				}
+			} catch {
+				await supabase.from('sessions').delete().eq('id', newSession.id);
+				return error(500, 'Failed to copy session');
 			}
 
-			return json({ data: newSession });
+			return json({ data: await loadSessionDetail(supabase, newSession.id) });
 		}
 
 		case 'updateSession': {

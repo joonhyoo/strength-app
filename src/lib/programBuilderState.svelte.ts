@@ -1,4 +1,5 @@
 import { getContext, setContext } from 'svelte';
+import { SvelteSet } from 'svelte/reactivity';
 import * as service from '$lib/services/programTemplateService.svelte';
 import type {
 	ProgramSummary,
@@ -6,6 +7,39 @@ import type {
 	ColorKey,
 	ProgramExerciseInput
 } from '$lib/services/programTemplateService.svelte';
+import type { WeekDetail, SessionDetail } from '$lib/types';
+
+/** Rebuilds a week/session subtree with fresh temp- ids at every level, so it
+ *  can be rendered immediately and later reconciled against (or removed in
+ *  favour of) the server's real copy. */
+function tempId() {
+	return `temp-${crypto.randomUUID()}`;
+}
+
+function cloneSessionForOptimism(src: SessionDetail, dayNumber = src.dayNumber): SessionDetail {
+	return {
+		id: tempId(),
+		dayNumber,
+		name: src.name,
+		exercises: src.exercises.map((e) => ({
+			id: tempId(),
+			activity: e.activity,
+			category: e.category,
+			note: e.note,
+			plan: [...e.plan]
+		}))
+	};
+}
+
+function cloneWeekForOptimism(src: WeekDetail): WeekDetail {
+	return {
+		id: tempId(),
+		// Cosmetic on the client (CycleBand renders positional "week i + 1"); the
+		// server assigns the real week_number and it comes back on reconcile.
+		weekNumber: src.weekNumber + 1,
+		sessions: src.sessions.map((s) => cloneSessionForOptimism(s))
+	};
+}
 
 type ModalState =
 	| { type: 'program'; programId: string | null }
@@ -31,6 +65,18 @@ class ProgramBuilderState {
 		sourceDayNumber: number;
 	} | null>(null);
 
+	// Temp ids of weeks/sessions that were inserted optimistically by
+	// copyPreviousWeek / pasteSession and are still being reconciled with the
+	// server. CycleBand freezes (inert) any node whose id is in here so an edit
+	// can't fire against a temp- id before the real one lands.
+	pendingWeekIds = $state(new SvelteSet<string>());
+	pendingSessionIds = $state(new SvelteSet<string>());
+	// The whole in-flight copy operations (server write + local reconcile).
+	// refresh() waits on these so a concurrent mutation's refetch can't replace
+	// selectedProgram out from under an optimistic node. Plain Set — only ever
+	// awaited, never read reactively.
+	private pendingCopies = new Set<Promise<unknown>>();
+
 	async loadPrograms() {
 		this.programs = await service.listPrograms();
 		if (!this.selectedProgramId && this.programs.length > 0) {
@@ -52,10 +98,41 @@ class ProgramBuilderState {
 	}
 
 	private async refresh() {
+		// Let any optimistic copy finish reconciling first — otherwise this
+		// refetch replaces selectedProgram before runWeekCopy/runSessionPaste can
+		// swap the real node in, orphaning it. Re-checks in case another copy
+		// starts while we wait.
+		while (this.pendingCopies.size > 0) {
+			await Promise.allSettled([...this.pendingCopies]);
+		}
 		if (this.selectedProgramId) {
 			this.selectedProgram = await service.getProgram(this.selectedProgramId);
 		}
 		this.programs = await service.listPrograms();
+	}
+
+	private locateWeek(weekId: string): { weeks: WeekDetail[]; index: number } | null {
+		for (const cycle of this.selectedProgram?.cycles ?? []) {
+			const index = cycle.weeks.findIndex((w) => w.id === weekId);
+			if (index !== -1) return { weeks: cycle.weeks, index };
+		}
+		return null;
+	}
+
+	private locateSession(sessionId: string): { sessions: SessionDetail[]; index: number } | null {
+		for (const cycle of this.selectedProgram?.cycles ?? []) {
+			for (const week of cycle.weeks) {
+				const index = week.sessions.findIndex((s) => s.id === sessionId);
+				if (index !== -1) return { sessions: week.sessions, index };
+			}
+		}
+		return null;
+	}
+
+	private trackCopy<T>(op: Promise<T>): Promise<T> {
+		this.pendingCopies.add(op);
+		void op.finally(() => this.pendingCopies.delete(op));
+		return op;
 	}
 
 	private findWeek(weekId: string) {
@@ -173,18 +250,54 @@ class ProgramBuilderState {
 		return res;
 	}
 
-	/** Duplicates the cycle's current last week (sessions, exercises, and sets) into a new one appended after it. */
-	async copyPreviousWeek(cycleId: string) {
+	/**
+	 * Duplicates the cycle's current last week. The new week renders immediately
+	 * from a local clone (temp ids), then reconciles with the server's real copy
+	 * — or is removed if that copy fails. Returns the reconcile promise so the
+	 * caller can surface an error and knows when the pending state clears.
+	 */
+	copyPreviousWeek(cycleId: string) {
 		const cycle = this.selectedProgram?.cycles.find((c) => c.id === cycleId);
 		const lastWeek = cycle?.weeks[cycle.weeks.length - 1];
-		if (!lastWeek) return;
+		if (!cycle || !lastWeek || lastWeek.id.startsWith('temp-')) return;
 
-		const res = await service.duplicateWeek(lastWeek.id);
+		const optimistic = cloneWeekForOptimism(lastWeek);
+		cycle.weeks.push(optimistic);
+		this.pendingWeekIds.add(optimistic.id);
+		this.expandedWeekId = optimistic.id;
+		this.expandedSessionId = null;
+
+		return this.trackCopy(this.runWeekCopy(lastWeek.id, optimistic.id, this.selectedProgramId));
+	}
+
+	private async runWeekCopy(sourceWeekId: string, tempWeekId: string, programId: string | null) {
+		const res = await service
+			.duplicateWeek(sourceWeekId)
+			.catch(() => ({ ok: false as const, error: 'Request failed.' }));
+
+		const sameProgram = this.selectedProgramId === programId;
+		const loc = sameProgram ? this.locateWeek(tempWeekId) : null;
+
 		if (res.ok) {
-			await this.refresh();
-			this.expandedWeekId = (res.data as { id: string }).id;
-			this.expandedSessionId = null;
+			const serverWeek = res.data as WeekDetail;
+			if (loc) {
+				loc.weeks[loc.index] = serverWeek;
+				if (this.expandedWeekId === tempWeekId) this.expandedWeekId = serverWeek.id;
+			} else if (sameProgram && programId) {
+				// A concurrent refetch replaced selectedProgram before we could
+				// swap the real week in. refresh() now waits on pendingCopies so
+				// this is close to unreachable — reload directly rather than lose it.
+				this.selectedProgram = await service.getProgram(programId);
+			}
+		} else if (loc) {
+			loc.weeks.splice(loc.index, 1);
+			if (this.expandedWeekId === tempWeekId) {
+				this.expandedWeekId = null;
+				this.expandedSessionId = null;
+			}
 		}
+
+		this.pendingWeekIds.delete(tempWeekId);
 		return res;
 	}
 
@@ -234,21 +347,75 @@ class ProgramBuilderState {
 	/**
 	 * Copies the clipboard session onto destWeekId's given day. `replace` must
 	 * be set by the caller when that day already has a session — the server
-	 * refuses the paste otherwise rather than silently merging.
+	 * refuses the paste otherwise rather than silently merging. The pasted
+	 * session renders immediately from a local clone, then reconciles with the
+	 * server copy (or is rolled back on failure).
 	 */
-	async pasteSession(destWeekId: string, destDayNumber: number, replace: boolean) {
-		if (!this.sessionClipboard) return;
-		const res = await service.duplicateSession(
-			this.sessionClipboard.sessionId,
-			destWeekId,
-			destDayNumber,
-			replace
-		);
-		if (res.ok) {
-			await this.refresh();
-			this.expandedWeekId = destWeekId;
-			this.expandedSessionId = (res.data as { id: string }).id;
+	pasteSession(destWeekId: string, destDayNumber: number, replace: boolean) {
+		const clip = this.sessionClipboard;
+		if (!clip) return;
+		const source = this.findSession(clip.sessionId)?.session;
+		const targetWeek = this.findWeek(destWeekId);
+		if (!source || source.id.startsWith('temp-') || !targetWeek) return;
+
+		const optimistic = cloneSessionForOptimism(source, destDayNumber);
+		if (replace) {
+			const i = targetWeek.sessions.findIndex((s) => s.dayNumber === destDayNumber);
+			if (i !== -1) targetWeek.sessions.splice(i, 1);
 		}
+		targetWeek.sessions.push(optimistic);
+		this.pendingSessionIds.add(optimistic.id);
+		this.expandedWeekId = destWeekId;
+		this.expandedSessionId = optimistic.id;
+
+		return this.trackCopy(
+			this.runSessionPaste(
+				clip.sessionId,
+				destWeekId,
+				destDayNumber,
+				replace,
+				optimistic.id,
+				this.selectedProgramId
+			)
+		);
+	}
+
+	private async runSessionPaste(
+		sourceSessionId: string,
+		destWeekId: string,
+		destDayNumber: number,
+		replace: boolean,
+		tempSessionId: string,
+		programId: string | null
+	) {
+		const res = await service
+			.duplicateSession(sourceSessionId, destWeekId, destDayNumber, replace)
+			.catch(() => ({ ok: false as const, error: 'Request failed.' }));
+
+		const sameProgram = this.selectedProgramId === programId;
+
+		if (res.ok) {
+			const serverSession = res.data as SessionDetail;
+			const loc = sameProgram ? this.locateSession(tempSessionId) : null;
+			if (loc) {
+				loc.sessions[loc.index] = serverSession;
+				if (this.expandedSessionId === tempSessionId) this.expandedSessionId = serverSession.id;
+			} else if (sameProgram && programId) {
+				this.selectedProgram = await service.getProgram(programId);
+			}
+		} else if (sameProgram) {
+			if (replace && programId) {
+				// The server may have already deleted the day's previous session
+				// before failing — it can't be safely restored locally, so reload.
+				this.selectedProgram = await service.getProgram(programId);
+			} else {
+				const loc = this.locateSession(tempSessionId);
+				if (loc) loc.sessions.splice(loc.index, 1);
+				if (this.expandedSessionId === tempSessionId) this.expandedSessionId = null;
+			}
+		}
+
+		this.pendingSessionIds.delete(tempSessionId);
 		return res;
 	}
 
