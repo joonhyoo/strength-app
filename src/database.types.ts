@@ -115,17 +115,23 @@ export type Database = {
         Row: {
           athlete_id: string
           id: string
+          program_assignment_id: string | null
           scheduled_date: string
+          session_id: string | null
         }
         Insert: {
           athlete_id: string
           id?: string
+          program_assignment_id?: string | null
           scheduled_date: string
+          session_id?: string | null
         }
         Update: {
           athlete_id?: string
           id?: string
+          program_assignment_id?: string | null
           scheduled_date?: string
+          session_id?: string | null
         }
         Relationships: [
           {
@@ -133,6 +139,20 @@ export type Database = {
             columns: ["athlete_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "athlete_workouts_program_assignment_id_fkey"
+            columns: ["program_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "program_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "athlete_workouts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -162,6 +182,41 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cycles: {
+        Row: {
+          color_key: string
+          goal: string
+          id: string
+          name: string
+          position: number
+          program_id: string
+        }
+        Insert: {
+          color_key?: string
+          goal?: string
+          id?: string
+          name: string
+          position: number
+          program_id: string
+        }
+        Update: {
+          color_key?: string
+          goal?: string
+          id?: string
+          name?: string
+          position?: number
+          program_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cycles_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
             referencedColumns: ["id"]
           },
         ]
@@ -251,12 +306,217 @@ export type Database = {
           },
         ]
       }
+      program_assignments: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          id: string
+          program_id: string
+          start_date: string
+          status: string
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          id?: string
+          program_id: string
+          start_date: string
+          status?: string
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          id?: string
+          program_id?: string
+          start_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_assignments_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_assignments_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_exercises: {
+        Row: {
+          exercise_id: string
+          id: string
+          note: string
+          position: number
+          session_id: string
+        }
+        Insert: {
+          exercise_id: string
+          id?: string
+          note?: string
+          position: number
+          session_id: string
+        }
+        Update: {
+          exercise_id?: string
+          id?: string
+          note?: string
+          position?: number
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_exercises_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_exercises_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_sets: {
+        Row: {
+          id: string
+          program_exercise_id: string
+          set_number: number
+          target_reps: number
+        }
+        Insert: {
+          id?: string
+          program_exercise_id: string
+          set_number: number
+          target_reps: number
+        }
+        Update: {
+          id?: string
+          program_exercise_id?: string
+          set_number?: number
+          target_reps?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_sets_program_exercise_id_fkey"
+            columns: ["program_exercise_id"]
+            isOneToOne: false
+            referencedRelation: "program_exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programs: {
+        Row: {
+          coach_id: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programs_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          day_number: number
+          id: string
+          name: string
+          week_id: string
+        }
+        Insert: {
+          day_number: number
+          id?: string
+          name?: string
+          week_id: string
+        }
+        Update: {
+          day_number?: number
+          id?: string
+          name?: string
+          week_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_week_id_fkey"
+            columns: ["week_id"]
+            isOneToOne: false
+            referencedRelation: "weeks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weeks: {
+        Row: {
+          cycle_id: string
+          id: string
+          week_number: number
+        }
+        Insert: {
+          cycle_id: string
+          id?: string
+          week_number: number
+        }
+        Update: {
+          cycle_id?: string
+          id?: string
+          week_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weeks_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       accept_terms: { Args: never; Returns: undefined }
+      assign_program: {
+        Args: {
+          p_athlete_id: string
+          p_program_id: string
+          p_start_date: string
+        }
+        Returns: string
+      }
       claim_invite: { Args: never; Returns: undefined }
       complete_profile: {
         Args: { p_name: string; p_username: string }
@@ -264,9 +524,21 @@ export type Database = {
       }
       invite_athlete: { Args: { p_email: string }; Returns: undefined }
       is_coach: { Args: never; Returns: boolean }
+      is_cycle_owner: { Args: { p_cycle_id: string }; Returns: boolean }
       is_my_athlete: { Args: { p_athlete_id: string }; Returns: boolean }
+      is_program_owner: { Args: { p_program_id: string }; Returns: boolean }
+      is_session_owner: { Args: { p_session_id: string }; Returns: boolean }
+      is_week_owner: { Args: { p_week_id: string }; Returns: boolean }
       remove_athlete: { Args: { p_athlete_id: string }; Returns: undefined }
       revoke_invite: { Args: { p_email: string }; Returns: undefined }
+      shift_program_schedule: {
+        Args: {
+          p_assignment_id: string
+          p_from_date: string
+          p_shift_weeks: number
+        }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
