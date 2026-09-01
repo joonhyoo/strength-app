@@ -18,7 +18,15 @@ const CACHE = `strength-app-${version}`;
 // they carry zero session data and are the one class of navigation safe to
 // serve from a shared cache — see the fetch handler's block comment below.
 // Precaching `/` is what lets a cold PWA launch paint instantly.
-const PRECACHE = [...build, ...files, ...prerendered];
+//
+// The `apple-splash-*` iOS launch images are consumed by the OS before the page
+// (and this worker) exist, and only one ever matches a given device — no point
+// force-fetching all twelve on install.
+const PRECACHE = [
+	...build,
+	...files.filter((f) => !f.startsWith('/apple-splash-')),
+	...prerendered
+];
 const PRECACHE_SET = new Set(PRECACHE);
 
 sw.addEventListener('install', (event) => {
