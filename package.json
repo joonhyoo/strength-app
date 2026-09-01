@@ -45,7 +45,7 @@
 	"dependencies": {
 		"@iconify-svelte/mingcute": "^1.0.4",
 		"@supabase/ssr": "^0.12.4",
-		"@supabase/supabase-js": "^2.112.3",
+		"@supabase/supabase-js": "^2.112.4",
 		"cally": "^0.9.2"
 	}
 }
