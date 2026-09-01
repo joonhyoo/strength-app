@@ -7,7 +7,7 @@ import type {
 	ColorKey,
 	ProgramExerciseInput
 } from '$lib/services/programTemplateService.svelte';
-import type { WeekDetail, SessionDetail } from '$lib/types';
+import type { WeekDetail, SessionDetail, ProgramExerciseDetail } from '$lib/types';
 
 /** Rebuilds a week/session subtree with fresh temp- ids at every level, so it
  *  can be rendered immediately and later reconciled against (or removed in
@@ -65,17 +65,21 @@ class ProgramBuilderState {
 		sourceDayNumber: number;
 	} | null>(null);
 
-	// Temp ids of weeks/sessions that were inserted optimistically by
-	// copyPreviousWeek / pasteSession and are still being reconciled with the
+	// Temp ids of nodes inserted optimistically (copyPreviousWeek / pasteSession /
+	// a brand-new exercise from saveExercise) and still being reconciled with the
 	// server. CycleBand freezes (inert) any node whose id is in here so an edit
 	// can't fire against a temp- id before the real one lands.
 	pendingWeekIds = $state(new SvelteSet<string>());
 	pendingSessionIds = $state(new SvelteSet<string>());
-	// The whole in-flight copy operations (server write + local reconcile).
-	// refresh() waits on these so a concurrent mutation's refetch can't replace
+	pendingExerciseIds = $state(new SvelteSet<string>());
+	// Shown briefly in the expanded-session panel when an optimistic exercise
+	// op (add / edit / remove / reorder) failed and was rolled back.
+	exerciseOpError = $state<string | null>(null);
+	// Every in-flight optimistic op (server write + local reconcile). refresh()
+	// waits on these so a concurrent mutation's refetch can't replace
 	// selectedProgram out from under an optimistic node. Plain Set — only ever
 	// awaited, never read reactively.
-	private pendingCopies = new Set<Promise<unknown>>();
+	private pendingOps = new Set<Promise<unknown>>();
 
 	async loadPrograms() {
 		this.programs = await service.listPrograms();
@@ -91,6 +95,7 @@ class ProgramBuilderState {
 		// restart at 1) — reset rather than carry it over.
 		this.expandedWeekId = null;
 		this.expandedSessionId = null;
+		this.exerciseOpError = null;
 		// The clipboard holds a session id from the program being navigated away
 		// from; keeping it would offer a confusing cross-program paste.
 		this.sessionClipboard = null;
@@ -98,12 +103,11 @@ class ProgramBuilderState {
 	}
 
 	private async refresh() {
-		// Let any optimistic copy finish reconciling first — otherwise this
-		// refetch replaces selectedProgram before runWeekCopy/runSessionPaste can
-		// swap the real node in, orphaning it. Re-checks in case another copy
-		// starts while we wait.
-		while (this.pendingCopies.size > 0) {
-			await Promise.allSettled([...this.pendingCopies]);
+		// Let any in-flight optimistic op finish reconciling first — otherwise
+		// this refetch replaces selectedProgram before the op can swap its real
+		// node in, orphaning it. Re-checks in case another op starts while we wait.
+		while (this.pendingOps.size > 0) {
+			await Promise.allSettled([...this.pendingOps]);
 		}
 		if (this.selectedProgramId) {
 			this.selectedProgram = await service.getProgram(this.selectedProgramId);
@@ -129,9 +133,23 @@ class ProgramBuilderState {
 		return null;
 	}
 
-	private trackCopy<T>(op: Promise<T>): Promise<T> {
-		this.pendingCopies.add(op);
-		void op.finally(() => this.pendingCopies.delete(op));
+	private locateExercise(
+		programExerciseId: string
+	): { exercises: ProgramExerciseDetail[]; index: number; sessionId: string } | null {
+		for (const cycle of this.selectedProgram?.cycles ?? []) {
+			for (const week of cycle.weeks) {
+				for (const session of week.sessions) {
+					const index = session.exercises.findIndex((e) => e.id === programExerciseId);
+					if (index !== -1) return { exercises: session.exercises, index, sessionId: session.id };
+				}
+			}
+		}
+		return null;
+	}
+
+	private trackOptimistic<T>(op: Promise<T>): Promise<T> {
+		this.pendingOps.add(op);
+		void op.finally(() => this.pendingOps.delete(op));
 		return op;
 	}
 
@@ -163,6 +181,7 @@ class ProgramBuilderState {
 	}
 
 	toggleWeek(weekId: string) {
+		this.exerciseOpError = null;
 		if (this.expandedWeekId === weekId) {
 			this.expandedWeekId = null;
 			this.expandedSessionId = null;
@@ -181,6 +200,7 @@ class ProgramBuilderState {
 	}
 
 	toggleSession(sessionId: string) {
+		this.exerciseOpError = null;
 		this.expandedSessionId = this.expandedSessionId === sessionId ? null : sessionId;
 	}
 
@@ -267,7 +287,9 @@ class ProgramBuilderState {
 		this.expandedWeekId = optimistic.id;
 		this.expandedSessionId = null;
 
-		return this.trackCopy(this.runWeekCopy(lastWeek.id, optimistic.id, this.selectedProgramId));
+		return this.trackOptimistic(
+			this.runWeekCopy(lastWeek.id, optimistic.id, this.selectedProgramId)
+		);
 	}
 
 	private async runWeekCopy(sourceWeekId: string, tempWeekId: string, programId: string | null) {
@@ -285,7 +307,7 @@ class ProgramBuilderState {
 				if (this.expandedWeekId === tempWeekId) this.expandedWeekId = serverWeek.id;
 			} else if (sameProgram && programId) {
 				// A concurrent refetch replaced selectedProgram before we could
-				// swap the real week in. refresh() now waits on pendingCopies so
+				// swap the real week in. refresh() now waits on pendingOps so
 				// this is close to unreachable — reload directly rather than lose it.
 				this.selectedProgram = await service.getProgram(programId);
 			}
@@ -368,7 +390,7 @@ class ProgramBuilderState {
 		this.expandedWeekId = destWeekId;
 		this.expandedSessionId = optimistic.id;
 
-		return this.trackCopy(
+		return this.trackOptimistic(
 			this.runSessionPaste(
 				clip.sessionId,
 				destWeekId,
@@ -419,28 +441,154 @@ class ProgramBuilderState {
 		return res;
 	}
 
-	async saveExercise(
+	/**
+	 * Adds or edits an exercise on a session — applied to selectedProgram
+	 * immediately, server call in the background. On failure the program is
+	 * reloaded (server truth) and `exerciseOpError` is shown. The modal closes
+	 * itself; this no longer touches modal state.
+	 */
+	saveExercise(
 		sessionId: string,
 		programExerciseId: string | null,
 		exercise: ProgramExerciseInput
 	) {
-		const res = programExerciseId
-			? await service.updateProgramExercise(programExerciseId, exercise)
-			: await service.addProgramExercise(sessionId, exercise);
-		if (res.ok) await this.refresh();
-		this.closeModal();
+		this.exerciseOpError = null;
+		const session = this.findSession(sessionId)?.session;
+		const plan = exercise.category === 'weight' ? [...exercise.plan] : [];
+		const programId = this.selectedProgramId;
+		const isEdit = !!programExerciseId && !programExerciseId.startsWith('temp-');
+
+		// Edit — patch the exercise in place.
+		if (isEdit) {
+			const target = session?.exercises.find((e) => e.id === programExerciseId);
+			if (target) {
+				target.activity = exercise.activity;
+				target.category = exercise.category;
+				target.note = exercise.note;
+				target.plan = plan;
+			}
+			return this.trackOptimistic(
+				this.confirmExerciseOp(
+					service.updateProgramExercise(programExerciseId!, exercise),
+					programId,
+					target ? 'reload-on-fail' : 'always-reload',
+					'Could not save the exercise — reverted.'
+				)
+			);
+		}
+
+		// Add — append an optimistic row, swap in the real id on success.
+		if (!session) {
+			return this.trackOptimistic(
+				this.confirmExerciseOp(
+					service.addProgramExercise(sessionId, exercise),
+					programId,
+					'always-reload',
+					'Could not add the exercise.'
+				)
+			);
+		}
+		const tempExId = tempId();
+		session.exercises.push({
+			id: tempExId,
+			activity: exercise.activity,
+			category: exercise.category,
+			note: exercise.note,
+			plan
+		});
+		this.pendingExerciseIds.add(tempExId);
+
+		return this.trackOptimistic(
+			(async () => {
+				const res = await service
+					.addProgramExercise(sessionId, exercise)
+					.catch(() => ({ ok: false as const, error: 'Request failed.' }));
+				if (this.selectedProgramId === programId) {
+					const loc = this.locateExercise(tempExId);
+					if (res.ok && loc) {
+						loc.exercises[loc.index].id = (res.data as { id: string }).id;
+					} else if (!res.ok) {
+						if (loc) loc.exercises.splice(loc.index, 1);
+						this.exerciseOpError = 'Could not add the exercise — removed.';
+					}
+				}
+				this.pendingExerciseIds.delete(tempExId);
+				return res;
+			})()
+		);
+	}
+
+	removeExercise(programExerciseId: string) {
+		this.exerciseOpError = null;
+		const loc = this.locateExercise(programExerciseId);
+		const appliedLocally = !!loc && !programExerciseId.startsWith('temp-');
+		if (appliedLocally) loc.exercises.splice(loc.index, 1);
+		return this.trackOptimistic(
+			this.confirmExerciseOp(
+				service.removeProgramExercise(programExerciseId),
+				this.selectedProgramId,
+				appliedLocally ? 'reload-on-fail' : 'always-reload',
+				'Could not remove the exercise — restored.'
+			)
+		);
+	}
+
+	moveExercise(programExerciseId: string, direction: 'up' | 'down') {
+		this.exerciseOpError = null;
+		const loc = this.locateExercise(programExerciseId);
+		if (loc && !programExerciseId.startsWith('temp-')) {
+			const { exercises, index } = loc;
+			const to = direction === 'up' ? index - 1 : index + 1;
+			if (to < 0 || to >= exercises.length) return;
+			const tmp = exercises[index];
+			exercises[index] = exercises[to];
+			exercises[to] = tmp;
+			return this.trackOptimistic(
+				this.confirmExerciseOp(
+					service.moveProgramExercise(programExerciseId, direction),
+					this.selectedProgramId,
+					'reload-on-fail',
+					'Could not reorder — reverted.'
+				)
+			);
+		}
+		return this.trackOptimistic(
+			this.confirmExerciseOp(
+				service.moveProgramExercise(programExerciseId, direction),
+				this.selectedProgramId,
+				'always-reload',
+				'Could not reorder.'
+			)
+		);
+	}
+
+	/**
+	 * Awaits an exercise mutation that's already been applied to the tree.
+	 * 'reload-on-fail' reloads the program only if the call fails (undoing the
+	 * optimistic change); 'always-reload' also reloads on success (used when
+	 * nothing was applied locally, so the change lives only on the server).
+	 */
+	private async confirmExerciseOp(
+		call: Promise<{ ok: true; data: unknown } | { ok: false; error: string }>,
+		programId: string | null,
+		mode: 'reload-on-fail' | 'always-reload',
+		failMessage: string
+	) {
+		const res = await call.catch(() => ({ ok: false as const, error: 'Request failed.' }));
+		if (this.selectedProgramId !== programId) return res;
+		if (!res.ok) {
+			this.exerciseOpError = failMessage;
+			await this.reload(programId);
+		} else if (mode === 'always-reload') {
+			await this.reload(programId);
+		}
 		return res;
 	}
 
-	async removeExercise(programExerciseId: string) {
-		const res = await service.removeProgramExercise(programExerciseId);
-		if (res.ok) await this.refresh();
-		return res;
-	}
-
-	async moveExercise(programExerciseId: string, direction: 'up' | 'down') {
-		await service.moveProgramExercise(programExerciseId, direction);
-		await this.refresh();
+	/** Direct program refetch — used from inside a tracked op, where refresh()
+	 *  would deadlock waiting on that same op. */
+	private async reload(programId: string | null) {
+		if (programId) this.selectedProgram = await service.getProgram(programId);
 	}
 }
 
