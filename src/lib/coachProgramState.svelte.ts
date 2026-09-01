@@ -55,6 +55,8 @@ class CoachProgramState {
 	selectedAthleteId = $state<string | null>(null);
 	selectedDate = $state<Date>(new Date());
 	modalOpen = $state(false);
+	// Which form the add/edit modal shows: a full exercise, or a plain note.
+	modalMode = $state<'exercise' | 'note'>('exercise');
 	editingExercise = $state<Exercise | null>(null);
 	statusMap = $state<SvelteMap<string, DayStatus>>(new SvelteMap());
 	revision = $state(0);
@@ -89,13 +91,15 @@ class CoachProgramState {
 		this.selectedDate = date;
 	}
 
-	openModal() {
+	openModal(mode: 'exercise' | 'note' = 'exercise') {
 		this.editingExercise = null;
+		this.modalMode = mode;
 		this.modalOpen = true;
 	}
 
 	openEdit(exercise: Exercise) {
 		this.editingExercise = exercise;
+		this.modalMode = exercise.category === 'note' ? 'note' : 'exercise';
 		this.modalOpen = true;
 	}
 

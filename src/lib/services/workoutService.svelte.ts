@@ -1,5 +1,5 @@
 import { SvelteMap } from 'svelte/reactivity';
-import { CONDITIONING_CATEGORIES, type DayStatus } from '$lib/complete';
+import { CONDITIONING_CATEGORIES, countsTowardCompletion, type DayStatus } from '$lib/complete';
 import type { Exercise, ExerciseCategory } from '$lib/types';
 
 /**
@@ -73,12 +73,17 @@ function computeDayStatus(
 ): DayStatus {
 	if (exercises.length === 0) return 'none';
 
-	const done = exercises.filter((e) => {
+	// Notes are scheduled content with nothing to grade — a day that is *only*
+	// notes counts as 'exists', and a note never moves a mixed day's status.
+	const gradable = exercises.filter(countsTowardCompletion);
+	if (gradable.length === 0) return 'exists';
+
+	const done = gradable.filter((e) => {
 		if (CONDITIONING_CATEGORIES.includes(e.category)) return e.complete;
 		return e.hasWeight;
 	}).length;
 
-	if (done === exercises.length) return 'complete';
+	if (done === gradable.length) return 'complete';
 	if (done > 0) return 'in_progress';
 	return 'exists';
 }

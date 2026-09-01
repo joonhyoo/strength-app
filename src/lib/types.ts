@@ -16,7 +16,11 @@ export interface Athlete {
 	coach_id: string;
 }
 
-export type ExerciseCategory = 'warmup' | 'circuit' | 'plyo' | 'weight';
+// 'note' is a coach-authored text block the athlete reads — no sets, reps, or
+// completion. It is deliberately NOT in CATEGORY_OPTIONS (src/lib/data/categories.ts):
+// a note isn't a reusable catalog exercise, so it's never offered in the
+// "pick / create an exercise" selects.
+export type ExerciseCategory = 'warmup' | 'circuit' | 'plyo' | 'weight' | 'note';
 
 export interface Exercise {
 	id?: string;

@@ -8,9 +8,12 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 	switch (action) {
 		case 'list': {
+			// `note` is excluded — the shared 'Note' catalog row backs the note
+			// feature but isn't a real, pickable catalog exercise.
 			const { data: exercises } = await supabase
 				.from('exercises')
 				.select('id, name, category')
+				.neq('category', 'note')
 				.order('name');
 
 			return json({ data: exercises ?? [] });

@@ -12,8 +12,13 @@ import type { WeekDetail, SessionDetail, ProgramExerciseDetail } from '$lib/type
 /** Rebuilds a week/session subtree with fresh temp- ids at every level, so it
  *  can be rendered immediately and later reconciled against (or removed in
  *  favour of) the server's real copy. */
+// A session-monotonic counter, not crypto.randomUUID(): these ids are only ever
+// matched with `.startsWith('temp-')` and never parsed, they only need to be
+// unique within one page load, and — unlike crypto.randomUUID() — this works
+// outside a secure context (e.g. running the dev server over a LAN IP).
+let tempSeq = 0;
 function tempId() {
-	return `temp-${crypto.randomUUID()}`;
+	return `temp-${++tempSeq}`;
 }
 
 function cloneSessionForOptimism(src: SessionDetail, dayNumber = src.dayNumber): SessionDetail {
@@ -45,7 +50,13 @@ type ModalState =
 	| { type: 'program'; programId: string | null }
 	| { type: 'cycle'; programId: string; cycleId: string | null }
 	| { type: 'session'; weekId: string; dayNumber: number; sessionId: string | null }
-	| { type: 'exercise'; sessionId: string; programExerciseId: string | null }
+	| {
+			type: 'exercise';
+			sessionId: string;
+			programExerciseId: string | null;
+			// 'note' opens the modal's plain-note form; absent/'exercise' is the full form.
+			mode?: 'exercise' | 'note';
+	  }
 	| null;
 
 class ProgramBuilderState {
