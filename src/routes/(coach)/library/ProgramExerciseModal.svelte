@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import {
 		getExerciseLibrary,
@@ -6,6 +7,7 @@
 		addExerciseDefinition,
 		loadExerciseLibrary
 	} from '$lib/data/exerciseLibrary.svelte';
+	import type { ProgramExerciseInput } from '$lib/services/programTemplateService.svelte';
 	import type { ExerciseCategory } from '$lib/types';
 	import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '$lib/data/categories';
 
@@ -66,25 +68,43 @@
 		loadExerciseLibrary();
 	});
 
+	// Seed the form once, when the modal opens (it remounts on every open). The body is
+	// untracked so it never subscribes to the exercise catalog: submit() mutates that catalog
+	// via addExerciseDefinition(), and a re-run here mid-submit would reset the fields submit()
+	// is about to read.
 	$effect(() => {
 		if (!builder.modal) return;
 
-		if (editingExercise) {
-			const inLibrary = !!findExercise(editingExercise.activity);
-			creatingNew = !inLibrary;
-			selectedName = inLibrary ? editingExercise.activity : (library[0]?.name ?? '');
-			newName = editingExercise.activity;
-			newCategory = editingExercise.category;
-			sets = editingExercise.plan.length || 3;
-			reps = editingExercise.plan[0] ?? 5;
-			note = editingExercise.note;
-		} else {
-			creatingNew = false;
-			selectedName = library[0]?.name ?? '';
-			newCategory = 'warmup';
-			sets = 3;
-			reps = 5;
-			note = '';
+		untrack(() => {
+			const editing = editingExercise;
+			if (editing) {
+				const inLibrary = !!findExercise(editing.activity);
+				creatingNew = !inLibrary;
+				selectedName = inLibrary ? editing.activity : (library[0]?.name ?? '');
+				newName = editing.activity;
+				newCategory = editing.category;
+				sets = editing.plan.length || 3;
+				reps = editing.plan[0] ?? 5;
+				note = editing.note;
+			} else {
+				creatingNew = false;
+				selectedName = library[0]?.name ?? '';
+				newCategory = 'warmup';
+				sets = 3;
+				reps = 5;
+				note = '';
+			}
+		});
+	});
+
+	// If the catalog streams in after the modal opened, adopt a default selection — but only
+	// if the coach hasn't already picked or started typing one.
+	$effect(() => {
+		const first = library[0]?.name;
+		if (first) {
+			untrack(() => {
+				if (!creatingNew && selectedName === '') selectedName = first;
+			});
 		}
 	});
 
@@ -111,17 +131,24 @@
 	async function submit() {
 		if (!exerciseName) return;
 
-		if (creatingNew) {
-			await addExerciseDefinition({ name: exerciseName, category });
-			selectedName = exerciseName;
-		}
-
-		await builder.saveExercise(sessionId, editingExerciseId, {
+		// Capture every reactive value before the first await. addExerciseDefinition() reassigns
+		// the shared `exercises` state, whose flush re-runs the seeding $effect before this
+		// function resumes — so a reactive read after the await would see reset values.
+		const creating = creatingNew;
+		const targetSessionId = sessionId;
+		const targetExerciseId = editingExerciseId;
+		const input: ProgramExerciseInput = {
 			activity: exerciseName,
 			category,
 			note: note.trim(),
 			plan: isWeight ? Array(sets).fill(reps) : []
-		});
+		};
+
+		if (creating) {
+			await addExerciseDefinition({ name: input.activity, category: input.category });
+		}
+
+		await builder.saveExercise(targetSessionId, targetExerciseId, input);
 	}
 </script>
 
