@@ -4,13 +4,15 @@
 	import BarbellLineIcon from '@iconify-svelte/mingcute/barbell-line';
 	import CheckFillIcon from '@iconify-svelte/mingcute/check-fill';
 	import ReapeatFillIcon from '@iconify-svelte/mingcute/repeat-fill';
+	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
 	import type { ExerciseCategory } from '$lib/types';
 
 	const iconMap: Record<ExerciseCategory, { icon: typeof FireLineIcon; color: string }> = {
 		warmup: { icon: FireLineIcon, color: 'text-danger' },
 		circuit: { icon: ReapeatFillIcon, color: 'text-lime' },
 		plyo: { icon: HeartbeatLineIcon, color: 'text-sky' },
-		weight: { icon: BarbellLineIcon, color: 'text-primary' }
+		weight: { icon: BarbellLineIcon, color: 'text-primary' },
+		note: { icon: Message3LineIcon, color: 'text-cream' }
 	};
 
 	let { category, complete = false }: { category: ExerciseCategory; complete?: boolean } = $props();

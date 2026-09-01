@@ -2,6 +2,7 @@
 	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
+	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
 	import ArrowUpLineIcon from '@iconify-svelte/mingcute/arrow-up-line';
 	import ArrowDownLineIcon from '@iconify-svelte/mingcute/arrow-down-line';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
@@ -111,18 +112,22 @@
 
 						<div class="flex min-w-0 flex-1 items-center gap-3 py-1">
 							<div class="min-w-0 flex-1">
-								<div class="flex items-baseline gap-2">
-									<span class="font-medium">{exercise.activity}</span>
-									<span class="text-xs text-base-content/50"
-										>{CATEGORY_LABEL[exercise.category]}</span
-									>
-								</div>
-								{#if formatPlan(exercise.plan) || exercise.note}
-									<p class="truncate text-sm text-base-content/60">
-										{formatPlan(exercise.plan)}{exercise.plan.length && exercise.note.length
-											? ' · '
-											: ''}{exercise.note}
-									</p>
+								{#if exercise.category === 'note'}
+									<p class="truncate text-sm text-base-content/80">{exercise.note}</p>
+								{:else}
+									<div class="flex items-baseline gap-2">
+										<span class="font-medium">{exercise.activity}</span>
+										<span class="text-xs text-base-content/50"
+											>{CATEGORY_LABEL[exercise.category]}</span
+										>
+									</div>
+									{#if formatPlan(exercise.plan) || exercise.note}
+										<p class="truncate text-sm text-base-content/60">
+											{formatPlan(exercise.plan)}{exercise.plan.length && exercise.note.length
+												? ' · '
+												: ''}{exercise.note}
+										</p>
+									{/if}
 								{/if}
 							</div>
 							<div class="flex shrink-0 flex-col items-center gap-0.5">
@@ -165,12 +170,21 @@
 			</div>
 		{/if}
 
-		<button
-			class="btn-dashed btn mt-2 border-dashed border-base-300 text-primary"
-			onclick={() => program.openModal()}
-		>
-			<PlusLineIcon height="1.2em" />
-			Add exercise
-		</button>
+		<div class="mt-2 flex gap-2">
+			<button
+				class="btn-dashed btn flex-1 border-dashed border-base-300 text-primary"
+				onclick={() => program.openModal()}
+			>
+				<PlusLineIcon height="1.2em" />
+				Add exercise
+			</button>
+			<button
+				class="btn-dashed btn border-dashed border-base-300 text-base-content/70"
+				onclick={() => program.openModal('note')}
+			>
+				<Message3LineIcon height="1.2em" />
+				Add note
+			</button>
+		</div>
 	</div>
 </div>

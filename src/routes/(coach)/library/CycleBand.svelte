@@ -6,6 +6,7 @@
 	import ArrowDownLineIcon from '@iconify-svelte/mingcute/arrow-down-line';
 	import CopyLineIcon from '@iconify-svelte/mingcute/copy-line';
 	import PasteLineIcon from '@iconify-svelte/mingcute/paste-line';
+	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import { CATEGORY_LABEL } from '$lib/data/categories';
@@ -359,18 +360,22 @@
 									>
 										<CategoryIcon category={exercise.category} />
 										<div class="min-w-0 flex-1">
-											<div class="flex items-baseline gap-2">
-												<span class="font-medium">{exercise.activity}</span>
-												<span class="text-xs text-base-content/50"
-													>{CATEGORY_LABEL[exercise.category]}</span
-												>
-											</div>
-											{#if formatPlan(exercise.plan) || exercise.note}
-												<p class="truncate text-sm text-base-content/60">
-													{formatPlan(exercise.plan)}{exercise.plan.length && exercise.note.length
-														? ' · '
-														: ''}{exercise.note}
-												</p>
+											{#if exercise.category === 'note'}
+												<p class="truncate text-sm text-base-content/80">{exercise.note}</p>
+											{:else}
+												<div class="flex items-baseline gap-2">
+													<span class="font-medium">{exercise.activity}</span>
+													<span class="text-xs text-base-content/50"
+														>{CATEGORY_LABEL[exercise.category]}</span
+													>
+												</div>
+												{#if formatPlan(exercise.plan) || exercise.note}
+													<p class="truncate text-sm text-base-content/60">
+														{formatPlan(exercise.plan)}{exercise.plan.length && exercise.note.length
+															? ' · '
+															: ''}{exercise.note}
+													</p>
+												{/if}
 											{/if}
 										</div>
 										<div class="flex shrink-0 flex-col items-center gap-0.5">
@@ -421,19 +426,35 @@
 							</div>
 						{/if}
 
-						<button
-							type="button"
-							class="btn-dashed btn mt-2 w-full border-dashed border-base-300 text-primary"
-							onclick={() =>
-								builder.openModal({
-									type: 'exercise',
-									sessionId: expandedSession.id,
-									programExerciseId: null
-								})}
-						>
-							<PlusLineIcon height="1.2em" />
-							Add exercise
-						</button>
+						<div class="mt-2 flex gap-2">
+							<button
+								type="button"
+								class="btn-dashed btn flex-1 border-dashed border-base-300 text-primary"
+								onclick={() =>
+									builder.openModal({
+										type: 'exercise',
+										sessionId: expandedSession.id,
+										programExerciseId: null
+									})}
+							>
+								<PlusLineIcon height="1.2em" />
+								Add exercise
+							</button>
+							<button
+								type="button"
+								class="btn-dashed btn border-dashed border-base-300 text-base-content/70"
+								onclick={() =>
+									builder.openModal({
+										type: 'exercise',
+										sessionId: expandedSession.id,
+										programExerciseId: null,
+										mode: 'note'
+									})}
+							>
+								<Message3LineIcon height="1.2em" />
+								Add note
+							</button>
+						</div>
 					</div>
 				{/if}
 			</div>

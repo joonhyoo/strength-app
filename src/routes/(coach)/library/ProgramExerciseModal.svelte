@@ -109,15 +109,20 @@
 	});
 
 	const isEditing = $derived(editingExerciseId !== null);
+	const isNote = $derived(
+		(modal?.type === 'exercise' && modal.mode === 'note') || editingExercise?.category === 'note'
+	);
 
 	const category = $derived.by(() => {
+		if (isNote) return 'note' as const;
 		if (creatingNew) return newCategory;
 		return findExercise(selectedName)?.category ?? 'warmup';
 	});
 
 	const isWeight = $derived(category === 'weight');
 
-	const exerciseName = $derived(creatingNew ? newName.trim() : selectedName);
+	const exerciseName = $derived(isNote ? 'Note' : creatingNew ? newName.trim() : selectedName);
+	const canSave = $derived(isNote ? note.trim().length > 0 : exerciseName.length > 0);
 
 	let dialog = $state() as HTMLDialogElement;
 
@@ -129,12 +134,14 @@
 	});
 
 	async function submit() {
-		if (!exerciseName) return;
+		if (!canSave) return;
 
 		// Capture every reactive value before the first await. addExerciseDefinition() reassigns
 		// the shared `exercises` state, whose flush re-runs the seeding $effect before this
 		// function resumes — so a reactive read after the await would see reset values.
-		const creating = creatingNew;
+		// A note goes through as category 'note' / activity 'Note' with no catalog
+		// write — getOrCreateExercise makes the one shared row server-side.
+		const creating = !isNote && creatingNew;
 		const targetSessionId = sessionId;
 		const targetExerciseId = editingExerciseId;
 		const input: ProgramExerciseInput = {
@@ -158,7 +165,15 @@
 
 <dialog bind:this={dialog} class="modal" onclose={() => builder.closeModal()}>
 	<div class="modal-box">
-		<h3 class="mb-4 text-lg font-bold">{isEditing ? 'Edit exercise' : 'Add exercise'}</h3>
+		<h3 class="mb-4 text-lg font-bold">
+			{isNote
+				? isEditing
+					? 'Edit note'
+					: 'Add note'
+				: isEditing
+					? 'Edit exercise'
+					: 'Add exercise'}
+		</h3>
 
 		<form
 			class="flex flex-col gap-4"
@@ -167,7 +182,7 @@
 				submit();
 			}}
 		>
-			{#if !creatingNew}
+			{#if !isNote && !creatingNew}
 				<label class="form-control w-full">
 					<span class="label">Exercise</span>
 					<select class="select-bordered select" bind:value={selectedName}>
@@ -188,7 +203,7 @@
 				</label>
 			{/if}
 
-			{#if creatingNew}
+			{#if !isNote && creatingNew}
 				<label class="form-control w-full">
 					<span class="label">Exercise name</span>
 					<input
@@ -209,7 +224,7 @@
 				</label>
 			{/if}
 
-			{#if !isEditing}
+			{#if !isNote && !isEditing}
 				<label class="flex items-center gap-2 text-sm">
 					<input type="checkbox" class="toggle toggle-sm" bind:checked={creatingNew} />
 					New exercise
@@ -230,14 +245,16 @@
 			{/if}
 
 			<label class="form-control w-full">
-				<span class="label">Note</span>
+				<span class="label">{isNote ? 'Note for the athlete' : 'Note'}</span>
 				<textarea
 					use:autoGrowNote={note}
 					class="textarea-bordered textarea field-sizing-content max-h-48 resize-none"
-					rows="3"
-					placeholder={isWeight
-						? 'e.g. 4s eccentric, explode up.'
-						: 'e.g. 3 x 5\nReset between every jump.'}
+					rows={isNote ? 4 : 3}
+					placeholder={isNote
+						? 'e.g. Deload week — leave 2 reps in the tank on every set.'
+						: isWeight
+							? 'e.g. 4s eccentric, explode up.'
+							: 'e.g. 3 x 5\nReset between every jump.'}
 					bind:value={note}
 				></textarea>
 			</label>
@@ -250,7 +267,7 @@
 				>
 					Cancel
 				</button>
-				<button class="btn btn-primary" type="submit" disabled={!exerciseName}> Save </button>
+				<button class="btn btn-primary" type="submit" disabled={!canSave}> Save </button>
 			</div>
 		</form>
 	</div>

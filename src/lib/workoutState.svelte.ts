@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import { exerciseComplete } from '$lib/complete';
+import { countsTowardCompletion, exerciseComplete } from '$lib/complete';
 import { setExerciseComplete, updateSet } from '$lib/services/programService.svelte';
 import { updateCachedWorkoutDay } from '$lib/services/workoutService.svelte';
 import type { Exercise } from '$lib/types';
@@ -23,8 +23,9 @@ class WorkoutState {
 	}
 
 	get progress() {
-		if (this.exercises.length === 0) return 0;
-		return this.exercises.filter(exerciseComplete).length / this.exercises.length;
+		const gradable = this.exercises.filter(countsTowardCompletion);
+		if (gradable.length === 0) return 0;
+		return gradable.filter(exerciseComplete).length / gradable.length;
 	}
 
 	/** Which day's cache entry logSet/toggleComplete write optimistic edits back into. */

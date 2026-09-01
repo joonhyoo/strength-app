@@ -308,6 +308,7 @@
 									activity={exercise.activity}
 									category={exercise.category}
 									plan={exercise.plan}
+									note={exercise.note}
 									complete={workout.isComplete(exercise)}
 									onselect={() => workout.open(i)}
 								/>

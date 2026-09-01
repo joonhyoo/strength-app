@@ -22,11 +22,16 @@
 			<h3 class="my-8 text-lg font-bold">{workout.selected.activity}</h3>
 			<div class="overflow-x-auto">
 				{#if workout.selected.note.length}
-					<div class="my-4 rounded-md bg-neutral/20 p-4 whitespace-pre-wrap">
+					<div
+						class="my-4 rounded-md bg-neutral/20 p-4 whitespace-pre-wrap {workout.selected
+							.category === 'note'
+							? 'text-left'
+							: ''}"
+					>
 						{workout.selected.note}
 					</div>
 				{/if}
-				{#if !CONDITIONING_CATEGORIES.includes(workout.selected.category)}
+				{#if workout.selected.category === 'weight'}
 					<table class="table">
 						<thead>
 							<tr>
