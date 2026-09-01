@@ -343,6 +343,10 @@
 							</span>
 						</div>
 
+						{#if builder.exerciseOpError}
+							<p class="mt-2 text-xs text-error">{builder.exerciseOpError}</p>
+						{/if}
+
 						{#if expandedSession.exercises.length === 0}
 							<p class="py-4 text-center text-sm text-base-content/60">No exercises yet.</p>
 						{:else}
@@ -350,6 +354,8 @@
 								{#each expandedSession.exercises as exercise, i (exercise.id)}
 									<div
 										class="flex min-w-0 items-center gap-3 border-b border-base-300 py-2 last:border-none"
+										class:opacity-60={builder.pendingExerciseIds.has(exercise.id)}
+										inert={builder.pendingExerciseIds.has(exercise.id)}
 									>
 										<CategoryIcon category={exercise.category} />
 										<div class="min-w-0 flex-1">

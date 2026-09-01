@@ -144,6 +144,10 @@
 			plan: isWeight ? Array(sets).fill(reps) : []
 		};
 
+		// Close now — saveExercise applies the change to the tree optimistically
+		// and reconciles with the server in the background.
+		builder.closeModal();
+
 		if (creating) {
 			await addExerciseDefinition({ name: input.activity, category: input.category });
 		}
