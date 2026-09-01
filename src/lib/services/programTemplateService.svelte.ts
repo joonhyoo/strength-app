@@ -89,6 +89,15 @@ export async function addSession(weekId: string, dayNumber: number, name: string
 	return postProgram('addSession', { weekId, dayNumber, name });
 }
 
+export async function duplicateSession(
+	sourceSessionId: string,
+	destWeekId: string,
+	destDayNumber: number,
+	replace: boolean
+) {
+	return postProgram('duplicateSession', { sourceSessionId, destWeekId, destDayNumber, replace });
+}
+
 export async function updateSession(sessionId: string, name: string) {
 	return postProgram('updateSession', { sessionId, name });
 }

@@ -4,6 +4,8 @@
 	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
 	import ArrowUpLineIcon from '@iconify-svelte/mingcute/arrow-up-line';
 	import ArrowDownLineIcon from '@iconify-svelte/mingcute/arrow-down-line';
+	import CopyLineIcon from '@iconify-svelte/mingcute/copy-line';
+	import PasteLineIcon from '@iconify-svelte/mingcute/paste-line';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import { CATEGORY_LABEL } from '$lib/data/categories';
@@ -29,6 +31,26 @@
 	const expandedSession = $derived(
 		expandedWeek?.sessions.find((s) => s.id === builder.expandedSessionId) ?? null
 	);
+
+	// Non-null only while a session is on the clipboard. The day grid of
+	// whichever week is open then turns into a set of paste targets.
+	const clipboard = $derived(builder.sessionClipboard);
+
+	async function handlePasteInto(
+		dayNumber: number,
+		dowLabel: string,
+		existing: { name: string } | undefined
+	) {
+		if (!expandedWeek || !clipboard) return;
+		if (
+			existing &&
+			!confirm(
+				`Replace "${existing.name}" on ${dowLabel} with "${clipboard.sessionName}"? The current session's exercises will be removed.`
+			)
+		)
+			return;
+		await builder.pasteSession(expandedWeek.id, dayNumber, Boolean(existing));
+	}
 
 	async function handleDeleteCycle() {
 		if (
@@ -127,6 +149,24 @@
 
 		{#if expandedWeek}
 			<div class="mt-3 border-t border-dashed border-base-300 pt-3">
+				{#if clipboard}
+					<div
+						class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm"
+					>
+						<CopyLineIcon height="1.1em" class="shrink-0 text-primary" />
+						<span>
+							Copied <span class="font-semibold">{clipboard.sessionName}</span> — pick a day below to
+							paste it in.
+						</span>
+						<button
+							type="button"
+							class="btn ml-auto btn-ghost btn-xs"
+							onclick={() => builder.clearSessionClipboard()}
+						>
+							Done
+						</button>
+					</div>
+				{/if}
 				<div class="overflow-x-auto">
 					<div class="sticky left-0 z-10 mb-2 flex w-fit items-center gap-2 bg-base-100 pr-3">
 						<span class="font-mono text-xs text-base-content/50">Week {expandedWeekIndex + 1}</span>
@@ -144,7 +184,35 @@
 						{#each DOW as dowLabel, i (dowLabel)}
 							{@const dayNumber = i + 1}
 							{@const session = expandedWeek.sessions.find((s) => s.dayNumber === dayNumber)}
-							{#if session}
+							{#if clipboard}
+								{@const isSource =
+									clipboard.sourceWeekId === expandedWeek.id &&
+									clipboard.sourceDayNumber === dayNumber}
+								<button
+									type="button"
+									class="flex min-h-[4.6rem] flex-col gap-1 rounded-lg border p-2 text-left transition-colors {isSource
+										? 'border-base-300 bg-base-200 opacity-60'
+										: 'border-dashed border-primary/60 bg-primary/5 hover:bg-primary/15'}"
+									disabled={isSource}
+									onclick={() => handlePasteInto(dayNumber, dowLabel, session)}
+								>
+									<span class="text-[0.64rem] tracking-wide text-base-content/50 uppercase"
+										>{dowLabel}</span
+									>
+									{#if isSource}
+										<span class="mt-1 text-xs text-base-content/50">Copied from here</span>
+									{:else if session}
+										<span class="mt-1 flex items-center gap-1 text-sm font-semibold text-primary">
+											<PasteLineIcon height="1em" /> Replace
+										</span>
+										<span class="truncate text-[0.66rem] text-base-content/50">{session.name}</span>
+									{:else}
+										<span class="mt-1 flex items-center gap-1 text-sm font-semibold text-primary">
+											<PasteLineIcon height="1em" /> Paste here
+										</span>
+									{/if}
+								</button>
+							{:else if session}
 								{@const isOpen = builder.expandedSessionId === session.id}
 								<button
 									type="button"
@@ -195,6 +263,15 @@
 						<div class="mb-2 flex items-center justify-between border-b border-base-300 pb-2">
 							<span class="font-semibold">{expandedSession.name}</span>
 							<span class="flex gap-1">
+								<button
+									type="button"
+									class="btn btn-ghost btn-xs"
+									aria-label={`Copy ${expandedSession.name} to another day`}
+									onclick={() => builder.copySession(expandedSession.id)}
+								>
+									<CopyLineIcon height="1.1em" />
+									Copy
+								</button>
 								<button
 									type="button"
 									class="btn btn-ghost btn-xs"
