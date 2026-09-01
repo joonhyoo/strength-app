@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import {
 		getExerciseLibrary,
@@ -51,27 +52,45 @@
 		loadExerciseLibrary();
 	});
 
+	// Seed the form once, when the modal opens (it remounts on every open). The body is
+	// untracked so it never subscribes to the exercise catalog: submit() mutates that catalog
+	// via addExerciseDefinition(), and a re-run here mid-submit would reset the fields submit()
+	// is about to read.
 	$effect(() => {
 		if (!program.modalOpen) return;
 
-		if (editingExercise) {
-			const inLibrary = !!findExercise(editingExercise.activity);
-			creatingNew = !inLibrary;
-			selectedName = inLibrary ? editingExercise.activity : (library[0]?.name ?? '');
-			newName = editingExercise.activity;
-			newCategory = editingExercise.category;
-			sets = editingExercise.plan.length || 3;
-			reps = (editingExercise.plan[0] as number) ?? 5;
-			note = editingExercise.note;
-			complete = editingExercise.complete;
-		} else {
-			creatingNew = false;
-			selectedName = library[0]?.name ?? '';
-			newCategory = 'warmup';
-			sets = 3;
-			reps = 5;
-			note = '';
-			complete = false;
+		untrack(() => {
+			const editing = editingExercise;
+			if (editing) {
+				const inLibrary = !!findExercise(editing.activity);
+				creatingNew = !inLibrary;
+				selectedName = inLibrary ? editing.activity : (library[0]?.name ?? '');
+				newName = editing.activity;
+				newCategory = editing.category;
+				sets = editing.plan.length || 3;
+				reps = (editing.plan[0] as number) ?? 5;
+				note = editing.note;
+				complete = editing.complete;
+			} else {
+				creatingNew = false;
+				selectedName = library[0]?.name ?? '';
+				newCategory = 'warmup';
+				sets = 3;
+				reps = 5;
+				note = '';
+				complete = false;
+			}
+		});
+	});
+
+	// If the catalog streams in after the modal opened, adopt a default selection — but only
+	// if the coach hasn't already picked or started typing one.
+	$effect(() => {
+		const first = library[0]?.name;
+		if (first) {
+			untrack(() => {
+				if (!creatingNew && selectedName === '') selectedName = first;
+			});
 		}
 	});
 
@@ -98,11 +117,10 @@
 	async function submit() {
 		if (!exerciseName) return;
 
-		if (creatingNew) {
-			await addExerciseDefinition({ name: exerciseName, category });
-			selectedName = exerciseName;
-		}
-
+		// Capture every reactive value before the first await. addExerciseDefinition() reassigns
+		// the shared `exercises` state, whose flush re-runs the seeding $effect before this
+		// function resumes — so a reactive read after the await would see reset values.
+		const creating = creatingNew;
 		const exercise: Exercise = {
 			category,
 			activity: exerciseName,
@@ -111,6 +129,10 @@
 			note: note.trim(),
 			complete
 		};
+
+		if (creating) {
+			await addExerciseDefinition({ name: exercise.activity, category: exercise.category });
+		}
 
 		await program.saveExercise(exercise);
 		program.closeModal();
