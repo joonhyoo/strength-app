@@ -21,6 +21,15 @@ class ProgramBuilderState {
 	expandedWeekId = $state<string | null>(null);
 	expandedSessionId = $state<string | null>(null);
 	modal = $state<ModalState>(null);
+	// A session picked up with "Copy" in the week grid, held until it's pasted
+	// onto another day or explicitly cleared. sourceWeekId/sourceDayNumber only
+	// exist to grey out the origin cell when its own week is the one on screen.
+	sessionClipboard = $state<{
+		sessionId: string;
+		sessionName: string;
+		sourceWeekId: string;
+		sourceDayNumber: number;
+	} | null>(null);
 
 	async loadPrograms() {
 		this.programs = await service.listPrograms();
@@ -36,6 +45,9 @@ class ProgramBuilderState {
 		// restart at 1) — reset rather than carry it over.
 		this.expandedWeekId = null;
 		this.expandedSessionId = null;
+		// The clipboard holds a session id from the program being navigated away
+		// from; keeping it would offer a confusing cross-program paste.
+		this.sessionClipboard = null;
 		this.selectedProgram = await service.getProgram(id);
 	}
 
@@ -50,6 +62,16 @@ class ProgramBuilderState {
 		for (const cycle of this.selectedProgram?.cycles ?? []) {
 			const week = cycle.weeks.find((w) => w.id === weekId);
 			if (week) return week;
+		}
+		return null;
+	}
+
+	private findSession(sessionId: string) {
+		for (const cycle of this.selectedProgram?.cycles ?? []) {
+			for (const week of cycle.weeks) {
+				const session = week.sessions.find((s) => s.id === sessionId);
+				if (session) return { session, weekId: week.id };
+			}
 		}
 		return null;
 	}
@@ -189,6 +211,43 @@ class ProgramBuilderState {
 		if (res.ok) {
 			if (this.expandedSessionId === sessionId) this.expandedSessionId = null;
 			await this.refresh();
+		}
+		return res;
+	}
+
+	/** Picks up a session for pasting onto another day. No-op if the id isn't in the loaded program. */
+	copySession(sessionId: string) {
+		const found = this.findSession(sessionId);
+		if (!found) return;
+		this.sessionClipboard = {
+			sessionId,
+			sessionName: found.session.name,
+			sourceWeekId: found.weekId,
+			sourceDayNumber: found.session.dayNumber
+		};
+	}
+
+	clearSessionClipboard() {
+		this.sessionClipboard = null;
+	}
+
+	/**
+	 * Copies the clipboard session onto destWeekId's given day. `replace` must
+	 * be set by the caller when that day already has a session — the server
+	 * refuses the paste otherwise rather than silently merging.
+	 */
+	async pasteSession(destWeekId: string, destDayNumber: number, replace: boolean) {
+		if (!this.sessionClipboard) return;
+		const res = await service.duplicateSession(
+			this.sessionClipboard.sessionId,
+			destWeekId,
+			destDayNumber,
+			replace
+		);
+		if (res.ok) {
+			await this.refresh();
+			this.expandedWeekId = destWeekId;
+			this.expandedSessionId = (res.data as { id: string }).id;
 		}
 		return res;
 	}

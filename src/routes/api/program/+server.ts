@@ -251,6 +251,78 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			return json({ data: session });
 		}
 
+		case 'duplicateSession': {
+			// Deep-copies one session's name + program_exercises + program_sets
+			// onto another day — same nested-copy shape as duplicateWeek's inner
+			// per-session loop, just invoked directly for a single day. The
+			// destination may be in a different week or cycle of the coach's
+			// programs; RLS (is_week_owner / is_session_owner) is what keeps it
+			// to sessions the caller actually owns, either end.
+			//
+			// `replace` first deletes whatever session already sits on the
+			// destination day (cascading to its own exercises/sets). Without it a
+			// destination collision is refused — sessions has a unique
+			// (week_id, day_number) index, and the caller's UI is expected to
+			// have already confirmed the overwrite with the coach.
+			const { sourceSessionId, destWeekId, destDayNumber, replace } = data;
+
+			const { data: sourceSession } = await supabase
+				.from('sessions')
+				.select(
+					'name, program_exercises(position, note, exercise_id, program_sets(set_number, target_reps))'
+				)
+				.eq('id', sourceSessionId)
+				.single();
+
+			if (!sourceSession) return error(404, 'Session not found');
+
+			const { data: existing } = await supabase
+				.from('sessions')
+				.select('id')
+				.eq('week_id', destWeekId)
+				.eq('day_number', destDayNumber)
+				.maybeSingle();
+
+			if (existing) {
+				if (!replace) return error(409, 'That day already has a session.');
+				const { error: delErr } = await supabase.from('sessions').delete().eq('id', existing.id);
+				if (delErr) return error(500, 'Failed to replace the existing session');
+			}
+
+			const { data: newSession, error: sessionErr } = await supabase
+				.from('sessions')
+				.insert({ week_id: destWeekId, day_number: destDayNumber, name: sourceSession.name })
+				.select('id')
+				.single();
+
+			if (sessionErr || !newSession) return error(500, 'Failed to copy session');
+
+			for (const pe of sourceSession.program_exercises ?? []) {
+				const { data: newExercise } = await supabase
+					.from('program_exercises')
+					.insert({
+						session_id: newSession.id,
+						exercise_id: pe.exercise_id,
+						position: pe.position,
+						note: pe.note
+					})
+					.select('id')
+					.single();
+
+				if (newExercise && pe.program_sets?.length) {
+					await supabase.from('program_sets').insert(
+						pe.program_sets.map((s) => ({
+							program_exercise_id: newExercise.id,
+							set_number: s.set_number,
+							target_reps: s.target_reps
+						}))
+					);
+				}
+			}
+
+			return json({ data: newSession });
+		}
+
 		case 'updateSession': {
 			const { sessionId, name } = data;
 			const { error: updateErr } = await supabase
