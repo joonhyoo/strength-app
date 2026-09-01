@@ -13,7 +13,8 @@
 
 	const program = getCoachProgramState();
 
-	let { athleteId, date }: { athleteId: string; date: Date } = $props();
+	let { athleteId, athleteName, date }: { athleteId: string; athleteName: string; date: Date } =
+		$props();
 
 	const dateKey = $derived(date.toLocaleDateString('fr-CA'));
 
@@ -48,14 +49,49 @@
 	async function handleRemove(id: string) {
 		await program.removeExercise(id);
 	}
+
+	function handleCopyDay() {
+		program.copyDay(athleteName);
+	}
+
+	async function handlePasteDay() {
+		const existingStatus = program.statusMap.get(dateKey);
+		if (existingStatus && existingStatus !== 'none') {
+			if (
+				!confirm(
+					`${date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })} already has a workout for ${athleteName}. Pasting will replace it. Continue?`
+				)
+			)
+				return;
+		}
+		await program.pasteDay();
+	}
 </script>
 
 <div class="card w-full min-w-0 bg-base-100 shadow-sm">
 	<div class="card-body">
-		<div class="flex items-center justify-between">
+		<div class="flex flex-wrap items-center justify-between gap-2">
 			<h2 class="card-title text-base">
 				{date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}
 			</h2>
+			<div class="flex shrink-0 gap-2">
+				<button
+					type="button"
+					class="btn btn-sm"
+					disabled={exercises.length === 0}
+					onclick={handleCopyDay}
+				>
+					Copy day
+				</button>
+				<button
+					type="button"
+					class="btn btn-sm btn-primary"
+					disabled={!program.clipboard || program.clipboard.type !== 'day'}
+					onclick={handlePasteDay}
+				>
+					Paste day
+				</button>
+			</div>
 		</div>
 
 		{#if loading}

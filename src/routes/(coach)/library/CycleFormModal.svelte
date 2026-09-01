@@ -1,0 +1,121 @@
+<script lang="ts">
+	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
+	import type { ColorKey } from '$lib/types';
+
+	const builder = getProgramBuilderState();
+
+	const modal = $derived(builder.modal);
+	const programId = $derived(modal?.type === 'cycle' ? modal.programId : '');
+	const editingCycleId = $derived(modal?.type === 'cycle' ? modal.cycleId : null);
+	const editingCycle = $derived(
+		editingCycleId
+			? (builder.selectedProgram?.cycles.find((c) => c.id === editingCycleId) ?? null)
+			: null
+	);
+
+	const COLOR_OPTIONS: { key: ColorKey; swatch: string }[] = [
+		{ key: 'sky', swatch: 'var(--color-sky)' },
+		{ key: 'cream', swatch: 'var(--color-cream)' },
+		{ key: 'primary', swatch: 'var(--color-primary)' }
+	];
+
+	let name = $state('');
+	let goal = $state('');
+	let colorKey = $state<ColorKey>('sky');
+	let saving = $state(false);
+
+	$effect(() => {
+		if (!builder.modal) return;
+		name = editingCycle?.name ?? '';
+		goal = editingCycle?.goal ?? '';
+		colorKey = editingCycle?.colorKey ?? 'sky';
+	});
+
+	let dialog = $state() as HTMLDialogElement;
+
+	$effect(() => {
+		dialog.showModal();
+		return () => {
+			if (dialog.open) dialog.close();
+		};
+	});
+
+	async function submit() {
+		const trimmed = name.trim();
+		if (!trimmed) return;
+		saving = true;
+		await builder.saveCycle(programId, editingCycleId, trimmed, goal.trim(), colorKey);
+		saving = false;
+	}
+</script>
+
+<dialog bind:this={dialog} class="modal" onclose={() => builder.closeModal()}>
+	<div class="modal-box">
+		<h3 class="mb-4 text-lg font-bold">{editingCycle ? 'Edit cycle' : 'Add cycle'}</h3>
+
+		<form
+			class="flex flex-col gap-4"
+			onsubmit={(e) => {
+				e.preventDefault();
+				submit();
+			}}
+		>
+			<label class="form-control w-full">
+				<span class="label">Cycle name</span>
+				<input
+					class="input-bordered input"
+					type="text"
+					placeholder="e.g. Strength Cycle"
+					bind:value={name}
+				/>
+			</label>
+
+			<label class="form-control w-full">
+				<span class="label">Goal</span>
+				<input
+					class="input-bordered input"
+					type="text"
+					placeholder="What is this cycle building toward?"
+					bind:value={goal}
+				/>
+			</label>
+
+			<div class="flex flex-col gap-2">
+				<span class="label px-0">Color</span>
+				<div class="flex gap-2">
+					{#each COLOR_OPTIONS as option (option.key)}
+						<button
+							type="button"
+							class="h-8 w-8 rounded-full border-2 {colorKey === option.key
+								? 'border-base-content'
+								: 'border-transparent'}"
+							style="background:{option.swatch}"
+							aria-pressed={colorKey === option.key}
+							aria-label={option.key}
+							onclick={() => (colorKey = option.key)}
+						></button>
+					{/each}
+				</div>
+			</div>
+
+			{#if !editingCycle}
+				<p class="text-xs text-base-content/50">
+					A new cycle starts with no weeks — use the + chip on its week row to add some.
+				</p>
+			{/if}
+
+			<div class="modal-action">
+				<button
+					type="button"
+					class="btn bg-error/10 text-error hover:bg-error/20"
+					onclick={() => builder.closeModal()}
+				>
+					Cancel
+				</button>
+				<button class="btn btn-primary" type="submit" disabled={saving || !name.trim()}>
+					{editingCycle ? 'Save' : 'Add cycle'}
+				</button>
+			</div>
+		</form>
+	</div>
+</dialog>

@@ -6,11 +6,16 @@
 	let {
 		selectedDate,
 		dayStatus,
-		onselect
+		onselect,
+		highlightWeekOf
 	}: {
 		selectedDate: Date;
 		dayStatus: (dateKey: string) => DayStatus;
 		onselect: (date: Date) => void;
+		/** When set, tints the whole calendar row containing this date — used
+		 * by the Training page toolbar so it's visually clear which week
+		 * Assign/Copy/Shift etc. actually apply to. */
+		highlightWeekOf?: Date;
 	} = $props();
 
 	const dotColor: Record<DayStatus, string> = {
@@ -68,6 +73,28 @@
 			date.getFullYear() === selectedDate.getFullYear()
 		);
 	}
+
+	function startOfDay(date: Date) {
+		return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+	}
+
+	function mondayOf(date: Date) {
+		const d = startOfDay(date);
+		d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+		return d;
+	}
+
+	function isInHighlightedWeek(date: Date) {
+		if (!highlightWeekOf) return false;
+		const start = mondayOf(highlightWeekOf);
+		// Plain Date: function-local scratch value for a one-off calculation,
+		// never read reactively by the template.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const end = new Date(start);
+		end.setDate(end.getDate() + 6);
+		const day = startOfDay(date);
+		return day >= start && day <= end;
+	}
 </script>
 
 <div class="card w-full bg-base-100 shadow-sm">
@@ -94,10 +121,13 @@
 					{@const status = dayStatus(date.toLocaleDateString('fr-CA'))}
 					{@const selected = isSelected(date)}
 					{@const todayCell = isToday(date)}
+					{@const inWeek = isInHighlightedWeek(date)}
 					<button
 						class="relative flex aspect-square items-center justify-center rounded-lg pb-2 text-sm transition-colors hover:bg-primary/20 {selected
 							? 'bg-primary/40'
-							: ''} {todayCell ? 'border border-primary' : ''}"
+							: inWeek
+								? 'bg-base-200'
+								: ''} {todayCell ? 'border border-primary' : ''}"
 						onclick={() => select(date)}
 					>
 						{date.getDate()}
