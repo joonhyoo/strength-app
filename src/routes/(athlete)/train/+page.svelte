@@ -5,11 +5,16 @@
 	import { SvelteDate } from 'svelte/reactivity';
 	import WorkoutItem from './WorkoutItem.svelte';
 	import WorkoutModal from './WorkoutModal.svelte';
+	import ProgramBreadcrumb from '$lib/components/ProgramBreadcrumb.svelte';
 	import { getCachedWorkoutDay, getWorkoutDay } from '$lib/services/workoutService.svelte';
 	import { initWorkoutState } from '$lib/workoutState.svelte';
+	import type { Breadcrumb } from '$lib/types';
 
 	const workout = initWorkoutState();
 	let date = new SvelteDate();
+	let breadcrumb = $state<Breadcrumb | null>(null);
+
+	const athleteId = $derived(page.data.user?.id ?? '');
 
 	const PULL_THRESHOLD = 96;
 	const MAX_PULL = 156;
@@ -280,7 +285,21 @@
 				class={swiping || snapping ? '' : 'transition-transform duration-200'}
 				style="transform: translateX({swipeX}px)"
 			>
-				<h2 class="text-lg font-bold">Scheduled Workout</h2>
+				{#if athleteId}
+					<ProgramBreadcrumb {athleteId} {date} onResolved={(c) => (breadcrumb = c)} />
+				{/if}
+
+				<h2 class="text-lg font-bold">
+					{#if workout.exercises.length}
+						Scheduled Workout
+					{:else if breadcrumb?.isComplete}
+						Program Complete
+					{:else if breadcrumb}
+						Rest Day
+					{:else}
+						Scheduled Workout
+					{/if}
+				</h2>
 				{#if workout.exercises.length}
 					<ol>
 						{#each workout.exercises as exercise, i (exercise.id)}
