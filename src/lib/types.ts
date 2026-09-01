@@ -93,6 +93,12 @@ export interface ProgramDetail {
 	}[];
 }
 
+/** One cycle / week / session out of a ProgramDetail tree — the units the
+ *  program builder inserts optimistically and reconciles against the server. */
+export type CycleDetail = ProgramDetail['cycles'][number];
+export type WeekDetail = CycleDetail['weeks'][number];
+export type SessionDetail = WeekDetail['sessions'][number];
+
 export interface AssignmentDate {
 	dateKey: string;
 	sessionId: string;
