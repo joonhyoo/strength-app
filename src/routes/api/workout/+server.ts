@@ -1,6 +1,85 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getOrCreateExercise } from '$lib/server/exercises';
+import { addDays, diffDays } from '$lib/server/programSchedule';
+
+/**
+ * Copies one athlete_workouts row (with its exercises/sets) onto a
+ * destination athlete+date, replacing whatever's already there. Shared by
+ * pasteDay and pasteWeek — a week-paste is just this run once per day that
+ * had source content.
+ *
+ * `session_id` carries over (this is what lets a pasted day still resolve
+ * its program/cycle/week breadcrumb even for an athlete who was never
+ * formally assigned anything), but `program_assignment_id` deliberately
+ * does not — that column scopes shift_program_schedule's moving set, and
+ * copying it onto a different athlete's row would make shifting the
+ * source's assignment incorrectly also move the pasted copy.
+ */
+async function pasteWorkoutDay(
+	supabase: import('@supabase/supabase-js').SupabaseClient,
+	sourceAthleteId: string,
+	sourceDateKey: string,
+	destAthleteId: string,
+	destDateKey: string
+): Promise<boolean> {
+	const { data: source } = await supabase
+		.from('athlete_workouts')
+		.select(
+			'session_id, athlete_exercises(exercise_id, position, note, athlete_sets(set_number, target_reps))'
+		)
+		.eq('athlete_id', sourceAthleteId)
+		.eq('scheduled_date', sourceDateKey)
+		.maybeSingle();
+
+	if (!source) return false;
+
+	await supabase
+		.from('athlete_workouts')
+		.delete()
+		.eq('athlete_id', destAthleteId)
+		.eq('scheduled_date', destDateKey);
+
+	const { data: dest, error: insertErr } = await supabase
+		.from('athlete_workouts')
+		.insert({
+			athlete_id: destAthleteId,
+			scheduled_date: destDateKey,
+			session_id: source.session_id
+		})
+		.select('id')
+		.single();
+
+	if (insertErr || !dest) return false;
+
+	for (const ex of source.athlete_exercises ?? []) {
+		const { data: newEx } = await supabase
+			.from('athlete_exercises')
+			.insert({
+				athlete_workout_id: dest.id,
+				exercise_id: ex.exercise_id,
+				position: ex.position,
+				note: ex.note,
+				// A pasted day schedules a plan, not a completed log — completion
+				// and any actually-performed weight/reps never carry over.
+				complete: false
+			})
+			.select('id')
+			.single();
+
+		if (newEx && ex.athlete_sets?.length) {
+			await supabase.from('athlete_sets').insert(
+				ex.athlete_sets.map((s) => ({
+					athlete_exercise_id: newEx.id,
+					set_number: s.set_number,
+					target_reps: s.target_reps
+				}))
+			);
+		}
+	}
+
+	return true;
+}
 
 export const POST: RequestHandler = async ({ request, locals: { supabase } }) => {
 	const body = await request.json();
@@ -216,6 +295,89 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 				.eq('id', setId);
 
 			if (updateErr) return error(500, 'Failed to update set');
+			return json({ data: { success: true } });
+		}
+
+		case 'pasteDay': {
+			const { sourceAthleteId, sourceDateKey, destAthleteId, destDateKey } = data;
+			const pasted = await pasteWorkoutDay(
+				supabase,
+				sourceAthleteId,
+				sourceDateKey,
+				destAthleteId,
+				destDateKey
+			);
+
+			if (!pasted) return error(404, 'Nothing to paste — that day is no longer scheduled.');
+			return json({ data: { success: true } });
+		}
+
+		case 'checkPasteWeekConflicts': {
+			const { sourceAthleteId, sourceWeekStart, destAthleteId, destWeekStart } = data;
+
+			const { data: sourceRows } = await supabase
+				.from('athlete_workouts')
+				.select('scheduled_date')
+				.eq('athlete_id', sourceAthleteId)
+				.gte('scheduled_date', sourceWeekStart)
+				.lte('scheduled_date', addDays(sourceWeekStart, 6));
+
+			const destDates = (sourceRows ?? []).map((r) =>
+				addDays(destWeekStart, diffDays(sourceWeekStart, r.scheduled_date))
+			);
+
+			if (destDates.length === 0) return json({ data: { total: 0, conflicts: [] } });
+
+			const { data: existing } = await supabase
+				.from('athlete_workouts')
+				.select('scheduled_date')
+				.eq('athlete_id', destAthleteId)
+				.in('scheduled_date', destDates);
+
+			const conflicts = (existing ?? []).map((r) => r.scheduled_date as string);
+			return json({ data: { total: destDates.length, conflicts } });
+		}
+
+		case 'pasteWeek': {
+			const { sourceAthleteId, sourceWeekStart, destAthleteId, destWeekStart } = data;
+
+			// Only the days that actually had source content are touched — a
+			// rest day in the source week leaves whatever's at the matching
+			// destination day untouched, rather than clearing it.
+			const { data: sourceRows } = await supabase
+				.from('athlete_workouts')
+				.select('scheduled_date')
+				.eq('athlete_id', sourceAthleteId)
+				.gte('scheduled_date', sourceWeekStart)
+				.lte('scheduled_date', addDays(sourceWeekStart, 6));
+
+			let pastedCount = 0;
+			for (const row of sourceRows ?? []) {
+				const offset = diffDays(sourceWeekStart, row.scheduled_date);
+				const destDateKey = addDays(destWeekStart, offset);
+				const pasted = await pasteWorkoutDay(
+					supabase,
+					sourceAthleteId,
+					row.scheduled_date,
+					destAthleteId,
+					destDateKey
+				);
+				if (pasted) pastedCount++;
+			}
+
+			return json({ data: { pastedCount } });
+		}
+
+		case 'clearWeek': {
+			const { athleteId, weekStart } = data;
+			const { error: delErr } = await supabase
+				.from('athlete_workouts')
+				.delete()
+				.eq('athlete_id', athleteId)
+				.gte('scheduled_date', weekStart)
+				.lte('scheduled_date', addDays(weekStart, 6));
+
+			if (delErr) return error(500, 'Failed to clear week');
 			return json({ data: { success: true } });
 		}
 

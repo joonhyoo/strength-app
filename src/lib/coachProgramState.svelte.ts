@@ -5,7 +5,10 @@ import {
 	updateExercise as updateScheduledExercise,
 	removeExercise as removeScheduledExercise,
 	moveExercise as moveScheduledExercise,
-	setExerciseComplete
+	setExerciseComplete,
+	pasteDay as pasteDayRequest,
+	pasteWeek as pasteWeekRequest,
+	clearWeek as clearWeekRequest
 } from '$lib/services/programService.svelte';
 import {
 	getAthleteStatusMap,
@@ -15,6 +18,39 @@ import {
 import type { DayStatus } from '$lib/complete';
 import type { Exercise } from '$lib/types';
 
+// Local date-key helpers — deliberately not shared with
+// $lib/server/programSchedule.ts: that module lives under $lib/server and
+// SvelteKit forbids importing it (even for types re-exported as values, and
+// this file needs real functions, not just types) into client-side code.
+// The duplication is a handful of lines of plain Date arithmetic.
+function toDateKey(date: Date): string {
+	return date.toLocaleDateString('fr-CA');
+}
+
+function addDaysToKey(key: string, n: number): string {
+	const [y, m, d] = key.split('-').map(Number);
+	// Plain Date: function-local scratch value for a one-off calculation,
+	// never read reactively by the template (same reasoning as the plain
+	// Maps in workoutService.svelte.ts).
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const date = new Date(y, m - 1, d);
+	date.setDate(date.getDate() + n);
+	return toDateKey(date);
+}
+
+function mondayOfKey(key: string): string {
+	const [y, m, d] = key.split('-').map(Number);
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const date = new Date(y, m - 1, d);
+	const offset = (date.getDay() + 6) % 7; // Mon=0 .. Sun=6
+	date.setDate(date.getDate() - offset);
+	return toDateKey(date);
+}
+
+export type Clipboard =
+	| { type: 'day'; athleteId: string; athleteName: string; dateKey: string }
+	| { type: 'week'; athleteId: string; athleteName: string; weekStart: string };
+
 class CoachProgramState {
 	selectedAthleteId = $state<string | null>(null);
 	selectedDate = $state<Date>(new Date());
@@ -22,6 +58,28 @@ class CoachProgramState {
 	editingExercise = $state<Exercise | null>(null);
 	statusMap = $state<SvelteMap<string, DayStatus>>(new SvelteMap());
 	revision = $state(0);
+	clipboard = $state<Clipboard | null>(null);
+	assignModalOpen = $state(false);
+	shiftModalOpen = $state(false);
+
+	get selectedDateKey(): string {
+		return toDateKey(this.selectedDate);
+	}
+
+	get selectedWeekStart(): string {
+		return mondayOfKey(this.selectedDateKey);
+	}
+
+	/** How many of the selected week's 7 days currently have anything scheduled. */
+	get selectedWeekCount(): number {
+		const start = this.selectedWeekStart;
+		let n = 0;
+		for (let i = 0; i < 7; i++) {
+			const status = this.statusMap.get(addDaysToKey(start, i));
+			if (status && status !== 'none') n++;
+		}
+		return n;
+	}
 
 	selectAthlete(id: string | null) {
 		this.selectedAthleteId = id;
@@ -97,6 +155,101 @@ class CoachProgramState {
 			from: from.toLocaleDateString('fr-CA'),
 			to: to.toLocaleDateString('fr-CA')
 		});
+	}
+
+	// ---------------------------------------------------------------------
+	// Clipboard — copy is a pure client-side reference to a location (never
+	// the exercise data itself), matching how the rest of this class already
+	// treats the server as the source of truth. The actual read + warn-and-
+	// replace write both happen server-side inside pasteDay/pasteWeek, which
+	// is also what lets a paste carry the source day's program/session
+	// breadcrumb link across athletes.
+	// ---------------------------------------------------------------------
+
+	copyDay(athleteName: string) {
+		if (this.selectedAthleteId === null) return;
+		this.clipboard = {
+			type: 'day',
+			athleteId: this.selectedAthleteId,
+			athleteName,
+			dateKey: this.selectedDateKey
+		};
+	}
+
+	copyWeek(athleteName: string) {
+		if (this.selectedAthleteId === null) return;
+		this.clipboard = {
+			type: 'week',
+			athleteId: this.selectedAthleteId,
+			athleteName,
+			weekStart: this.selectedWeekStart
+		};
+	}
+
+	clearClipboard() {
+		this.clipboard = null;
+	}
+
+	async pasteDay() {
+		if (!this.clipboard || this.clipboard.type !== 'day' || this.selectedAthleteId === null) return;
+		await pasteDayRequest(
+			this.clipboard.athleteId,
+			this.clipboard.dateKey,
+			this.selectedAthleteId,
+			this.selectedDateKey
+		);
+		this.revision++;
+		await this.loadStatusMap();
+	}
+
+	async pasteWeek() {
+		if (!this.clipboard || this.clipboard.type !== 'week' || this.selectedAthleteId === null)
+			return;
+		await pasteWeekRequest(
+			this.clipboard.athleteId,
+			this.clipboard.weekStart,
+			this.selectedAthleteId,
+			this.selectedWeekStart
+		);
+		this.revision++;
+		await this.loadStatusMap();
+	}
+
+	async clearWeek() {
+		if (this.selectedAthleteId === null) return;
+		await clearWeekRequest(this.selectedAthleteId, this.selectedWeekStart);
+		this.revision++;
+		await this.loadStatusMap();
+	}
+
+	// ---------------------------------------------------------------------
+	// Assign / shift modals — mirrors modalOpen/editingExercise's pattern:
+	// this class tracks only which modal is open, the modal component itself
+	// owns its own form-field state locally.
+	// ---------------------------------------------------------------------
+
+	openAssignModal() {
+		this.assignModalOpen = true;
+	}
+
+	closeAssignModal() {
+		this.assignModalOpen = false;
+	}
+
+	openShiftModal() {
+		this.shiftModalOpen = true;
+	}
+
+	closeShiftModal() {
+		this.shiftModalOpen = false;
+	}
+
+	/** Called after a successful assign/shift to refresh the calendar dots and breadcrumb. */
+	async onScheduleChanged() {
+		this.assignModalOpen = false;
+		this.shiftModalOpen = false;
+		this.revision++;
+		await this.loadStatusMap();
 	}
 }
 
