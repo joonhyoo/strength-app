@@ -11,6 +11,15 @@
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import type { ExerciseCategory } from '$lib/types';
 	import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '$lib/data/categories';
+	import { initProgramBuilderState } from '$lib/programBuilderState.svelte';
+	import ProgramList from './ProgramList.svelte';
+	import ProgramEditor from './ProgramEditor.svelte';
+
+	const builder = initProgramBuilderState();
+
+	$effect(() => {
+		builder.loadPrograms();
+	});
 
 	// Streamed from the load function — null until the promise resolves, so
 	// the page (including the Add form) renders immediately.
@@ -132,13 +141,10 @@
 	</div>
 
 	{#if tab === 'programs'}
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body items-center py-16 text-center">
-				<h2 class="card-title text-base">Programs aren't available yet</h2>
-				<p class="max-w-sm text-sm text-base-content/60">
-					Reusable, assignable training programs are coming in a future update. For now, build out
-					each athlete's schedule directly from Training.
-				</p>
+		<div class="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
+			<ProgramList />
+			<div>
+				<ProgramEditor />
 			</div>
 		</div>
 	{:else}

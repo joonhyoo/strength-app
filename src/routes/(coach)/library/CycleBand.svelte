@@ -1,0 +1,313 @@
+<script lang="ts">
+	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
+	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
+	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
+	import ArrowUpLineIcon from '@iconify-svelte/mingcute/arrow-up-line';
+	import ArrowDownLineIcon from '@iconify-svelte/mingcute/arrow-down-line';
+	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
+	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
+	import { CATEGORY_LABEL } from '$lib/data/categories';
+	import { formatPlan } from '$lib/formatPlan';
+	import type { ProgramDetail } from '$lib/types';
+
+	let { cycle }: { cycle: ProgramDetail['cycles'][number] } = $props();
+
+	const builder = getProgramBuilderState();
+
+	const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+	const STRIPE_COLOR: Record<string, string> = {
+		sky: 'var(--color-sky)',
+		cream: 'var(--color-cream)',
+		primary: 'var(--color-primary)'
+	};
+
+	const expandedWeek = $derived(cycle.weeks.find((w) => w.id === builder.expandedWeekId) ?? null);
+	const expandedWeekIndex = $derived(
+		expandedWeek ? cycle.weeks.findIndex((w) => w.id === expandedWeek.id) : -1
+	);
+	const expandedSession = $derived(
+		expandedWeek?.sessions.find((s) => s.id === builder.expandedSessionId) ?? null
+	);
+
+	async function handleDeleteCycle() {
+		if (
+			!confirm(
+				`Delete "${cycle.name}"? This deletes the cycle and all its weeks and sessions. Athletes already assigned from it keep their scheduled days — they just lose the program/week label.`
+			)
+		)
+			return;
+		await builder.removeCycle(cycle.id);
+	}
+
+	async function handleDeleteWeek(weekId: string) {
+		if (!confirm('Delete this week? This removes every session and exercise in it.')) return;
+		await builder.removeWeek(weekId);
+	}
+
+	async function handleDeleteSession(sessionId: string) {
+		if (!confirm('Remove this session? The day reverts to a rest day.')) return;
+		await builder.removeSession(sessionId);
+	}
+
+	async function handleDeleteExercise(programExerciseId: string) {
+		if (!confirm('Remove this exercise?')) return;
+		await builder.removeExercise(programExerciseId);
+	}
+</script>
+
+<section class="card bg-base-100 shadow-sm">
+	<div class="card-body">
+		<div class="flex flex-wrap items-center gap-2">
+			<span
+				class="h-2.5 w-2.5 shrink-0 rounded-full"
+				style="background:{STRIPE_COLOR[cycle.colorKey]}"
+			></span>
+			<span class="font-bold">{cycle.name}</span>
+			<span class="text-xs text-base-content/50"
+				>{cycle.weeks.length} week{cycle.weeks.length === 1 ? '' : 's'}</span
+			>
+			<span class="ml-auto flex gap-1">
+				<button
+					type="button"
+					class="btn btn-ghost btn-xs"
+					aria-label={`Edit ${cycle.name}`}
+					onclick={() =>
+						builder.openModal({ type: 'cycle', programId: cycle.id, cycleId: cycle.id })}
+				>
+					<EditBoxLineIcon height="1.1em" />
+				</button>
+				<button
+					type="button"
+					class="btn text-error btn-ghost btn-xs"
+					aria-label={`Delete ${cycle.name}`}
+					onclick={handleDeleteCycle}
+				>
+					<Delete3LineIcon height="1.1em" />
+				</button>
+			</span>
+			{#if cycle.goal}
+				<p class="w-full text-sm text-base-content/60">{cycle.goal}</p>
+			{/if}
+		</div>
+
+		<div class="mt-3 flex flex-wrap gap-2">
+			{#each cycle.weeks as week, i (week.id)}
+				<button
+					type="button"
+					class="min-w-10 rounded-lg border px-2.5 py-1.5 text-center font-mono text-base font-bold {builder.expandedWeekId ===
+					week.id
+						? 'border-primary text-primary'
+						: 'border-base-300 bg-base-200 text-base-content hover:border-primary'}"
+					aria-label={`Week ${i + 1}`}
+					onclick={() => builder.toggleWeek(week.id)}
+				>
+					{i + 1}
+				</button>
+			{/each}
+			{#if cycle.weeks.length > 0}
+				<button
+					type="button"
+					class="flex items-center justify-center rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-sm text-primary hover:bg-primary/10"
+					aria-label={`Copy the last week of ${cycle.name} into a new week`}
+					onclick={() => builder.copyPreviousWeek(cycle.id)}
+				>
+					Copy previous week
+				</button>
+			{/if}
+			<button
+				type="button"
+				class="flex min-w-10 items-center justify-center rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-primary hover:bg-primary/10"
+				aria-label={`Add a blank week to ${cycle.name}`}
+				onclick={() => builder.addWeek(cycle.id)}
+			>
+				<PlusLineIcon height="1.2em" />
+			</button>
+		</div>
+
+		{#if expandedWeek}
+			<div class="mt-3 border-t border-dashed border-base-300 pt-3">
+				<div class="overflow-x-auto">
+					<div class="sticky left-0 z-10 mb-2 flex w-fit items-center gap-2 bg-base-100 pr-3">
+						<span class="font-mono text-xs text-base-content/50">Week {expandedWeekIndex + 1}</span>
+						<button
+							type="button"
+							class="btn text-error btn-ghost btn-xs"
+							onclick={() => handleDeleteWeek(expandedWeek.id)}
+						>
+							<Delete3LineIcon height="1em" />
+							Delete week
+						</button>
+					</div>
+
+					<div class="grid min-w-[640px] grid-cols-7 gap-2">
+						{#each DOW as dowLabel, i (dowLabel)}
+							{@const dayNumber = i + 1}
+							{@const session = expandedWeek.sessions.find((s) => s.dayNumber === dayNumber)}
+							{#if session}
+								{@const isOpen = builder.expandedSessionId === session.id}
+								<button
+									type="button"
+									class="min-h-[4.6rem] rounded-lg border p-2 text-left {isOpen
+										? 'border-primary shadow-[inset_0_0_0_1px_var(--color-primary)]'
+										: 'border-base-300 bg-base-100 hover:border-primary'}"
+									onclick={() => builder.toggleSession(session.id)}
+								>
+									<span class="text-[0.64rem] tracking-wide text-base-content/50 uppercase"
+										>{dowLabel}</span
+									>
+									<span class="mt-1 block text-sm font-semibold">{session.name}</span>
+									<span class="text-[0.66rem] text-base-content/50"
+										>{session.exercises.length} exercise{session.exercises.length === 1
+											? ''
+											: 's'}</span
+									>
+								</button>
+							{:else}
+								<div
+									class="flex min-h-[4.6rem] flex-col gap-1 rounded-lg border border-base-300 bg-base-200 p-2"
+								>
+									<span class="text-[0.64rem] tracking-wide text-base-content/50 uppercase"
+										>{dowLabel}</span
+									>
+									<span class="text-xs text-base-content/40">Rest</span>
+									<button
+										type="button"
+										class="mt-auto rounded border border-dashed border-base-300 py-1 text-[0.7rem] text-base-content/50 hover:border-primary hover:text-primary"
+										onclick={() =>
+											builder.openModal({
+												type: 'session',
+												weekId: expandedWeek.id,
+												dayNumber,
+												sessionId: null
+											})}
+									>
+										<PlusLineIcon height="1em" class="inline" /> Add session
+									</button>
+								</div>
+							{/if}
+						{/each}
+					</div>
+				</div>
+
+				{#if expandedSession}
+					<div class="mt-3">
+						<div class="mb-2 flex items-center justify-between border-b border-base-300 pb-2">
+							<span class="font-semibold">{expandedSession.name}</span>
+							<span class="flex gap-1">
+								<button
+									type="button"
+									class="btn btn-ghost btn-xs"
+									aria-label="Rename session"
+									onclick={() =>
+										builder.openModal({
+											type: 'session',
+											weekId: expandedWeek.id,
+											dayNumber: expandedSession.dayNumber,
+											sessionId: expandedSession.id
+										})}
+								>
+									<EditBoxLineIcon height="1.1em" />
+								</button>
+								<button
+									type="button"
+									class="btn text-error btn-ghost btn-xs"
+									aria-label="Remove session"
+									onclick={() => handleDeleteSession(expandedSession.id)}
+								>
+									<Delete3LineIcon height="1.1em" />
+								</button>
+							</span>
+						</div>
+
+						{#if expandedSession.exercises.length === 0}
+							<p class="py-4 text-center text-sm text-base-content/60">No exercises yet.</p>
+						{:else}
+							<div class="flex flex-col">
+								{#each expandedSession.exercises as exercise, i (exercise.id)}
+									<div
+										class="flex min-w-0 items-center gap-3 border-b border-base-300 py-2 last:border-none"
+									>
+										<CategoryIcon category={exercise.category} />
+										<div class="min-w-0 flex-1">
+											<div class="flex items-baseline gap-2">
+												<span class="font-medium">{exercise.activity}</span>
+												<span class="text-xs text-base-content/50"
+													>{CATEGORY_LABEL[exercise.category]}</span
+												>
+											</div>
+											{#if formatPlan(exercise.plan) || exercise.note}
+												<p class="truncate text-sm text-base-content/60">
+													{formatPlan(exercise.plan)}{exercise.plan.length && exercise.note.length
+														? ' · '
+														: ''}{exercise.note}
+												</p>
+											{/if}
+										</div>
+										<div class="flex shrink-0 flex-col items-center gap-0.5">
+											<button
+												type="button"
+												class="btn btn-ghost btn-xs"
+												aria-label={`Move ${exercise.activity} up`}
+												disabled={i === 0}
+												onclick={() => builder.moveExercise(exercise.id, 'up')}
+											>
+												<ArrowUpLineIcon height="1.2em" />
+											</button>
+											<button
+												type="button"
+												class="btn btn-ghost btn-xs"
+												aria-label={`Move ${exercise.activity} down`}
+												disabled={i === expandedSession.exercises.length - 1}
+												onclick={() => builder.moveExercise(exercise.id, 'down')}
+											>
+												<ArrowDownLineIcon height="1.2em" />
+											</button>
+										</div>
+										<div class="flex shrink-0 items-center gap-1">
+											<button
+												type="button"
+												class="btn text-secondary btn-ghost btn-xs"
+												aria-label={`Edit ${exercise.activity}`}
+												onclick={() =>
+													builder.openModal({
+														type: 'exercise',
+														sessionId: expandedSession.id,
+														programExerciseId: exercise.id
+													})}
+											>
+												<EditBoxLineIcon height="1.2em" />
+											</button>
+											<button
+												type="button"
+												class="btn text-error btn-ghost btn-xs"
+												aria-label={`Remove ${exercise.activity}`}
+												onclick={() => handleDeleteExercise(exercise.id)}
+											>
+												<Delete3LineIcon height="1.2em" />
+											</button>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+
+						<button
+							type="button"
+							class="btn-dashed btn mt-2 w-full border-dashed border-base-300 text-primary"
+							onclick={() =>
+								builder.openModal({
+									type: 'exercise',
+									sessionId: expandedSession.id,
+									programExerciseId: null
+								})}
+						>
+							<PlusLineIcon height="1.2em" />
+							Add exercise
+						</button>
+					</div>
+				{/if}
+			</div>
+		{/if}
+	</div>
+</section>
