@@ -20,17 +20,39 @@
 			`max-age=${COOKIE_MAX_AGE}; SameSite=Lax${secure}`;
 	}
 
-	// Dismiss the static splash from src/app.html once a real content route is
-	// on screen. Guarded against `/` — that route is a bare splash shell that
-	// immediately redirects, so removing the splash there would flash an empty
-	// page while the destination loads.
+	// Dismiss the static splash from src/app.html. It covers the whole cold-start
+	// path — the prerendered `/` shell, the client hop to the real route, and
+	// that route's load — so nothing half-built is ever on screen. Guarded
+	// against `/` (a bare shell that immediately redirects). Called from
+	// afterNavigate, which fires only once the destination's load has resolved.
 	function dismissSplash() {
 		if (page.url.pathname === '/') return;
 		const splash = document.getElementById('app-splash');
 		if (!splash) return;
-		splash.classList.add('is-hiding');
-		splash.addEventListener('transitionend', () => splash.remove(), { once: true });
-		setTimeout(() => splash.remove(), 600);
+
+		const hide = () => {
+			// afterNavigate has committed the destination's DOM; two frames
+			// guarantee it has also painted. Drop the mark first so it can't be
+			// seen fading over the destination's own logo, then fade the ground.
+			requestAnimationFrame(() =>
+				requestAnimationFrame(() => {
+					splash.querySelector('svg')?.remove();
+					splash.classList.add('is-hiding');
+					splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+					setTimeout(() => splash.remove(), 600);
+				})
+			);
+		};
+
+		// Give the mark a minimum time on screen even when the auth resolution
+		// comes back fast — it should read as a splash, not a flash. Measured
+		// from first paint (≈ when the splash first showed); if the destination
+		// took longer than that to render, no extra wait.
+		const MIN_ON_SCREEN_MS = 800;
+		const [fcp] = performance.getEntriesByName('first-contentful-paint');
+		const shownFor = performance.now() - (fcp?.startTime ?? 0);
+		if (shownFor >= MIN_ON_SCREEN_MS) hide();
+		else setTimeout(hide, MIN_ON_SCREEN_MS - shownFor);
 	}
 
 	onMount(dismissSplash);

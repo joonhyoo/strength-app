@@ -87,6 +87,10 @@
 			body {
 				background: #0d0d0f;
 			}
+			/* Covers the whole cold-start path — the prerendered `/` shell, the
+			   client hop to the real route, and that route's load. Held on screen
+			   for a minimum beat, then faded out once the real screen is painted
+			   underneath (src/routes/+layout.svelte's dismissSplash). */
 			#app-splash {
 				position: fixed;
 				inset: 0;
@@ -96,15 +100,15 @@
 				justify-content: center;
 				background: #0d0d0f;
 				opacity: 1;
-				transition: opacity 0.25s ease-out;
+				transition: opacity 0.3s ease;
 			}
 			#app-splash.is-hiding {
 				opacity: 0;
 			}
-			/* The mark breathes gently while the app loads. Starts at full
-			   opacity so it appears solid the instant it paints — no fade-in. */
+			/* The mark breathes gently while the app loads. Full opacity at the
+			   start so it's solid the instant it paints. */
 			#app-splash svg {
-				animation: app-splash-pulse 2.2s ease-in-out infinite;
+				animation: app-splash-pulse 2s ease-in-out infinite;
 			}
 			@keyframes app-splash-pulse {
 				0%,
@@ -112,13 +116,12 @@
 					opacity: 1;
 				}
 				50% {
-					opacity: 0.55;
+					opacity: 0.6;
 				}
 			}
 			@media (prefers-reduced-motion: reduce) {
 				#app-splash svg {
 					animation: none;
-					opacity: 0.85;
 				}
 			}
 		</style>
@@ -166,9 +169,9 @@
 				// src/routes/+page.svelte stalled — its goto() hung on the auth
 				// resolution, or hydration never ran so onMount never fired. Both
 				// the in-app dismissSplash and the removal below skip `/`, so
-				// there is otherwise no way off the pulsing splash. Break out with
-				// a full document navigation: it re-resolves auth server-side and
-				// can't be held up by a stuck client fetch.
+				// there is otherwise no way off the splash. Break out with a full
+				// document navigation: it re-resolves auth server-side and can't
+				// be held up by a stuck client fetch.
 				setTimeout(function () {
 					if (location.pathname !== '/') return;
 					var home = '/auth/login';
@@ -184,13 +187,14 @@
 					location.replace(home);
 				}, 5000);
 
-				// Off `/` but the splash is still up (a slow destination load, or a
-				// JS error after the nav) — don't leave the pulse indefinitely.
+				// Last resort: off `/` but dismissSplash never ran (a JS error
+				// after the nav). Long enough that it never pre-empts a normal
+				// slow auth resolution.
 				setTimeout(function () {
 					if (location.pathname === '/') return;
 					var s = document.getElementById('app-splash');
 					if (s) s.remove();
-				}, 4000);
+				}, 8000);
 			});
 		</script>
 		<div style="display: contents">%sveltekit.body%</div>

@@ -22,8 +22,11 @@ for spec in $SPECS; do
 	cw=${wh%x*}; ch=${wh#*x}
 	w=$((cw * ratio)); h=$((ch * ratio))
 	logo=$((96 * ratio))
+	# True-colour, not palette: the mark is a smooth 3-stop gradient and a
+	# ~250-colour palette banded it visibly against #app-splash's clean one.
+	# These files are almost entirely flat #0D0D0F, so it costs only a few KB.
 	magick -size "${w}x${h}" "xc:${BG}" \
 		\( "$SRC" -resize "${logo}x${logo}" \) -gravity center -composite \
-		-strip -dither None -colors 250 "png8:apple-splash-${w}-${h}.png"
+		-strip "apple-splash-${w}-${h}.png"
 	echo "apple-splash-${w}-${h}.png"
 done
