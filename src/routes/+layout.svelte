@@ -20,24 +20,6 @@
 			`max-age=${COOKIE_MAX_AGE}; SameSite=Lax${secure}`;
 	}
 
-	// Dismiss the static splash from src/app.html once a real content route is
-	// on screen. Guarded against `/` — that route is a bare splash shell that
-	// immediately redirects, so removing the splash there would flash an empty
-	// page while the destination loads.
-	function dismissSplash() {
-		if (page.url.pathname === '/') return;
-		const splash = document.getElementById('app-splash');
-		if (!splash) return;
-		// One hard cut, never a fade: `afterNavigate` has fired, so the
-		// destination is already painting underneath. Fading only hangs the
-		// centred splash mark over that screen's own logo for a few frames — a
-		// second, ghosted logo. Wait one painted frame of the destination so the
-		// cut uncovers a finished screen.
-		requestAnimationFrame(() => requestAnimationFrame(() => splash.remove()));
-	}
-
-	onMount(dismissSplash);
-
 	// The session is resolved server-side (src/routes/+layout.server.ts), and that
 	// load no longer re-runs on every navigation. This browser client is its
 	// counterpart: @supabase/ssr keeps the access token auto-refreshed while the
@@ -76,8 +58,6 @@
 	});
 
 	afterNavigate(() => {
-		dismissSplash();
-
 		// Keep the client-readable role-home hint fresh, so the prerendered `/`
 		// shell can route a returning user without a server lookup — covers
 		// anyone who authenticated before this cookie was introduced.
