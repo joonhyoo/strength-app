@@ -62,10 +62,10 @@
 					name="email"
 					type="email"
 					placeholder="athlete@email.com"
-					class="input-bordered input input-sm w-full"
+					class="input-bordered input w-full"
 					required
 				/>
-				<button type="submit" class="btn btn-sm btn-primary" disabled={inviting}>
+				<button type="submit" class="btn btn-primary" disabled={inviting}>
 					{inviting ? 'Inviting...' : 'Invite'}
 				</button>
 			</form>
@@ -85,7 +85,7 @@
 							<span class="truncate">{invite.email}</span>
 							<form method="POST" action="?/revoke_invite" use:enhance={enhanceReplace({})}>
 								<input type="hidden" name="email" value={invite.email} />
-								<button type="submit" class="btn btn-ghost btn-xs">Revoke</button>
+								<button type="submit" class="btn btn-ghost btn-sm">Revoke</button>
 							</form>
 						</li>
 					{/each}
@@ -152,11 +152,11 @@
 								<input type="hidden" name="athlete_id" value={athlete.id} />
 								<button
 									type="submit"
-									class="btn text-error btn-ghost btn-xs"
+									class="btn text-error btn-ghost btn-sm"
 									aria-label={`Remove ${athlete.name}`}
 									disabled={removing}
 								>
-									<Delete3LineIcon height="1.2em" />
+									<Delete3LineIcon height="1.3em" />
 								</button>
 							</form>
 						</li>

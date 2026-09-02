@@ -177,22 +177,22 @@
 										class="cursor-grab text-base-content/40 active:cursor-grabbing"
 										aria-hidden="true"
 									>
-										<DotGridLineIcon height="1.2em" />
+										<DotGridLineIcon height="1.3em" />
 									</span>
 								{/if}
 								<button
-									class="btn text-secondary btn-ghost btn-xs"
+									class="btn text-secondary btn-ghost btn-sm"
 									aria-label={`Edit ${exercise.activity}`}
 									onclick={() => exercise.id && program.openEdit(exercise)}
 								>
-									<EditBoxLineIcon height="1.2em" />
+									<EditBoxLineIcon height="1.3em" />
 								</button>
 								<button
-									class="btn text-error btn-ghost btn-xs"
+									class="btn text-error btn-ghost btn-sm"
 									aria-label={`Remove ${exercise.activity}`}
 									onclick={() => exercise.id && handleRemove(exercise.id)}
 								>
-									<Delete3LineIcon height="1.2em" />
+									<Delete3LineIcon height="1.3em" />
 								</button>
 							</div>
 						</div>

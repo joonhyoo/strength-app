@@ -11,8 +11,10 @@
 		type ExerciseRow
 	} from '$lib/data/exerciseLibrary.svelte';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
+	import PlayCircleFillIcon from '@iconify-svelte/mingcute/play-circle-fill';
+	import CloseLineIcon from '@iconify-svelte/mingcute/close-line';
 	import type { ExerciseCategory } from '$lib/types';
-	import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '$lib/data/categories';
+	import { CATEGORY_LABEL, CATEGORY_OPTIONS, CATEGORY_ICON } from '$lib/data/categories';
 	import { initProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import ProgramList from './ProgramList.svelte';
 	import ProgramEditor from './ProgramEditor.svelte';
@@ -37,6 +39,15 @@
 	const exercises = $derived<ExerciseDef[] | null>(
 		isExerciseLibraryLoaded() ? getExerciseLibrary() : null
 	);
+
+	let query = $state('');
+
+	// Mirrors the same substring-filter pattern used on the Athletes page.
+	const filteredExercises = $derived.by(() => {
+		if (exercises === null) return null;
+		const q = query.trim().toLowerCase();
+		return q ? exercises.filter((ex) => ex.name.toLowerCase().includes(q)) : exercises;
+	});
 
 	let tab = $state<'programs' | 'exercises'>('programs');
 
@@ -216,97 +227,128 @@
 					{:else if exercises.length === 0}
 						<p class="py-6 text-center text-base-content/60">No exercises yet.</p>
 					{:else}
-						{#each CATEGORY_OPTIONS as cat (cat)}
-							{@const items = exercises.filter((ex) => ex.category === cat)}
-							{#if items.length > 0}
-								<div class="mt-3 first:mt-0">
-									<h3
-										class="mb-1 text-xs font-semibold tracking-wide text-base-content/60 uppercase"
-									>
-										{CATEGORY_LABEL[cat]}
-									</h3>
-									<ul class="flex flex-col divide-y divide-base-200">
-										{#each items as item (item.id)}
-											<li class="py-2">
-												{#if editingId === item.id}
-													<form class="flex flex-col gap-2" onsubmit={saveEdit}>
-														<div class="flex gap-2">
+						<div class="relative mt-2 w-full max-w-xs">
+							<input
+								type="search"
+								placeholder="Search exercises…"
+								class="input-bordered input input-sm w-full pr-8 [&::-webkit-search-cancel-button]:appearance-none"
+								bind:value={query}
+							/>
+							{#if query}
+								<button
+									type="button"
+									class="btn absolute top-1/2 right-1 -translate-y-1/2 px-1 btn-ghost btn-xs"
+									aria-label="Clear search"
+									onclick={() => (query = '')}
+								>
+									<CloseLineIcon height="1em" />
+								</button>
+							{/if}
+						</div>
+						{#if !filteredExercises || filteredExercises.length === 0}
+							<p class="py-6 text-center text-base-content/60">No exercises match your search.</p>
+						{:else}
+							{#each CATEGORY_OPTIONS as cat (cat)}
+								{@const { icon: CatIcon, color } = CATEGORY_ICON[cat]}
+								{@const items = filteredExercises.filter((ex) => ex.category === cat)}
+								{#if items.length > 0}
+									<div class="mt-3 first:mt-0">
+										<h3
+											class="mb-1 text-xs font-semibold tracking-wide text-base-content/60 uppercase"
+										>
+											{CATEGORY_LABEL[cat]} · {items.length}
+										</h3>
+										<ul class="flex flex-col divide-y divide-base-200">
+											{#each items as item (item.id)}
+												<li class="py-2">
+													{#if editingId === item.id}
+														<form class="flex flex-col gap-2" onsubmit={saveEdit}>
+															<div class="flex gap-2">
+																<input
+																	class="input-bordered input input-sm w-full"
+																	type="text"
+																	bind:value={editName}
+																/>
+																<select
+																	class="select-bordered select select-sm"
+																	bind:value={editCategory}
+																>
+																	{#each CATEGORY_OPTIONS as c (c)}
+																		<option value={c}>{CATEGORY_LABEL[c]}</option>
+																	{/each}
+																</select>
+															</div>
 															<input
 																class="input-bordered input input-sm w-full"
-																type="text"
-																bind:value={editName}
+																type="url"
+																placeholder="Video link (optional)"
+																bind:value={editVideoUrl}
 															/>
-															<select
-																class="select-bordered select select-sm"
-																bind:value={editCategory}
-															>
-																{#each CATEGORY_OPTIONS as c (c)}
-																	<option value={c}>{CATEGORY_LABEL[c]}</option>
-																{/each}
-															</select>
-														</div>
-														<input
-															class="input-bordered input input-sm w-full"
-															type="url"
-															placeholder="Video link (optional)"
-															bind:value={editVideoUrl}
-														/>
-														{#if editError}
-															<p class="text-xs text-error">{editError}</p>
-														{/if}
-														<div class="flex gap-2">
-															<button
-																type="submit"
-																class="btn btn-xs btn-primary"
-																disabled={saving || !editName.trim()}
-															>
-																{saving ? 'Saving...' : 'Save'}
-															</button>
-															<button
-																type="button"
-																class="btn btn-ghost btn-xs"
-																onclick={cancelEdit}
-															>
-																Cancel
-															</button>
-														</div>
-													</form>
-												{:else}
-													<div class="flex items-center justify-between gap-2 text-sm">
-														<span>{item.name}</span>
-														<div class="flex shrink-0 gap-1">
-															<button
-																type="button"
-																class="btn btn-ghost btn-xs"
-																onclick={() => startEdit(item)}
-															>
-																Edit
-															</button>
-															<button
-																type="button"
-																class="btn text-error btn-ghost btn-xs"
-																aria-label={`Delete ${item.name}`}
-																disabled={deletingId === item.id}
-																onclick={() => handleDelete(item)}
-															>
-																{#if deletingId === item.id}
-																	<span class="loading loading-xs loading-spinner"></span>
-																{:else}
-																	<Delete3LineIcon height="1.2em" />
+															{#if editError}
+																<p class="text-xs text-error">{editError}</p>
+															{/if}
+															<div class="flex gap-2">
+																<button
+																	type="submit"
+																	class="btn btn-sm btn-primary"
+																	disabled={saving || !editName.trim()}
+																>
+																	{saving ? 'Saving...' : 'Save'}
+																</button>
+																<button
+																	type="button"
+																	class="btn btn-ghost btn-sm"
+																	onclick={cancelEdit}
+																>
+																	Cancel
+																</button>
+															</div>
+														</form>
+													{:else}
+														<div class="flex items-center justify-between gap-2 text-base">
+															<span class="flex min-w-0 flex-1 items-center gap-2">
+																<CatIcon height="1.3em" class="{color} shrink-0" />
+																<span class="truncate">{item.name}</span>
+																{#if item.videoUrl}
+																	<span title="Has video" class="shrink-0 text-base-content/40">
+																		<PlayCircleFillIcon height="1.3em" />
+																	</span>
 																{/if}
-															</button>
+															</span>
+															<div class="flex shrink-0 items-center gap-1">
+																<button
+																	type="button"
+																	class="btn btn-ghost btn-sm"
+																	onclick={() => startEdit(item)}
+																>
+																	Edit
+																</button>
+																<button
+																	type="button"
+																	class="btn text-error btn-ghost btn-sm"
+																	aria-label={`Delete ${item.name}`}
+																	disabled={deletingId === item.id}
+																	onclick={() => handleDelete(item)}
+																>
+																	{#if deletingId === item.id}
+																		<span class="loading loading-sm loading-spinner"></span>
+																	{:else}
+																		<Delete3LineIcon height="1.3em" />
+																	{/if}
+																</button>
+															</div>
 														</div>
-													</div>
-													{#if rowError?.id === item.id}
-														<p class="mt-1 text-xs text-error">{rowError.message}</p>
+														{#if rowError?.id === item.id}
+															<p class="mt-1 text-xs text-error">{rowError.message}</p>
+														{/if}
 													{/if}
-												{/if}
-											</li>
-										{/each}
-									</ul>
-								</div>
-							{/if}
-						{/each}
+												</li>
+											{/each}
+										</ul>
+									</div>
+								{/if}
+							{/each}
+						{/if}
 					{/if}
 				</div>
 			</div>
