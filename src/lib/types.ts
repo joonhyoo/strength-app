@@ -35,6 +35,8 @@ export interface Exercise {
 	performed: Prescription[];
 	note: string;
 	complete: boolean;
+	/** Optional demo-video link from the catalog row (exercises.video_url). */
+	videoUrl?: string;
 }
 
 export interface Prescription {

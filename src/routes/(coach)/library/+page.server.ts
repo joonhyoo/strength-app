@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	return {
 		exercises: supabase
 			.from('exercises')
-			.select('id, name, category')
+			.select('id, name, category, video_url')
 			.neq('category', 'note')
 			.order('name')
 			.then(({ data }) => data ?? [])

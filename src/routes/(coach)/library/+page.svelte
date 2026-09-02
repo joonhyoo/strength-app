@@ -7,7 +7,8 @@
 		addExerciseDefinition,
 		updateExerciseDefinition,
 		deleteExerciseDefinition,
-		type ExerciseDef
+		type ExerciseDef,
+		type ExerciseRow
 	} from '$lib/data/exerciseLibrary.svelte';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import type { ExerciseCategory } from '$lib/types';
@@ -28,7 +29,7 @@
 	// is streamed, so this is null until the seed resolves and the page shell
 	// (including the Add form) renders immediately regardless.
 	$effect(() => {
-		(page.data.exercises as Promise<ExerciseDef[]>).then((list) => {
+		(page.data.exercises as Promise<ExerciseRow[]>).then((list) => {
 			seedExerciseLibrary(list);
 		});
 	});
@@ -41,6 +42,7 @@
 
 	let newName = $state('');
 	let newCategory = $state<ExerciseCategory>('warmup');
+	let newVideoUrl = $state('');
 	let adding = $state(false);
 	let addError = $state('');
 
@@ -56,14 +58,20 @@
 
 		adding = true;
 		addError = '';
-		await addExerciseDefinition({ name, category: newCategory });
+		await addExerciseDefinition({
+			name,
+			category: newCategory,
+			videoUrl: newVideoUrl.trim() || undefined
+		});
 		newName = '';
+		newVideoUrl = '';
 		adding = false;
 	}
 
 	let editingId = $state<string | null>(null);
 	let editName = $state('');
 	let editCategory = $state<ExerciseCategory>('warmup');
+	let editVideoUrl = $state('');
 	let editError = $state('');
 	let saving = $state(false);
 	let deletingId = $state<string | null>(null);
@@ -73,6 +81,7 @@
 		editingId = item.id;
 		editName = item.name;
 		editCategory = item.category;
+		editVideoUrl = item.videoUrl ?? '';
 		editError = '';
 		rowError = null;
 	}
@@ -91,7 +100,12 @@
 
 		saving = true;
 		editError = '';
-		const result = await updateExerciseDefinition({ id: editingId, name, category: editCategory });
+		const result = await updateExerciseDefinition({
+			id: editingId,
+			name,
+			category: editCategory,
+			videoUrl: editVideoUrl.trim() || undefined
+		});
 		saving = false;
 
 		if (!result.ok) {
@@ -171,6 +185,15 @@
 								{/each}
 							</select>
 						</label>
+						<label class="form-control w-full">
+							<span class="label">Video link (optional)</span>
+							<input
+								class="input-bordered input"
+								type="url"
+								placeholder="https://youtube.com/watch?v=..."
+								bind:value={newVideoUrl}
+							/>
+						</label>
 						{#if addError}
 							<p class="text-xs text-error">{addError}</p>
 						{/if}
@@ -222,6 +245,12 @@
 																{/each}
 															</select>
 														</div>
+														<input
+															class="input-bordered input input-sm w-full"
+															type="url"
+															placeholder="Video link (optional)"
+															bind:value={editVideoUrl}
+														/>
 														{#if editError}
 															<p class="text-xs text-error">{editError}</p>
 														{/if}

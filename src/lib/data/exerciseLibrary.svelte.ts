@@ -1,6 +1,30 @@
 import type { ExerciseCategory } from '$lib/types';
 
-export type ExerciseDef = { id: string; name: string; category: ExerciseCategory };
+export type ExerciseDef = {
+	id: string;
+	name: string;
+	category: ExerciseCategory;
+	videoUrl?: string;
+};
+
+/** Row shape as it comes back from Supabase / the /api/exercises 'list' route
+ *  (snake_case, nullable) — mapped to the camelCase `ExerciseDef` the rest of
+ *  the app reads. */
+export type ExerciseRow = {
+	id: string;
+	name: string;
+	category: ExerciseCategory;
+	video_url: string | null;
+};
+
+function fromRow(row: ExerciseRow): ExerciseDef {
+	return {
+		id: row.id,
+		name: row.name,
+		category: row.category,
+		videoUrl: row.video_url ?? undefined
+	};
+}
 
 let exercises = $state<ExerciseDef[]>([]);
 // Reactive: the Library page derives its catalog view from `loaded` +
@@ -22,9 +46,9 @@ export function findExercise(name: string): ExerciseDef | undefined {
 	return exercises.find((e) => e.name === name);
 }
 
-export function seedExerciseLibrary(data: ExerciseDef[]) {
+export function seedExerciseLibrary(data: ExerciseRow[]) {
 	if (loaded) return;
-	exercises = data;
+	exercises = data.map(fromRow);
 	loaded = true;
 }
 
@@ -38,8 +62,8 @@ export async function loadExerciseLibrary() {
 	});
 
 	if (res.ok) {
-		const { data } = await res.json();
-		exercises = data;
+		const { data } = (await res.json()) as { data: ExerciseRow[] };
+		exercises = data.map(fromRow);
 		loaded = true;
 	}
 }
@@ -47,6 +71,7 @@ export async function loadExerciseLibrary() {
 export async function addExerciseDefinition(def: {
 	name: string;
 	category: ExerciseCategory;
+	videoUrl?: string;
 }): Promise<void> {
 	const res = await fetch('/api/exercises', {
 		method: 'POST',
@@ -68,6 +93,7 @@ export async function updateExerciseDefinition(def: {
 	id: string;
 	name: string;
 	category: ExerciseCategory;
+	videoUrl?: string;
 }): Promise<{ ok: boolean; error?: string }> {
 	const res = await fetch('/api/exercises', {
 		method: 'POST',
@@ -81,7 +107,9 @@ export async function updateExerciseDefinition(def: {
 	}
 
 	exercises = exercises
-		.map((e) => (e.id === def.id ? { ...e, name: def.name, category: def.category } : e))
+		.map((e) =>
+			e.id === def.id ? { ...e, name: def.name, category: def.category, videoUrl: def.videoUrl } : e
+		)
 		.sort((a, b) => a.name.localeCompare(b.name));
 	return { ok: true };
 }

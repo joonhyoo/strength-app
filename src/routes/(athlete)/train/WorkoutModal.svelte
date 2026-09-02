@@ -6,9 +6,12 @@
 	import CheckFillIcon from '@iconify-svelte/mingcute/check-fill';
 	import { getWorkoutState } from '$lib/workoutState.svelte';
 	import { CONDITIONING_CATEGORIES } from '$lib/complete';
+	import { resolveVideoEmbed } from '$lib/videoEmbed';
 	import ExerciseHistoryModal from './ExerciseHistoryModal.svelte';
 
 	const workout = getWorkoutState();
+
+	const videoEmbed = $derived(resolveVideoEmbed(workout.selected?.videoUrl));
 
 	let dialog = $state() as HTMLDialogElement;
 	let historyOpen = $state(false);
@@ -81,7 +84,31 @@
 			class="relative modal-box flex h-full max-h-none w-full max-w-[750px] flex-col overflow-hidden rounded-none px-5 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-center sm:pt-8 sm:pb-8 md:border-x md:border-base-300"
 			style="scale:1"
 		>
-			<h3 class="mt-4 mb-8 shrink-0 px-4 text-lg font-bold">{workout.selected.activity}</h3>
+			<h3 class="mt-4 mb-4 shrink-0 px-4 text-lg font-bold">{workout.selected.activity}</h3>
+
+			{#if videoEmbed}
+				<div class="mb-4 shrink-0 overflow-hidden rounded-lg bg-black">
+					<div class="relative aspect-video w-full">
+						{#if videoEmbed.kind === 'iframe'}
+							<iframe
+								class="absolute inset-0 h-full w-full"
+								src={videoEmbed.src}
+								title="{workout.selected.activity} demo video"
+								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+								allowfullscreen
+							></iframe>
+						{:else}
+							<!-- svelte-ignore a11y_media_has_caption -->
+							<video
+								class="absolute inset-0 h-full w-full"
+								src={videoEmbed.src}
+								controls
+								playsinline
+							></video>
+						{/if}
+					</div>
+				</div>
+			{/if}
 
 			<div class="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
 				{#if workout.selected.note.length}
