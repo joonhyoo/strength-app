@@ -12,6 +12,7 @@
 	} from '$lib/data/exerciseLibrary.svelte';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import PlayCircleFillIcon from '@iconify-svelte/mingcute/play-circle-fill';
+	import CloseLineIcon from '@iconify-svelte/mingcute/close-line';
 	import type { ExerciseCategory } from '$lib/types';
 	import { CATEGORY_LABEL, CATEGORY_OPTIONS, CATEGORY_ICON } from '$lib/data/categories';
 	import { initProgramBuilderState } from '$lib/programBuilderState.svelte';
@@ -226,12 +227,24 @@
 					{:else if exercises.length === 0}
 						<p class="py-6 text-center text-base-content/60">No exercises yet.</p>
 					{:else}
-						<input
-							type="search"
-							placeholder="Search exercises…"
-							class="input-bordered input input-sm mt-2 w-full max-w-xs"
-							bind:value={query}
-						/>
+						<div class="relative mt-2 w-full max-w-xs">
+							<input
+								type="search"
+								placeholder="Search exercises…"
+								class="input-bordered input input-sm w-full pr-8 [&::-webkit-search-cancel-button]:appearance-none"
+								bind:value={query}
+							/>
+							{#if query}
+								<button
+									type="button"
+									class="btn absolute top-1/2 right-1 -translate-y-1/2 px-1 btn-ghost btn-xs"
+									aria-label="Clear search"
+									onclick={() => (query = '')}
+								>
+									<CloseLineIcon height="1em" />
+								</button>
+							{/if}
+						</div>
 						{#if !filteredExercises || filteredExercises.length === 0}
 							<p class="py-6 text-center text-base-content/60">No exercises match your search.</p>
 						{:else}
@@ -277,14 +290,14 @@
 															<div class="flex gap-2">
 																<button
 																	type="submit"
-																	class="btn btn-xs btn-primary"
+																	class="btn btn-sm btn-primary"
 																	disabled={saving || !editName.trim()}
 																>
 																	{saving ? 'Saving...' : 'Save'}
 																</button>
 																<button
 																	type="button"
-																	class="btn btn-ghost btn-xs"
+																	class="btn btn-ghost btn-sm"
 																	onclick={cancelEdit}
 																>
 																	Cancel
