@@ -24,13 +24,15 @@
 	// on screen. Guarded against `/` — that route is a bare splash shell that
 	// immediately redirects, so removing the splash there would flash an empty
 	// page while the destination loads.
+	//
+	// Removed in one cut, not faded: `afterNavigate` fires after the destination
+	// route is painted, so there's a finished screen underneath already. A fade
+	// only means the centred splash mark lingers a few frames on top of that
+	// screen's own logo — the auth page renders the same glyph higher up — which
+	// reads as a second, ghosted logo.
 	function dismissSplash() {
 		if (page.url.pathname === '/') return;
-		const splash = document.getElementById('app-splash');
-		if (!splash) return;
-		splash.classList.add('is-hiding');
-		splash.addEventListener('transitionend', () => splash.remove(), { once: true });
-		setTimeout(() => splash.remove(), 600);
+		document.getElementById('app-splash')?.remove();
 	}
 
 	onMount(dismissSplash);
