@@ -17,16 +17,11 @@ const CACHE = `strength-app-${version}`;
 // `/auth/error`: both are rendered at build time with no request context, so
 // they carry zero session data and are the one class of navigation safe to
 // serve from a shared cache — see the fetch handler's block comment below.
-// Precaching `/` is what lets a cold PWA launch paint instantly.
-//
-// The `apple-splash-*` iOS launch images are consumed by the OS before the page
-// (and this worker) exist, and only one ever matches a given device — no point
-// force-fetching all twelve on install.
-const PRECACHE = [
-	...build,
-	...files.filter((f) => !f.startsWith('/apple-splash-')),
-	...prerendered
-];
+// Precaching `/` is what lets a cold PWA launch paint instantly — and with the
+// app CSS inlined (kit.inlineStyleThreshold) and the splash mark inline SVG,
+// that one cached document is the whole first paint: no second request, so
+// nothing can leave the web view unpainted while iOS is composing the launch.
+const PRECACHE = [...build, ...files, ...prerendered];
 const PRECACHE_SET = new Set(PRECACHE);
 
 sw.addEventListener('install', (event) => {
@@ -63,8 +58,8 @@ sw.addEventListener('fetch', (event) => {
 
 	// The prerendered `/` shell is static but NOT content-addressed like the
 	// hashed build assets, so a stale or half-installed copy would just sit
-	// there — and for `/` specifically that traps a cold launch on the pulsing
-	// splash (see src/routes/+page.svelte). Stale-while-revalidate: still paints
+	// there — and for `/` specifically that traps a cold launch on the splash
+	// (see src/routes/+page.svelte). Stale-while-revalidate: still paints
 	// instantly from cache, but refetches in the background so the next launch
 	// self-heals. `/auth/error` stays pure cache-first below — a stale static
 	// error page is harmless.

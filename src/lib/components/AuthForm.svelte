@@ -14,6 +14,7 @@
 		setPendingVerify
 	} from '$lib/authCodeCooldown';
 	import OtpInput from '$lib/components/OtpInput.svelte';
+	import AuthHeader from '$lib/components/AuthHeader.svelte';
 
 	interface AuthFormData {
 		step?: string;
@@ -224,22 +225,16 @@
 <div
 	class="mx-auto flex min-h-[calc(100dvh-env(safe-area-inset-top))] max-w-md flex-col justify-center px-4 py-6"
 >
-	<div class="mb-6 text-center">
-		<img src="/favicon.svg" alt="" class="mx-auto mb-2 h-14 w-14" />
-		<p class="mb-1 block text-xs font-semibold tracking-widest text-base-content/40 uppercase">
-			Strength App
-		</p>
-		<h1 class="text-2xl font-bold">
-			{showVerify && !showEmailStep
-				? 'OTP Verification'
-				: form?.step === 'agree'
-					? 'Confirm to continue'
-					: 'Sign in'}
-		</h1>
-	</div>
+	<AuthHeader
+		title={showVerify && !showEmailStep
+			? 'OTP Verification'
+			: form?.step === 'agree'
+				? 'Confirm to continue'
+				: 'Sign in'}
+	/>
 
 	{#if confirmed && !(showVerify && !showEmailStep)}
-		<p class="text-success mb-2 text-sm ">Email confirmed! Sign in to continue.</p>
+		<p class="mb-2 text-sm text-success">Email confirmed! Sign in to continue.</p>
 	{/if}
 
 	{#if errorMessage}
