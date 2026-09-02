@@ -61,14 +61,40 @@ sw.addEventListener('fetch', (event) => {
 	// Never serve an API response from the shell cache.
 	if (url.pathname.startsWith('/api/')) return;
 
+	// The prerendered `/` shell is static but NOT content-addressed like the
+	// hashed build assets, so a stale or half-installed copy would just sit
+	// there — and for `/` specifically that traps a cold launch on the pulsing
+	// splash (see src/routes/+page.svelte). Stale-while-revalidate: still paints
+	// instantly from cache, but refetches in the background so the next launch
+	// self-heals. `/auth/error` stays pure cache-first below — a stale static
+	// error page is harmless.
+	if (url.pathname === '/') {
+		const revalidate = caches.open(CACHE).then(async (cache) => {
+			try {
+				const res = await fetch(request);
+				if (res.ok) await cache.put('/', res.clone());
+				return res;
+			} catch {
+				return null;
+			}
+		});
+		event.waitUntil(revalidate);
+		event.respondWith(
+			caches
+				.open(CACHE)
+				.then(async (cache) => (await cache.match('/')) ?? (await revalidate) ?? Response.error())
+		);
+		return;
+	}
+
 	event.respondWith(
 		(async () => {
 			const cache = await caches.open(CACHE);
 
-			// Hashed build assets never go stale; the prerendered `/` shell and
-			// `/auth/error` are static and version-busted via CACHE. Skip the
-			// network entirely for all of them — this is what makes a cold PWA
-			// launch (a navigation to `/`) paint with no round-trip.
+			// Hashed build assets never go stale; `/auth/error` is static and
+			// version-busted via CACHE. Skip the network entirely for all of
+			// them — this is what makes a cold PWA launch paint with no
+			// round-trip.
 			if (PRECACHE_SET.has(url.pathname)) {
 				const hit = await cache.match(url.pathname);
 				if (hit) return hit;

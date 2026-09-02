@@ -46,6 +46,14 @@
 		const supabase = createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 
 		const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+			// `/` is the prerendered bootstrap shell — +page.svelte's
+			// goto(dest, { invalidateAll }) already forces the one auth resolution
+			// for launch, and the destination's guards handle a dead session.
+			// Anything we do here on top of that (INITIAL_SESSION always looks
+			// "changed" against the shell's null expiresAt; a stray goto races the
+			// bootstrap one) just piles onto the slowest path there is.
+			if (page.url.pathname === '/') return;
+
 			if (event === 'SIGNED_OUT') {
 				// Fires when a background refresh fails (session truly dead) or on a
 				// cross-tab logout. Onboarding/auth pages handle their own state.
