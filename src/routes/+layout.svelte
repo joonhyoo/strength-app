@@ -28,23 +28,12 @@
 		if (page.url.pathname === '/') return;
 		const splash = document.getElementById('app-splash');
 		if (!splash) return;
-
-		// Remove in one cut, never a fade: `afterNavigate` has fired, so the
-		// destination is already painting underneath. Fading would just hang the
-		// centred splash mark over that screen's own logo (the auth page renders
-		// the same glyph, higher up) for a few frames — a second, ghosted logo.
-		//
-		// Two gates before the cut, both aimed at the same thing — the cut must
-		// uncover a finished screen, not a moving one:
-		//  1. Minimum on-screen time, so the splash outlasts iOS's launch-image
-		//     crossfade. Cut mid-crossfade and the OS blend lands on a
-		//     half-built destination — the mark appears to jump.
-		//  2. Two animation frames, so the destination has painted at least once.
-		const MIN_ON_SCREEN_MS = 650;
-		const cut = () => requestAnimationFrame(() => requestAnimationFrame(() => splash.remove()));
-		const elapsed = performance.now();
-		if (elapsed >= MIN_ON_SCREEN_MS) cut();
-		else setTimeout(cut, MIN_ON_SCREEN_MS - elapsed);
+		// One hard cut, never a fade: `afterNavigate` has fired, so the
+		// destination is already painting underneath. Fading only hangs the
+		// centred splash mark over that screen's own logo for a few frames — a
+		// second, ghosted logo. Wait one painted frame of the destination so the
+		// cut uncovers a finished screen.
+		requestAnimationFrame(() => requestAnimationFrame(() => splash.remove()));
 	}
 
 	onMount(dismissSplash);
