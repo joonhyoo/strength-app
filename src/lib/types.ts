@@ -24,6 +24,11 @@ export type ExerciseCategory = 'warmup' | 'circuit' | 'plyo' | 'weight' | 'note'
 
 export interface Exercise {
 	id?: string;
+	/** The shared catalog row's id (exercises.id), not this athlete_exercises row.
+	 *  Carried so the athlete's exercise modal can look up prior sessions of the
+	 *  same lift. Optional: an older cached day (see workoutService) predates it
+	 *  and self-heals on the next `getWorkoutDay`. */
+	exerciseId?: string;
 	category: ExerciseCategory;
 	activity: string;
 	plan: number[];
@@ -38,7 +43,19 @@ export interface Prescription {
 	reps?: number;
 }
 
-export type ColorKey = 'sky' | 'cream' | 'primary';
+// Stored in cycles.color_key (CHECK-constrained — see
+// 20260902000000_cycle_color_palette.sql). Each key maps to a theme token in
+// src/lib/data/cycleColors.ts. 'sky' | 'cream' | 'primary' are the originals;
+// the rest were added when the palette widened to 8.
+export type ColorKey =
+	| 'sky'
+	| 'cream'
+	| 'primary'
+	| 'crimson'
+	| 'amber'
+	| 'lime'
+	| 'teal'
+	| 'violet';
 
 export interface ProgramTree {
 	id: string;

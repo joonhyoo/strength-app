@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
+	import { CYCLE_COLORS, DEFAULT_CYCLE_COLOR } from '$lib/data/cycleColors';
 	import type { ColorKey } from '$lib/types';
 
 	const builder = getProgramBuilderState();
@@ -13,22 +14,16 @@
 			: null
 	);
 
-	const COLOR_OPTIONS: { key: ColorKey; swatch: string }[] = [
-		{ key: 'sky', swatch: 'var(--color-sky)' },
-		{ key: 'cream', swatch: 'var(--color-cream)' },
-		{ key: 'primary', swatch: 'var(--color-primary)' }
-	];
-
 	let name = $state('');
 	let goal = $state('');
-	let colorKey = $state<ColorKey>('sky');
+	let colorKey = $state<ColorKey>(DEFAULT_CYCLE_COLOR);
 	let saving = $state(false);
 
 	$effect(() => {
 		if (!builder.modal) return;
 		name = editingCycle?.name ?? '';
 		goal = editingCycle?.goal ?? '';
-		colorKey = editingCycle?.colorKey ?? 'sky';
+		colorKey = editingCycle?.colorKey ?? DEFAULT_CYCLE_COLOR;
 	});
 
 	let dialog = $state() as HTMLDialogElement;
@@ -82,14 +77,14 @@
 
 			<div class="flex flex-col gap-2">
 				<span class="label px-0">Color</span>
-				<div class="flex gap-2">
-					{#each COLOR_OPTIONS as option (option.key)}
+				<div class="flex flex-wrap gap-2">
+					{#each CYCLE_COLORS as option (option.key)}
 						<button
 							type="button"
 							class="h-8 w-8 rounded-full border-2 {colorKey === option.key
 								? 'border-base-content'
 								: 'border-transparent'}"
-							style="background:{option.swatch}"
+							style="background:{option.css}"
 							aria-pressed={colorKey === option.key}
 							aria-label={option.key}
 							onclick={() => (colorKey = option.key)}

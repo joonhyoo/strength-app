@@ -22,6 +22,11 @@ body {
 	--color-danger: #d7263d;
 	--color-sky: #38bdf8;
 	--color-lime: #bfff00;
+	/* Extra hues for the cycle-band palette (src/lib/data/cycleColors.ts) — */
+	/* chosen to space the 8 swatches evenly around the wheel. */
+	--color-amber: #f59e0b;
+	--color-teal: #14b8a6;
+	--color-violet: #8b5cf6;
 
 	--background-image-brand-gradient: linear-gradient(90deg, #f1e0c5 0%, #f46036 50%, #d7263d 100%);
 }

@@ -10,6 +10,7 @@
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import { CATEGORY_LABEL } from '$lib/data/categories';
+	import { cycleColorCss } from '$lib/data/cycleColors';
 	import { formatPlan } from '$lib/formatPlan';
 	import type { ProgramDetail } from '$lib/types';
 
@@ -18,12 +19,6 @@
 	const builder = getProgramBuilderState();
 
 	const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-	const STRIPE_COLOR: Record<string, string> = {
-		sky: 'var(--color-sky)',
-		cream: 'var(--color-cream)',
-		primary: 'var(--color-primary)'
-	};
 
 	const expandedWeek = $derived(cycle.weeks.find((w) => w.id === builder.expandedWeekId) ?? null);
 	const expandedWeekIndex = $derived(
@@ -105,7 +100,7 @@
 		<div class="flex flex-wrap items-center gap-2">
 			<span
 				class="h-2.5 w-2.5 shrink-0 rounded-full"
-				style="background:{STRIPE_COLOR[cycle.colorKey]}"
+				style="background:{cycleColorCss(cycle.colorKey)}"
 			></span>
 			<span class="font-bold">{cycle.name}</span>
 			<span class="text-xs text-base-content/50"
