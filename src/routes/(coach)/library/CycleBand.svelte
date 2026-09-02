@@ -100,7 +100,7 @@
 	}
 </script>
 
-<section class="card bg-base-100 shadow-sm">
+<section class="card max-w-full bg-base-100 shadow-sm">
 	<div class="card-body">
 		<div class="flex flex-wrap items-center gap-2">
 			<span
@@ -361,7 +361,7 @@
 										<CategoryIcon category={exercise.category} />
 										<div class="min-w-0 flex-1">
 											{#if exercise.category === 'note'}
-												<p class="truncate text-sm text-base-content/80">{exercise.note}</p>
+												<p class="text-sm break-words text-base-content/80">{exercise.note}</p>
 											{:else}
 												<div class="flex items-baseline gap-2">
 													<span class="font-medium">{exercise.activity}</span>
@@ -370,7 +370,7 @@
 													>
 												</div>
 												{#if formatPlan(exercise.plan) || exercise.note}
-													<p class="truncate text-sm text-base-content/60">
+													<p class="text-sm break-words text-base-content/60">
 														{formatPlan(exercise.plan)}{exercise.plan.length && exercise.note.length
 															? ' · '
 															: ''}{exercise.note}
