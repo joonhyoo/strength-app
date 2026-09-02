@@ -50,8 +50,8 @@ export async function removeExercise(id: string) {
 	return postWorkout('removeExercise', { athleteExerciseId: id });
 }
 
-export async function moveExercise(id: string, direction: 'up' | 'down') {
-	return postWorkout('moveExercise', { athleteExerciseId: id, direction });
+export async function reorderExercise(id: string, toIndex: number) {
+	return postWorkout('reorderExercise', { athleteExerciseId: id, toIndex });
 }
 
 export async function setExerciseComplete(id: string, complete: boolean) {

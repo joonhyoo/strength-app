@@ -121,8 +121,8 @@ export async function removeProgramExercise(programExerciseId: string) {
 	return postProgram('removeProgramExercise', { programExerciseId });
 }
 
-export async function moveProgramExercise(programExerciseId: string, direction: 'up' | 'down') {
-	return postProgram('moveProgramExercise', { programExerciseId, direction });
+export async function reorderProgramExercise(programExerciseId: string, toIndex: number) {
+	return postProgram('reorderProgramExercise', { programExerciseId, toIndex });
 }
 
 export async function getActiveAssignment(athleteId: string) {
