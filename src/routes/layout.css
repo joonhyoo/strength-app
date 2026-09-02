@@ -8,6 +8,29 @@ body {
 	overscroll-behavior: none;
 }
 
+/* Cold-launch hop off `/` only (see +layout.svelte's onNavigate): the old view
+   — the prerendered sign-in skeleton, or the bare ground on an authed relaunch —
+   fades out on top of the real screen, which is already solid underneath. A
+   plain dissolve, no dip. */
+::view-transition-old(root) {
+	z-index: 1;
+	animation: app-shell-fade-out 200ms ease both;
+}
+::view-transition-new(root) {
+	z-index: 0;
+	animation: none;
+}
+@keyframes app-shell-fade-out {
+	to {
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-old(root) {
+		animation: none;
+	}
+}
+
 @theme {
 	--color-background: #0d0d0f;
 	--color-card: #141416;

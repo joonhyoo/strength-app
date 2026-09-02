@@ -2,6 +2,12 @@
 # Regenerates the iOS launch images in static/apple-splash-*.png.
 # Each is a solid #0D0D0F ground with the mark centred at 96 CSS px (× the
 # device pixel ratio) — matching #app-splash in src/app.html. Portrait only.
+#
+# The output is true-colour, not a palette PNG: the mark is a smooth 3-stop
+# gradient, and quantising it to ~250 colours left visible banding that "popped"
+# to the smooth #app-splash SVG at the OS-launch-image → web handoff. These files
+# are almost entirely flat #0D0D0F, so true-colour costs only a few KB each.
+#
 # Requires ImageMagick. Run from the repo root: bash scripts/gen-ios-splash.sh
 set -euo pipefail
 cd "$(dirname "$0")/../static"
@@ -24,6 +30,7 @@ for spec in $SPECS; do
 	logo=$((96 * ratio))
 	magick -size "${w}x${h}" "xc:${BG}" \
 		\( "$SRC" -resize "${logo}x${logo}" \) -gravity center -composite \
-		-strip -dither None -colors 250 "png8:apple-splash-${w}-${h}.png"
+		-strip -define png:compression-level=9 -define png:compression-filter=5 \
+		"apple-splash-${w}-${h}.png"
 	echo "apple-splash-${w}-${h}.png"
 done
