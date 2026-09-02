@@ -96,10 +96,13 @@
 				justify-content: center;
 				background: #0d0d0f;
 			}
-			/* The mark breathes gently while the app loads. Starts at full
-			   opacity so it appears solid the instant it paints — no fade-in. */
+			/* The mark breathes gently while the app loads. The 0.6s delay holds
+			   it rock-solid at opacity 1 through iOS's launch-image → web-view
+			   crossfade (~0.3s), which dissolves the OS splash PNG into this
+			   identical mark — a mark already mid-breath during that blend reads
+			   as a flicker. After the delay it starts breathing. */
 			#app-splash svg {
-				animation: app-splash-pulse 2.2s ease-in-out infinite;
+				animation: app-splash-pulse 2.2s ease-in-out 0.6s infinite;
 			}
 			@keyframes app-splash-pulse {
 				0%,
@@ -113,7 +116,7 @@
 			@media (prefers-reduced-motion: reduce) {
 				#app-splash svg {
 					animation: none;
-					opacity: 0.85;
+					opacity: 1;
 				}
 			}
 		</style>
