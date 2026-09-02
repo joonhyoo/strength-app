@@ -13,6 +13,11 @@
 	const workout = initWorkoutState();
 	let date = new SvelteDate();
 	let breadcrumb = $state<Breadcrumb | null>(null);
+	// `dayLoading`: fetching a day we have no cache for — show a skeleton, not the
+	// day we were just looking at. `dayError`: that fetch failed and we have
+	// nothing cached to fall back on.
+	let dayLoading = $state(false);
+	let dayError = $state(false);
 
 	const athleteId = $derived(page.data.user?.id ?? '');
 
@@ -59,13 +64,26 @@
 
 		workout.setLocation(athleteId, dateKey);
 
-		// Paint whatever we already know about this day, then reconcile.
+		// Paint whatever we already know about this day, then reconcile. On a
+		// cache miss, clear the list and show a skeleton — never leave the
+		// previous day's workout on screen under the new date.
 		const cached = getCachedWorkoutDay(athleteId, dateKey);
-		if (cached) workout.setDay(cached);
+		workout.setDay(cached ?? []);
+		dayLoading = cached === null;
+		dayError = false;
 
-		const exercises = await getWorkoutDay(athleteId, dateKey);
-		if (token !== loadToken) return;
-		workout.setDay(exercises, cached !== null);
+		try {
+			const exercises = await getWorkoutDay(athleteId, dateKey);
+			if (token !== loadToken) return;
+			workout.setDay(exercises, cached !== null);
+			dayLoading = false;
+		} catch {
+			if (token !== loadToken) return;
+			// Leave any cached day (and the cache) standing; only surface the
+			// failure when there was nothing to show in the first place.
+			dayLoading = false;
+			if (cached === null) dayError = true;
+		}
 	}
 
 	$effect(() => {
@@ -289,34 +307,48 @@
 					<ProgramBreadcrumb {athleteId} {date} onResolved={(c) => (breadcrumb = c)} />
 				{/if}
 
-				<h2 class="text-lg font-bold">
-					{#if workout.exercises.length}
-						Scheduled Workout
-					{:else if breadcrumb?.isComplete}
-						Program Complete
-					{:else if breadcrumb}
-						Rest Day
-					{:else}
-						Scheduled Workout
-					{/if}
-				</h2>
-				{#if workout.exercises.length}
-					<ol>
-						{#each workout.exercises as exercise, i (exercise.id)}
-							<li class="py-2 duration-250 hover:opacity-75">
-								<WorkoutItem
-									activity={exercise.activity}
-									category={exercise.category}
-									plan={exercise.plan}
-									note={exercise.note}
-									complete={workout.isComplete(exercise)}
-									onselect={() => workout.open(i)}
-								/>
-							</li>
-						{/each}
-					</ol>
+				{#if dayLoading}
+					<div class="flex flex-col gap-3 pt-1">
+						<div class="h-6 w-40 skeleton"></div>
+						<div class="h-16 w-full skeleton"></div>
+						<div class="h-16 w-full skeleton"></div>
+						<div class="h-16 w-full skeleton"></div>
+					</div>
+				{:else if dayError}
+					<div class="flex flex-col items-center gap-3 py-10 text-center">
+						<p class="text-base-content/60">Couldn't load this day.</p>
+						<button class="btn btn-sm" onclick={() => loadDay()}>Try again</button>
+					</div>
 				{:else}
-					<p>No Workout for Today</p>
+					<h2 class="text-lg font-bold">
+						{#if workout.exercises.length}
+							Scheduled Workout
+						{:else if breadcrumb?.isComplete}
+							Program Complete
+						{:else if breadcrumb}
+							Rest Day
+						{:else}
+							Scheduled Workout
+						{/if}
+					</h2>
+					{#if workout.exercises.length}
+						<ol>
+							{#each workout.exercises as exercise, i (exercise.id)}
+								<li class="py-2 duration-250 hover:opacity-75">
+									<WorkoutItem
+										activity={exercise.activity}
+										category={exercise.category}
+										plan={exercise.plan}
+										note={exercise.note}
+										complete={workout.isComplete(exercise)}
+										onselect={() => workout.open(i)}
+									/>
+								</li>
+							{/each}
+						</ol>
+					{:else}
+						<p>No Workout for Today</p>
+					{/if}
 				{/if}
 			</div>
 

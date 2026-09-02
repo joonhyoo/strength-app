@@ -9,6 +9,13 @@
 	// is never touched by it, so the mark stays painted through this hop and the
 	// destination's load — no blank frame, no flash. A wrong guess self-corrects:
 	// the (athlete)/(coach) layout guards re-check auth + role on the destination.
+	//
+	// `invalidateAll` is load-bearing: the root layout load now runs once and is
+	// reused across client navigations (see src/routes/+layout.server.ts), and on
+	// this prerendered page its data is `{ user: null }`. Forcing it here is what
+	// resolves the real session + role at the destination so the guards decide
+	// correctly. This is the only navigation that needs it — tab-to-tab nav must
+	// not, or it's slow again.
 	onMount(() => {
 		const read = (name: string) => {
 			const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
@@ -28,7 +35,7 @@
 
 		if (dest !== '/') {
 			// eslint-disable-next-line svelte/no-navigation-without-resolve -- dest is a stored path string, not a statically known route
-			goto(dest, { replaceState: true });
+			goto(dest, { replaceState: true, invalidateAll: true });
 		}
 	});
 </script>
