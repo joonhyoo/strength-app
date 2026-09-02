@@ -3,6 +3,7 @@
 	import ArrowRightFillIcon from '@iconify-svelte/mingcute/arrow-right-fill';
 	import HistoryIcon from '@iconify-svelte/mingcute/history-2-line';
 	import CloseFillIcon from '@iconify-svelte/mingcute/close-fill';
+	import CheckFillIcon from '@iconify-svelte/mingcute/check-fill';
 	import { getWorkoutState } from '$lib/workoutState.svelte';
 	import { CONDITIONING_CATEGORIES } from '$lib/complete';
 	import ExerciseHistoryModal from './ExerciseHistoryModal.svelte';
@@ -46,6 +47,19 @@
 			!!workout.location.athleteId
 	);
 
+	// The two flanking buttons (history left, complete right) render for every category
+	// except `note`. When their action isn't available they show disabled rather than
+	// vanish, so the centre nav pill keeps its position.
+	const showSideButtons = $derived(
+		workout.selected !== null && workout.selected.category !== 'note'
+	);
+
+	// Only conditioning completion is a manual toggle; `weight` is auto-derived, so its
+	// button reflects state but is dimmed + non-interactive.
+	const completeInteractive = $derived(
+		workout.selected !== null && CONDITIONING_CATEGORIES.includes(workout.selected.category)
+	);
+
 	// Transparent hit target inside the shared pill — only the icon colour
 	// reacts to a press, and it eases.
 	const navBtn =
@@ -67,19 +81,7 @@
 			class="relative modal-box flex h-full max-h-none w-full max-w-[750px] flex-col overflow-hidden rounded-none px-5 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-center sm:pt-8 sm:pb-8 md:border-x md:border-base-300"
 			style="scale:1"
 		>
-			<div class="relative mt-4 mb-8 shrink-0">
-				<h3 class="px-10 text-lg font-bold">{workout.selected.activity}</h3>
-				{#if canShowHistory}
-					<button
-						type="button"
-						class="btn absolute top-1/2 right-0 btn-circle -translate-y-1/2 btn-ghost"
-						aria-label="Previous sessions"
-						onclick={() => (historyOpen = true)}
-					>
-						<HistoryIcon height="1.5em" />
-					</button>
-				{/if}
-			</div>
+			<h3 class="mt-4 mb-8 shrink-0 px-4 text-lg font-bold">{workout.selected.activity}</h3>
 
 			<div class="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
 				{#if workout.selected.note.length}
@@ -130,42 +132,65 @@
 				{/if}
 			</div>
 
-			<div class="modal-action shrink-0 flex-col">
-				{#if CONDITIONING_CATEGORIES.includes(workout.selected.category)}
-					<div>
-						<button
-							class={['btn', workout.isComplete(workout.selected) ? 'btn-success' : 'btn-soft']}
-							onclick={() => workout.toggleComplete()}
-						>
-							complete
-						</button>
-					</div>
+			<div class="flex shrink-0 items-center justify-center gap-4">
+				{#if showSideButtons}
+					<button
+						type="button"
+						class={[
+							'btn btn-circle size-12 btn-ghost',
+							!canShowHistory && 'pointer-events-none opacity-50'
+						]}
+						aria-label="Previous sessions"
+						aria-disabled={canShowHistory ? undefined : true}
+						tabindex={canShowHistory ? undefined : -1}
+						onclick={canShowHistory ? () => (historyOpen = true) : undefined}
+					>
+						<HistoryIcon height="1.5em" />
+					</button>
 				{/if}
-				<div class="flex justify-center">
-					<div class="flex items-center gap-3 rounded-full bg-base-300 p-1">
-						<button
-							type="button"
-							class={navBtn}
-							disabled={!workout.hasPrev}
-							aria-label="Previous exercise"
-							onclick={() => step(-1)}
-						>
-							<ArrowLeftFillIcon width="1.4em" height="1.4em" />
-						</button>
-						<button type="button" class={navBtn} aria-label="Close" onclick={closeModal}>
-							<CloseFillIcon width="1.4em" height="1.4em" />
-						</button>
-						<button
-							type="button"
-							class={navBtn}
-							disabled={!workout.hasNext}
-							aria-label="Next exercise"
-							onclick={() => step(1)}
-						>
-							<ArrowRightFillIcon width="1.4em" height="1.4em" />
-						</button>
-					</div>
+
+				<div class="flex items-center justify-around gap-3 rounded-full bg-base-300 p-1">
+					<button
+						type="button"
+						class={navBtn}
+						disabled={!workout.hasPrev}
+						aria-label="Previous exercise"
+						onclick={() => step(-1)}
+					>
+						<ArrowLeftFillIcon width="1.4em" height="1.4em" />
+					</button>
+					<button type="button" class={navBtn} aria-label="Close" onclick={closeModal}>
+						<CloseFillIcon width="1.4em" height="1.4em" />
+					</button>
+					<button
+						type="button"
+						class={navBtn}
+						disabled={!workout.hasNext}
+						aria-label="Next exercise"
+						onclick={() => step(1)}
+					>
+						<ArrowRightFillIcon width="1.4em" height="1.4em" />
+					</button>
 				</div>
+
+				{#if showSideButtons}
+					{@const done = workout.isComplete(workout.selected)}
+					<button
+						type="button"
+						class={[
+							'btn btn-circle size-12',
+							done ? 'btn-success' : 'btn-soft',
+							!completeInteractive && 'pointer-events-none opacity-50'
+						]}
+						aria-label={done ? 'Completed' : 'Mark complete'}
+						aria-pressed={completeInteractive ? done : undefined}
+						aria-disabled={completeInteractive ? undefined : true}
+						tabindex={completeInteractive ? undefined : -1}
+						onclick={completeInteractive ? () => workout.toggleComplete() : undefined}
+					>
+						<CheckFillIcon height="1.5em" />
+					</button>
+				{/if}
 			</div>
 
 			{#if historyOpen && canShowHistory && workout.selected.exerciseId}
