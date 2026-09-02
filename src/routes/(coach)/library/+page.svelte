@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import {
 		getExerciseLibrary,
+		isExerciseLibraryLoaded,
 		seedExerciseLibrary,
 		addExerciseDefinition,
 		updateExerciseDefinition,
@@ -21,16 +22,20 @@
 		builder.loadPrograms();
 	});
 
-	// Streamed from the load function — null until the promise resolves, so
-	// the page (including the Add form) renders immediately.
-	let exercises = $state<ExerciseDef[] | null>(null);
-
+	// The catalog view is the shared library module, not a local copy — so an
+	// exercise created from a program-builder modal (which writes that module)
+	// appears here on tab switch instead of only after a reload. `page.data`
+	// is streamed, so this is null until the seed resolves and the page shell
+	// (including the Add form) renders immediately regardless.
 	$effect(() => {
 		(page.data.exercises as Promise<ExerciseDef[]>).then((list) => {
-			exercises = list;
 			seedExerciseLibrary(list);
 		});
 	});
+
+	const exercises = $derived<ExerciseDef[] | null>(
+		isExerciseLibraryLoaded() ? getExerciseLibrary() : null
+	);
 
 	let tab = $state<'programs' | 'exercises'>('programs');
 
@@ -52,7 +57,6 @@
 		adding = true;
 		addError = '';
 		await addExerciseDefinition({ name, category: newCategory });
-		exercises = getExerciseLibrary();
 		newName = '';
 		adding = false;
 	}
@@ -95,7 +99,6 @@
 			return;
 		}
 
-		exercises = getExerciseLibrary();
 		editingId = null;
 	}
 
@@ -111,8 +114,6 @@
 			rowError = { id: item.id, message: result.error ?? 'Failed to delete exercise.' };
 			return;
 		}
-
-		exercises = getExerciseLibrary();
 	}
 </script>
 

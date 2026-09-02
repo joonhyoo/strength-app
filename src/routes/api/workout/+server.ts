@@ -91,13 +91,35 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			const { data: workout } = await supabase
 				.from('athlete_workouts')
 				.select(
-					'id, athlete_exercises(id, note, complete, position, exercises(name, category), athlete_sets(id, set_number, target_reps, weight, reps))'
+					'id, athlete_exercises(id, exercise_id, note, complete, position, exercises(name, category), athlete_sets(id, set_number, target_reps, weight, reps))'
 				)
 				.eq('athlete_id', athleteId)
 				.eq('scheduled_date', dateKey)
 				.maybeSingle();
 
 			return json({ data: workout ?? null });
+		}
+
+		case 'exerciseHistory': {
+			// Prior sessions of one catalog exercise for one athlete, most recent
+			// first. `!inner` + the embedded exercise_id filter keeps this to
+			// workout days that actually contained the lift; the caller (the
+			// athlete's exercise modal) then drops any session with nothing
+			// logged. Bounded to a recent window — this is a "what did I do last
+			// time" glance, not a full training log.
+			const { athleteId, exerciseId, before } = data;
+			const { data: history } = await supabase
+				.from('athlete_workouts')
+				.select(
+					'scheduled_date, athlete_exercises!inner(id, complete, exercise_id, athlete_sets(set_number, target_reps, weight, reps))'
+				)
+				.eq('athlete_id', athleteId)
+				.eq('athlete_exercises.exercise_id', exerciseId)
+				.lt('scheduled_date', before)
+				.order('scheduled_date', { ascending: false })
+				.limit(12);
+
+			return json({ data: history ?? [] });
 		}
 
 		case 'getStatusMap': {

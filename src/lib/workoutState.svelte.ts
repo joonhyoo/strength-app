@@ -7,8 +7,10 @@ import type { Exercise } from '$lib/types';
 class WorkoutState {
 	exercises = $state<Exercise[]>([]);
 	selectedIndex = $state<number | null>(null);
-	private athleteId = '';
-	private dateKey = '';
+	// Reactive so `location` (read by the open exercise modal) stays correct if
+	// the day changes underneath it.
+	private athleteId = $state('');
+	private dateKey = $state('');
 
 	get selected() {
 		return this.selectedIndex !== null ? this.exercises[this.selectedIndex] : null;
@@ -20,6 +22,12 @@ class WorkoutState {
 
 	get hasNext() {
 		return this.selectedIndex !== null && this.selectedIndex < this.exercises.length - 1;
+	}
+
+	/** Which athlete + day the open workout belongs to — for the exercise
+	 *  modal's "previous sessions" lookup. */
+	get location() {
+		return { athleteId: this.athleteId, dateKey: this.dateKey };
 	}
 
 	get progress() {

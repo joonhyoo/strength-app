@@ -39,7 +39,7 @@ An app where I can program exercises for athletes, and athletes can view their w
 
 **History**
 
-- [ ] History to view previous session sets and weights
+- [x] History to view previous session sets and weights
 
 ---
 
@@ -80,4 +80,4 @@ An app where I can program exercises for athletes, and athletes can view their w
 - [ ] User profiles
 - [ ] Copy paste workouts
 - [ ] Opt/Substitute exercises
-- [ ] View past reps/set history
+- [x] View past reps/set history

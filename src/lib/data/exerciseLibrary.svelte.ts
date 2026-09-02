@@ -3,10 +3,19 @@ import type { ExerciseCategory } from '$lib/types';
 export type ExerciseDef = { id: string; name: string; category: ExerciseCategory };
 
 let exercises = $state<ExerciseDef[]>([]);
-let loaded = false;
+// Reactive: the Library page derives its catalog view from `loaded` +
+// `exercises` so an exercise created from a program-builder modal shows up
+// there without a reload.
+let loaded = $state(false);
 
 export function getExerciseLibrary() {
 	return exercises;
+}
+
+/** Whether the catalog has been fetched or seeded yet — lets a consumer tell
+ *  "empty catalog" apart from "not loaded". */
+export function isExerciseLibraryLoaded() {
+	return loaded;
 }
 
 export function findExercise(name: string): ExerciseDef | undefined {
