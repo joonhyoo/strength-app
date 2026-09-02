@@ -6,8 +6,8 @@ export const LAST_ROUTE_COOKIE = 'last-route';
 /**
  * Client-readable (`httpOnly: false`) hint holding the user's role-home path
  * (`/train` or `/dashboard`), set at auth success and cleared on logout. Lets
- * the prerendered `/` splash redirect a returning user without a server-side
- * role lookup — see src/app.html's inline bootstrap and src/routes/+page.svelte.
+ * the prerendered `/` shell redirect a returning user without a server-side
+ * role lookup — see src/routes/+page.svelte (and the failsafe in src/app.html).
  */
 export const HOME_COOKIE = 'home';
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import { afterNavigate, goto, invalidate, onNavigate } from '$app/navigation';
+	import { afterNavigate, goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
@@ -20,21 +20,42 @@
 			`max-age=${COOKIE_MAX_AGE}; SameSite=Lax${secure}`;
 	}
 
-	// Cross-fade the one hop off `/` — the prerendered sign-in skeleton (or, for
-	// an authed relaunch, the bare ground) being swapped for the real screen once
-	// the app has hydrated and picked a route. A hard cut there flickers even
-	// when the chrome matches; a short fade covers it. Every other navigation
-	// stays instant. No-ops where the View Transitions API is unavailable.
-	onNavigate((navigation) => {
-		if (navigation.from?.url.pathname !== '/') return;
-		if (!document.startViewTransition) return;
-		return new Promise((resolve) => {
-			document.startViewTransition(async () => {
-				resolve();
-				await navigation.complete;
-			});
-		});
-	});
+	// Dismiss the static splash from src/app.html. It covers the whole cold-start
+	// path — the prerendered `/` shell, the client hop to the real route, and
+	// that route's load — so nothing half-built is ever on screen. Guarded
+	// against `/` (a bare shell that immediately redirects). Called from
+	// afterNavigate, which fires only once the destination's load has resolved.
+	function dismissSplash() {
+		if (page.url.pathname === '/') return;
+		const splash = document.getElementById('app-splash');
+		if (!splash) return;
+
+		const hide = () => {
+			// afterNavigate has committed the destination's DOM; two frames
+			// guarantee it has also painted. Drop the mark first so it can't be
+			// seen fading over the destination's own logo, then fade the ground.
+			requestAnimationFrame(() =>
+				requestAnimationFrame(() => {
+					splash.querySelector('svg')?.remove();
+					splash.classList.add('is-hiding');
+					splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+					setTimeout(() => splash.remove(), 600);
+				})
+			);
+		};
+
+		// Give the mark a minimum time on screen even when the auth resolution
+		// comes back fast — it should read as a splash, not a flash. Measured
+		// from first paint (≈ when the splash first showed); if the destination
+		// took longer than that to render, no extra wait.
+		const MIN_ON_SCREEN_MS = 800;
+		const [fcp] = performance.getEntriesByName('first-contentful-paint');
+		const shownFor = performance.now() - (fcp?.startTime ?? 0);
+		if (shownFor >= MIN_ON_SCREEN_MS) hide();
+		else setTimeout(hide, MIN_ON_SCREEN_MS - shownFor);
+	}
+
+	onMount(dismissSplash);
 
 	// The session is resolved server-side (src/routes/+layout.server.ts), and that
 	// load no longer re-runs on every navigation. This browser client is its
@@ -74,6 +95,8 @@
 	});
 
 	afterNavigate(() => {
+		dismissSplash();
+
 		// Keep the client-readable role-home hint fresh, so the prerendered `/`
 		// shell can route a returning user without a server lookup — covers
 		// anyone who authenticated before this cookie was introduced.

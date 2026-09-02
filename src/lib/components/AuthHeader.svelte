@@ -1,10 +1,8 @@
 <script lang="ts">
-	// The mark + wordmark + heading shared by /auth/login (AuthForm.svelte) and
-	// the prerendered sign-in skeleton at `/` (src/routes/+page.svelte). Keeping
-	// it in one place is what makes a cold PWA launch seamless: `/` paints this,
-	// then the live login route paints the identical block, so there is no jump
-	// at the handoff. The mark is inlined (not <img src="/favicon.svg">) so it
-	// is present in the very first paint with no extra request.
+	// The mark + wordmark + heading for /auth/login (used by AuthForm.svelte).
+	// The mark is inlined here, not <img src="/favicon.svg"> — this is the first
+	// screen after the cold-launch splash lifts, and an image that hasn't
+	// decoded yet would flash a gap where the mark should be.
 	let { title = 'Sign in' }: { title?: string } = $props();
 </script>
 
