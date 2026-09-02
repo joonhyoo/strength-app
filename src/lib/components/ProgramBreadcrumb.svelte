@@ -27,17 +27,30 @@
 
 	let crumb = $state<Breadcrumb | null>(null);
 	let loadToken = 0;
+	let shownFor = '';
 
 	$effect(() => {
 		void revision;
 		const id = athleteId;
 		const key = dateKey;
+		const identity = `${id}:${key}`;
 		// Switching athlete/date (or a revision bump) fires overlapping loads;
 		// only the newest response may write state.
 		const token = ++loadToken;
 
+		// A new day/athlete: drop the previous crumb immediately so the old
+		// "Week X of Y" line doesn't linger under the new date while this
+		// resolves. A bare `revision` bump (coach edited an exercise on the same
+		// day) keeps the current crumb — it almost never changes and blanking it
+		// would just flicker.
+		if (identity !== shownFor) {
+			crumb = null;
+			onResolved?.(null);
+		}
+
 		getBreadcrumb(id, key).then((result) => {
 			if (token !== loadToken) return;
+			shownFor = identity;
 			crumb = result;
 			onResolved?.(result);
 		});

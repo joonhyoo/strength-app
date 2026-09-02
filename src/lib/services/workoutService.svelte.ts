@@ -112,9 +112,12 @@ export async function getWorkoutDay(athleteId: string, dateKey: string): Promise
 		body: JSON.stringify({ action: 'getDay', data: { athleteId, dateKey } })
 	});
 
-	// A failed request is not an answer — leave any cached day standing rather than
-	// caching an empty one over it.
-	if (!res.ok) return [];
+	// A failed request is not an answer. Throw rather than returning `[]` — the
+	// callers can't tell an empty array apart from a real rest day, so they'd
+	// render "no workout" over a transient network failure. Throwing lets them
+	// show a "couldn't load" state and leave any cached day standing.
+	// (A `fetch` rejection from being offline already throws and propagates here.)
+	if (!res.ok) throw new Error(`getWorkoutDay: ${res.status} ${res.statusText}`);
 
 	const { data: workout } = await res.json();
 	if (!workout) {
