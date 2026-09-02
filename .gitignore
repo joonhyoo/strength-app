@@ -24,3 +24,4 @@ vite.config.ts.timestamp-*
 
 testing-notes.md
 simplify-checklist.md
+.dev-server.log

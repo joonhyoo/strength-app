@@ -7,11 +7,14 @@
 </script>
 
 <div class="mb-6 text-center">
+	<!-- data-app-mark: the cold-launch splash mark glides to this one on reveal
+	     (src/routes/+layout.svelte's dismissSplash). -->
 	<svg
 		viewBox="0 0 24 24"
 		xmlns="http://www.w3.org/2000/svg"
 		class="mx-auto mb-2 h-14 w-14"
 		aria-hidden="true"
+		data-app-mark
 	>
 		<defs>
 			<linearGradient id="authMarkGradient" x1="0" y1="0" x2="1" y2="1">

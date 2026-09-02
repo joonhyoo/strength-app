@@ -23,36 +23,72 @@
 	// Dismiss the static splash from src/app.html. It covers the whole cold-start
 	// path — the prerendered `/` shell, the client hop to the real route, and
 	// that route's load — so nothing half-built is ever on screen. Guarded
-	// against `/` (a bare shell that immediately redirects). Called from
-	// afterNavigate, which fires only once the destination's load has resolved.
+	// against `/` (a bare shell that immediately redirects) and run once. Called
+	// from both onMount and afterNavigate — whichever reaches a real route first.
+	let splashDismissed = false;
 	function dismissSplash() {
-		if (page.url.pathname === '/') return;
+		if (splashDismissed || page.url.pathname === '/') return;
 		const splash = document.getElementById('app-splash');
 		if (!splash) return;
+		splashDismissed = true;
 
-		const hide = () => {
-			// afterNavigate has committed the destination's DOM; two frames
-			// guarantee it has also painted. Drop the mark first so it can't be
-			// seen fading over the destination's own logo, then fade the ground.
-			requestAnimationFrame(() =>
-				requestAnimationFrame(() => {
-					splash.querySelector('svg')?.remove();
-					splash.classList.add('is-hiding');
-					splash.addEventListener('transitionend', () => splash.remove(), { once: true });
-					setTimeout(() => splash.remove(), 600);
-				})
-			);
+		const reveal = () => {
+			// The destination is painted behind the cover. Drop it — #0d0d0f on
+			// #0d0d0f, so the only visible change is the content appearing. Always
+			// a View Transition where supported: the browser crossfades snapshots
+			// composited above the window, so no bare frame (black or the UA
+			// backdrop) can show between removing the cover and the destination.
+			// With a destination mark (`[data-app-mark]`, e.g. the auth header)
+			// the splash mark is tagged and glides into it; without one it stays
+			// part of `root` and the whole cover just crossfades. Under
+			// prefers-reduced-motion (or no View Transition API) it's a plain
+			// swap — safe now that the `painted` gate below guarantees the
+			// destination is already on screen underneath.
+			const destMark = document.querySelector<HTMLElement>('[data-app-mark]');
+			const splashImg = splash.querySelector<HTMLElement>('img');
+			const swap = () => {
+				splash.remove();
+				destMark?.style.setProperty('view-transition-name', 'app-splash-mark');
+			};
+			const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+			if (!reduced && typeof document.startViewTransition === 'function') {
+				if (destMark) splashImg?.style.setProperty('view-transition-name', 'app-splash-mark');
+				const vt = document.startViewTransition(swap);
+				vt.finished.finally(() => destMark?.style.removeProperty('view-transition-name'));
+			} else {
+				splash.remove();
+			}
 		};
 
-		// Give the mark a minimum time on screen even when the auth resolution
-		// comes back fast — it should read as a splash, not a flash. Measured
-		// from first paint (≈ when the splash first showed); if the destination
-		// took longer than that to render, no extra wait.
-		const MIN_ON_SCREEN_MS = 800;
+		// Two gates, whichever finishes last:
+		//  - a fixed minimum on screen from first paint, so a fast auth
+		//    resolution still reads as a splash, not a flash;
+		//  - the destination has actually rendered content into <main>. The old
+		//    signal was `requestIdleCallback`, which fires in the idle gap right
+		//    after afterNavigate — before the route's data and child components
+		//    paint — so the reveal caught one blank frame (the black blink).
+		//    Poll for real content instead, capped so a genuinely empty
+		//    destination can't strand the splash.
+		const MIN_ON_SCREEN_MS = 1200;
 		const [fcp] = performance.getEntriesByName('first-contentful-paint');
 		const shownFor = performance.now() - (fcp?.startTime ?? 0);
-		if (shownFor >= MIN_ON_SCREEN_MS) hide();
-		else setTimeout(hide, MIN_ON_SCREEN_MS - shownFor);
+		const painted = new Promise<void>((resolve) => {
+			const deadline = performance.now() + 2000;
+			const check = () => {
+				const ready = !!document.querySelector('main')?.textContent?.trim();
+				if (ready || performance.now() > deadline) {
+					requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+				} else {
+					requestAnimationFrame(check);
+				}
+			};
+			check();
+		});
+		const floor = new Promise<void>((resolve) =>
+			setTimeout(resolve, Math.max(0, MIN_ON_SCREEN_MS - shownFor))
+		);
+
+		Promise.all([painted, floor]).then(() => requestAnimationFrame(reveal));
 	}
 
 	onMount(dismissSplash);

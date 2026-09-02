@@ -1,128 +1,89 @@
 <!doctype html>
-<html lang="en" data-theme="brand">
+<!-- style attr, not just the <style> rule below: it lands a frame earlier and
+     covers the iOS overscroll rubber-band. color-scheme dark from the first
+     byte means the UA backdrop (what shows behind an unpainted region or a
+     compositing blend) is near-black, not the light-scheme white. -->
+<html lang="en" data-theme="brand" style="background-color: #0d0d0f; color-scheme: dark">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="color-scheme" content="dark" />
 		<link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/icon-180.png" />
 		<meta name="theme-color" content="#0D0D0F" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<!-- `black-translucent`, not `black`: the web view runs full-bleed under
+		     the status bar, which is what env(safe-area-inset-top) and 100vh are
+		     written against throughout the app. -->
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<meta name="apple-mobile-web-app-title" content="Strength App" />
 
-		<!--
-			iOS launch images. A PWA with no matching `apple-touch-startup-image`
-			shows a blank screen during launch; these bridge that gap with the
-			same dark ground + centred mark as #app-splash. Portrait only — this
-			app is used upright. Regenerate: bash scripts/gen-ios-splash.sh
-		-->
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-640-1136.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-750-1334.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-828-1792.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-1125-2436.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-1242-2208.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-1242-2688.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-1170-2532.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-1179-2556.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-1284-2778.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-1290-2796.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-1206-2622.png"
-		/>
-		<link
-			rel="apple-touch-startup-image"
-			media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-			href="%sveltekit.assets%/apple-splash-1320-2868.png"
-		/>
-
 		<style>
-			/* Painted before any external stylesheet or framework JS, so the first
-			   frame of a cold PWA launch is the app's dark ground — never a white
-			   flash — with the mark centred. */
+			/* One colour for the whole launch — this cover and every first screen
+			   (auth / app) are all #0d0d0f, so no handoff can flash. Painted
+			   before any framework JS, and before anything over the network:
+			   kit.inlineStyleThreshold inlines the app CSS and the mark below is
+			   inline SVG, so nothing render-blocking stands between the document
+			   and the first paint. That matters more than it looks — while the
+			   first paint is blocked the web view is its own default *white*, and
+			   iOS composites that. */
+			:root {
+				color-scheme: dark;
+			}
 			html,
 			body {
 				background: #0d0d0f;
 			}
-			/* Covers the whole cold-start path — the prerendered `/` shell, the
-			   client hop to the real route, and that route's load. Held on screen
-			   for a minimum beat, then faded out once the real screen is painted
-			   underneath (src/routes/+layout.svelte's dismissSplash). */
+			/* Covers the whole cold-start path: the prerendered `/` shell, the
+			   client hop to the real route, and that route's load.
+			   src/routes/+layout.svelte's dismissSplash then reveals the settled
+			   screen with a View Transition: the mark glides into the
+			   destination's own mark where there is one, otherwise the whole
+			   cover crossfades — #0d0d0f on #0d0d0f either way.
+
+			   There is deliberately no apple-touch-startup-image. One that
+			   matched this cover pixel-for-pixel still left a visible lift at the
+			   handoff: iOS cross-dissolves the launch image into the web view and
+			   its opacity curves briefly sum past 1, blending the white window
+			   backdrop in. With no launch image there is no image layer and no
+			   cross-dissolve — iOS just fades the web view up over black, which
+			   measures strictly monotonic. The cost is ~180ms of black at the
+			   very front, which reads as an ordinary app open. */
 			#app-splash {
 				position: fixed;
-				inset: 0;
+				top: 0;
+				left: 0;
+				right: 0;
+				/* 100vh, not `inset: 0` / `bottom: 0`: on an iOS PWA the layout
+				   viewport briefly resizes as the launch animation settles and the
+				   status-bar area is reclaimed, which slid a `bottom: 0` box — and
+				   its flex-centred mark — downward mid-splash. `100vh` is the
+				   stable large-viewport height, resolved once. */
+				height: 100vh;
 				z-index: 2147483647;
 				display: flex;
 				align-items: center;
 				justify-content: center;
 				background: #0d0d0f;
-				opacity: 1;
-				transition: opacity 0.3s ease;
 			}
-			#app-splash.is-hiding {
-				opacity: 0;
-			}
-			/* The mark breathes gently while the app loads. Full opacity at the
-			   start so it's solid the instant it paints. */
 			#app-splash svg {
-				animation: app-splash-pulse 2s ease-in-out infinite;
+				width: 96px;
+				height: 96px;
 			}
-			@keyframes app-splash-pulse {
-				0%,
-				100% {
-					opacity: 1;
-				}
-				50% {
-					opacity: 0.6;
-				}
+			/* On reveal, dismissSplash tags this mark `app-splash-mark` only when
+			   the destination has its own mark to morph into (0.42s glide);
+			   otherwise the mark stays part of `root` and the whole cover just
+			   crossfades over the unchanging #0d0d0f. dismissSplash skips the
+			   View Transition entirely under prefers-reduced-motion. */
+			::view-transition-group(app-splash-mark) {
+				animation-duration: 0.42s;
+				animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 			}
-			@media (prefers-reduced-motion: reduce) {
-				#app-splash svg {
-					animation: none;
-				}
+			::view-transition-old(root),
+			::view-transition-new(root) {
+				animation-duration: 0.22s;
 			}
 		</style>
 		%sveltekit.head%
@@ -145,6 +106,12 @@
 			the destination has rendered. Styles are inlined in <head>.
 		-->
 		<div id="app-splash" aria-hidden="true">
+			<!-- Inline SVG, not <img src>: it needs no network fetch and no decode, so
+			     it is on screen at the very first paint, and it is sharp at every
+			     device pixel ratio. (It was briefly a shared PNG, byte-matched to an
+			     iOS launch image; with no launch image there is nothing to match.)
+			     Same path as src/lib/components/AuthHeader.svelte's mark, which the
+			     reveal morphs into — keep the two in step. -->
 			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="96" height="96">
 				<defs>
 					<linearGradient id="splashGradient" x1="0" y1="0" x2="1" y2="1">
