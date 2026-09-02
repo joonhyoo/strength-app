@@ -148,6 +148,7 @@ export async function getWorkoutDay(athleteId: string, dateKey: string): Promise
 
 		return {
 			id: row.id as string,
+			exerciseId: row.exercise_id as string,
 			category: ex.category,
 			activity: ex.name,
 			note: (row.note as string) ?? '',
@@ -159,6 +160,75 @@ export async function getWorkoutDay(athleteId: string, dateKey: string): Promise
 
 	cacheWorkoutDay(athleteId, dateKey, exercises);
 	return exercises;
+}
+
+export interface ExerciseHistorySet {
+	setNumber: number;
+	weight: string | null;
+	reps: number | null;
+	targetReps: number;
+}
+
+export interface ExerciseHistorySession {
+	/** The athlete_exercises row id — a stable list key (the same lift can, in
+	 *  principle, sit on a day twice). */
+	id: string;
+	dateKey: string;
+	complete: boolean;
+	sets: ExerciseHistorySet[];
+}
+
+/**
+ * Past sessions of one catalog exercise for one athlete, strictly before
+ * `beforeDateKey`, most recent first. Not cached: it sits behind a deliberate
+ * tap in the exercise modal, so a one-shot fetch with a spinner is fine, and
+ * an in-memory cache here would need wiring into the logout purge. Sessions
+ * with nothing logged (no set carrying a weight) are dropped — a scheduled
+ * day the athlete skipped isn't "history" worth showing.
+ */
+export async function getExerciseHistory(
+	athleteId: string,
+	exerciseId: string,
+	beforeDateKey: string
+): Promise<ExerciseHistorySession[]> {
+	const res = await fetch('/api/workout', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			action: 'exerciseHistory',
+			data: { athleteId, exerciseId, before: beforeDateKey }
+		})
+	});
+
+	if (!res.ok) throw new Error(`getExerciseHistory: ${res.status} ${res.statusText}`);
+
+	const { data } = await res.json();
+
+	const sessions: ExerciseHistorySession[] = [];
+	for (const workout of (data ?? []) as Record<string, unknown>[]) {
+		const dateKey = workout.scheduled_date as string;
+		for (const ae of (workout.athlete_exercises as Record<string, unknown>[]) ?? []) {
+			const sets: ExerciseHistorySet[] = ((ae.athlete_sets as Record<string, unknown>[]) ?? [])
+				.map((s) => ({
+					setNumber: s.set_number as number,
+					weight: s.weight != null ? String(s.weight) : null,
+					reps: (s.reps as number) ?? null,
+					targetReps: (s.target_reps as number) ?? 0
+				}))
+				.sort((a, b) => a.setNumber - b.setNumber);
+
+			if (!sets.some((s) => s.weight)) continue;
+
+			sessions.push({
+				id: ae.id as string,
+				dateKey,
+				complete: (ae.complete as boolean) ?? false,
+				sets
+			});
+		}
+	}
+
+	return sessions;
 }
 
 const STATUS_CACHE_PREFIX = 'status-map:';
