@@ -20,7 +20,11 @@
 	] as const;
 </script>
 
-<div class="grid h-[calc(100dvh-env(safe-area-inset-top))] grid-rows-[1fr_auto]">
+<!-- Capped to a phone-ish column so the athlete UI reads the same on a desktop
+	 browser as on a phone (matched by the full-screen modals). -->
+<div
+	class="mx-auto grid h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-[750px] grid-rows-[1fr_auto] md:border-x md:border-base-300"
+>
 	<div class="overflow-y-auto overscroll-y-contain px-4">
 		{@render children()}
 	</div>
