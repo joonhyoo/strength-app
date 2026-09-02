@@ -47,6 +47,6 @@
 </svelte:head>
 
 <!-- Never visible in practice (#app-splash covers it). A dark fill only for the
-     edge case where src/app.html's 4s fallback removes the splash before this
+     edge case where src/app.html's failsafe removes the splash before this
      redirect has landed. -->
 <div class="min-h-screen bg-[#0d0d0f]"></div>
