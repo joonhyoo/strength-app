@@ -1,7 +1,7 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import { afterNavigate, goto, invalidate } from '$app/navigation';
+	import { afterNavigate, goto, invalidate, onNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
@@ -19,6 +19,22 @@
 			`${name}=${encodeURIComponent(value)}; path=/; ` +
 			`max-age=${COOKIE_MAX_AGE}; SameSite=Lax${secure}`;
 	}
+
+	// Cross-fade the one hop off `/` — the prerendered sign-in skeleton (or, for
+	// an authed relaunch, the bare ground) being swapped for the real screen once
+	// the app has hydrated and picked a route. A hard cut there flickers even
+	// when the chrome matches; a short fade covers it. Every other navigation
+	// stays instant. No-ops where the View Transitions API is unavailable.
+	onNavigate((navigation) => {
+		if (navigation.from?.url.pathname !== '/') return;
+		if (!document.startViewTransition) return;
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 
 	// The session is resolved server-side (src/routes/+layout.server.ts), and that
 	// load no longer re-runs on every navigation. This browser client is its
