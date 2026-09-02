@@ -490,16 +490,14 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			return json({ data: { success: true } });
 		}
 
-		case 'moveProgramExercise': {
-			// Identical two-phase temp-position swap to api/workout's
-			// moveExercise — same shape of problem (reorder within a sorted
-			// sibling list), just against program_exercises instead of
-			// athlete_exercises.
-			const { programExerciseId, direction } = data;
+		case 'reorderProgramExercise': {
+			// Same shape of problem as api/workout's reorderExercise (reorder
+			// within a sorted sibling list), against program_exercises.
+			const { programExerciseId, toIndex } = data;
 
 			const { data: exercise } = await supabase
 				.from('program_exercises')
-				.select('id, position, session_id')
+				.select('id, session_id')
 				.eq('id', programExerciseId)
 				.single();
 
@@ -507,25 +505,20 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 			const { data: rows } = await supabase
 				.from('program_exercises')
-				.select('id, position')
+				.select('id')
 				.eq('session_id', exercise.session_id)
 				.order('position');
 
 			if (!rows) return error(500, 'Failed to fetch exercises');
 
-			const index = rows.findIndex((r) => r.id === programExerciseId);
-			const neighbor = direction === 'up' ? rows[index - 1] : rows[index + 1];
-			if (!neighbor) return json({ data: { success: true } });
+			const ids = rows.map((r) => r.id).filter((id) => id !== programExerciseId);
+			const dest = Math.max(0, Math.min(toIndex, ids.length));
+			ids.splice(dest, 0, programExerciseId);
 
-			await supabase.from('program_exercises').update({ position: -1 }).eq('id', exercise.id);
-			await supabase
-				.from('program_exercises')
-				.update({ position: exercise.position })
-				.eq('id', neighbor.id);
-			await supabase
-				.from('program_exercises')
-				.update({ position: neighbor.position })
-				.eq('id', exercise.id);
+			for (let k = 0; k < ids.length; k++) {
+				if (rows[k]?.id === ids[k]) continue;
+				await supabase.from('program_exercises').update({ position: k }).eq('id', ids[k]);
+			}
 
 			return json({ data: { success: true } });
 		}

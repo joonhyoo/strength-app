@@ -3,16 +3,18 @@
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
-	import ArrowUpLineIcon from '@iconify-svelte/mingcute/arrow-up-line';
-	import ArrowDownLineIcon from '@iconify-svelte/mingcute/arrow-down-line';
+	import DotGridLineIcon from '@iconify-svelte/mingcute/dot-grid-line';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getCachedWorkoutDay, getWorkoutDay } from '$lib/services/workoutService.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import type { Exercise } from '$lib/types';
 	import { CATEGORY_LABEL } from '$lib/data/categories';
 	import { formatPlan } from '$lib/formatPlan';
+	import { dndzone, type DndEvent } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
 
 	const program = getCoachProgramState();
+	const FLIP_MS = 200;
 
 	let { athleteId, athleteName, date }: { athleteId: string; athleteName: string; date: Date } =
 		$props();
@@ -20,6 +22,21 @@
 	const dateKey = $derived(date.toLocaleDateString('fr-CA'));
 
 	let exercises = $state<Exercise[]>([]);
+
+	// svelte-dnd-action drives the reorder: `consider` streams the live shuffle
+	// (siblings flip out of the way), `finalize` commits. The reordered list is
+	// applied optimistically; program.reorderExercise then persists and the
+	// load $effect reconciles with the server order on the revision bump.
+	function handleDndConsider(e: CustomEvent<DndEvent<Exercise>>) {
+		exercises = e.detail.items;
+	}
+	function handleDndFinalize(e: CustomEvent<DndEvent<Exercise>>) {
+		exercises = e.detail.items;
+		const id = e.detail.info.id;
+		const toIndex = exercises.findIndex((x) => x.id === id);
+		if (id && toIndex >= 0) program.reorderExercise(id, toIndex);
+	}
+
 	let loading = $state(true);
 	let loadError = $state(false);
 	let loadToken = 0;
@@ -114,9 +131,19 @@
 		{:else if exercises.length === 0}
 			<p class="py-6 text-center text-base-content/60">No exercises scheduled for this day.</p>
 		{:else}
-			<div class="flex flex-col">
+			<div
+				class="flex flex-col"
+				use:dndzone={{
+					items: exercises,
+					flipDurationMs: FLIP_MS,
+					dragDisabled: exercises.length < 2,
+					dropTargetStyle: {}
+				}}
+				onconsider={handleDndConsider}
+				onfinalize={handleDndFinalize}
+			>
 				{#each exercises as exercise, i (exercise.id)}
-					<div class="flex min-w-0 items-center gap-4">
+					<div class="flex min-w-0 items-center gap-4" animate:flip={{ duration: FLIP_MS }}>
 						<div class="flex flex-col items-center self-stretch">
 							<span class="w-px flex-1 bg-base-300 {i === 0 ? 'invisible' : ''}"></span>
 							<CategoryIcon category={exercise.category} />
@@ -144,25 +171,15 @@
 									{/if}
 								{/if}
 							</div>
-							<div class="flex shrink-0 flex-col items-center gap-0.5">
-								<button
-									class="btn btn-ghost btn-xs"
-									aria-label={`Move ${exercise.activity} up`}
-									disabled={i === 0}
-									onclick={() => exercise.id && program.moveExercise(exercise.id, 'up')}
-								>
-									<ArrowUpLineIcon height="1.2em" />
-								</button>
-								<button
-									class="btn btn-ghost btn-xs"
-									aria-label={`Move ${exercise.activity} down`}
-									disabled={i === exercises.length - 1}
-									onclick={() => exercise.id && program.moveExercise(exercise.id, 'down')}
-								>
-									<ArrowDownLineIcon height="1.2em" />
-								</button>
-							</div>
 							<div class="flex shrink-0 items-center gap-1">
+								{#if exercises.length > 1}
+									<span
+										class="cursor-grab text-base-content/40 active:cursor-grabbing"
+										aria-hidden="true"
+									>
+										<DotGridLineIcon height="1.2em" />
+									</span>
+								{/if}
 								<button
 									class="btn text-secondary btn-ghost btn-xs"
 									aria-label={`Edit ${exercise.activity}`}

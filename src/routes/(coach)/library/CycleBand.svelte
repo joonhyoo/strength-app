@@ -2,21 +2,23 @@
 	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
-	import ArrowUpLineIcon from '@iconify-svelte/mingcute/arrow-up-line';
-	import ArrowDownLineIcon from '@iconify-svelte/mingcute/arrow-down-line';
 	import CopyLineIcon from '@iconify-svelte/mingcute/copy-line';
 	import PasteLineIcon from '@iconify-svelte/mingcute/paste-line';
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
+	import DotGridLineIcon from '@iconify-svelte/mingcute/dot-grid-line';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import { CATEGORY_LABEL } from '$lib/data/categories';
 	import { cycleColorCss } from '$lib/data/cycleColors';
 	import { formatPlan } from '$lib/formatPlan';
-	import type { ProgramDetail } from '$lib/types';
+	import { dndzone, type DndEvent } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
+	import type { ProgramDetail, ProgramExerciseDetail } from '$lib/types';
 
 	let { cycle }: { cycle: ProgramDetail['cycles'][number] } = $props();
 
 	const builder = getProgramBuilderState();
+	const FLIP_MS = 200;
 
 	const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -35,6 +37,29 @@
 	// True while the expanded week is an optimistic copy still reconciling with
 	// the server — the grid is frozen (inert) so an edit can't hit a temp id.
 	const weekPending = $derived(!!expandedWeek && builder.pendingWeekIds.has(expandedWeek.id));
+
+	// Drag-and-drop reorder of the expanded session's exercise list. svelte-dnd-
+	// action reorders its own `items` array, so we mirror the session's exercises
+	// into local state, let `consider` stream the live shuffle into it, and push
+	// the result into the builder tree on `finalize`. The mirror re-syncs from
+	// the tree whenever the session (or its exercises) change out from under it.
+	// Writable $derived: mirrors the session's exercises, but `consider` can
+	// write the live drag order into it; it snaps back to the tree whenever the
+	// session's exercises actually change.
+	let dragItems = $derived<ProgramExerciseDetail[]>(
+		expandedSession ? expandedSession.exercises.slice() : []
+	);
+	const dragDisabled = $derived(dragItems.length < 2 || builder.pendingExerciseIds.size > 0);
+
+	function handleDndConsider(e: CustomEvent<DndEvent<ProgramExerciseDetail>>) {
+		dragItems = e.detail.items;
+	}
+	function handleDndFinalize(e: CustomEvent<DndEvent<ProgramExerciseDetail>>) {
+		dragItems = e.detail.items;
+		const id = e.detail.info.id;
+		const toIndex = dragItems.findIndex((x) => x.id === id);
+		if (id && toIndex >= 0) builder.moveExerciseTo(id, toIndex);
+	}
 
 	let copyBusy = $state(false);
 	let copyError = $state('');
@@ -343,15 +368,26 @@
 							<p class="mt-2 text-xs text-error">{builder.exerciseOpError}</p>
 						{/if}
 
-						{#if expandedSession.exercises.length === 0}
+						{#if dragItems.length === 0}
 							<p class="py-4 text-center text-sm text-base-content/60">No exercises yet.</p>
 						{:else}
-							<div class="flex flex-col">
-								{#each expandedSession.exercises as exercise, i (exercise.id)}
+							<div
+								class="flex flex-col"
+								use:dndzone={{
+									items: dragItems,
+									flipDurationMs: FLIP_MS,
+									dragDisabled,
+									dropTargetStyle: {}
+								}}
+								onconsider={handleDndConsider}
+								onfinalize={handleDndFinalize}
+							>
+								{#each dragItems as exercise (exercise.id)}
 									<div
 										class="flex min-w-0 items-center gap-3 border-b border-base-300 py-2 last:border-none"
 										class:opacity-60={builder.pendingExerciseIds.has(exercise.id)}
 										inert={builder.pendingExerciseIds.has(exercise.id)}
+										animate:flip={{ duration: FLIP_MS }}
 									>
 										<CategoryIcon category={exercise.category} />
 										<div class="min-w-0 flex-1">
@@ -373,27 +409,15 @@
 												{/if}
 											{/if}
 										</div>
-										<div class="flex shrink-0 flex-col items-center gap-0.5">
-											<button
-												type="button"
-												class="btn btn-ghost btn-xs"
-												aria-label={`Move ${exercise.activity} up`}
-												disabled={i === 0}
-												onclick={() => builder.moveExercise(exercise.id, 'up')}
-											>
-												<ArrowUpLineIcon height="1.2em" />
-											</button>
-											<button
-												type="button"
-												class="btn btn-ghost btn-xs"
-												aria-label={`Move ${exercise.activity} down`}
-												disabled={i === expandedSession.exercises.length - 1}
-												onclick={() => builder.moveExercise(exercise.id, 'down')}
-											>
-												<ArrowDownLineIcon height="1.2em" />
-											</button>
-										</div>
 										<div class="flex shrink-0 items-center gap-1">
+											{#if dragItems.length > 1}
+												<span
+													class="cursor-grab text-base-content/40 active:cursor-grabbing"
+													aria-hidden="true"
+												>
+													<DotGridLineIcon height="1.2em" />
+												</span>
+											{/if}
 											<button
 												type="button"
 												class="btn text-secondary btn-ghost btn-xs"

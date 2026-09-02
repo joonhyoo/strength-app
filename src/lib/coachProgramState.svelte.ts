@@ -4,7 +4,7 @@ import {
 	addExerciseToDay,
 	updateExercise as updateScheduledExercise,
 	removeExercise as removeScheduledExercise,
-	moveExercise as moveScheduledExercise,
+	reorderExercise as reorderScheduledExercise,
 	setExerciseComplete,
 	pasteDay as pasteDayRequest,
 	pasteWeek as pasteWeekRequest,
@@ -128,8 +128,8 @@ class CoachProgramState {
 		this.revision++;
 	}
 
-	async moveExercise(athleteExerciseId: string, direction: 'up' | 'down') {
-		await moveScheduledExercise(athleteExerciseId, direction);
+	async reorderExercise(athleteExerciseId: string, toIndex: number) {
+		await reorderScheduledExercise(athleteExerciseId, toIndex);
 		this.revision++;
 	}
 

@@ -249,13 +249,13 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			return json({ data: { success: true } });
 		}
 
-		case 'moveExercise': {
-			const { athleteExerciseId, direction } = data;
+		case 'reorderExercise': {
+			const { athleteExerciseId, toIndex } = data;
 
 			// Get the exercise and its workout
 			const { data: exercise } = await supabase
 				.from('athlete_exercises')
-				.select('id, position, athlete_workout_id')
+				.select('id, athlete_workout_id')
 				.eq('id', athleteExerciseId)
 				.single();
 
@@ -263,28 +263,23 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 			const { data: rows } = await supabase
 				.from('athlete_exercises')
-				.select('id, position')
+				.select('id')
 				.eq('athlete_workout_id', exercise.athlete_workout_id)
 				.order('position');
 
 			if (!rows) return error(500, 'Failed to fetch exercises');
 
-			const index = rows.findIndex((r) => r.id === athleteExerciseId);
-			const neighbor = direction === 'up' ? rows[index - 1] : rows[index + 1];
-			if (!neighbor) return json({ data: { success: true } });
+			// Pull the moving row out and splice it back in at the target slot,
+			// then renumber positions 0..n-1. `position` has no unique constraint,
+			// so a straight sequential rewrite is safe.
+			const ids = rows.map((r) => r.id).filter((id) => id !== athleteExerciseId);
+			const dest = Math.max(0, Math.min(toIndex, ids.length));
+			ids.splice(dest, 0, athleteExerciseId);
 
-			// Two-phase swap via temp position
-			await supabase.from('athlete_exercises').update({ position: -1 }).eq('id', exercise.id);
-
-			await supabase
-				.from('athlete_exercises')
-				.update({ position: exercise.position })
-				.eq('id', neighbor.id);
-
-			await supabase
-				.from('athlete_exercises')
-				.update({ position: neighbor.position })
-				.eq('id', exercise.id);
+			for (let k = 0; k < ids.length; k++) {
+				if (rows[k]?.id === ids[k]) continue;
+				await supabase.from('athlete_exercises').update({ position: k }).eq('id', ids[k]);
+			}
 
 			return json({ data: { success: true } });
 		}

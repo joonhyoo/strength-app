@@ -544,19 +544,20 @@ class ProgramBuilderState {
 		);
 	}
 
-	moveExercise(programExerciseId: string, direction: 'up' | 'down') {
+	/** `toIndex` is the desired final position of the exercise in the full
+	 *  sibling list (matches the array index the drag ends on). */
+	moveExerciseTo(programExerciseId: string, toIndex: number) {
 		this.exerciseOpError = null;
 		const loc = this.locateExercise(programExerciseId);
 		if (loc && !programExerciseId.startsWith('temp-')) {
 			const { exercises, index } = loc;
-			const to = direction === 'up' ? index - 1 : index + 1;
-			if (to < 0 || to >= exercises.length) return;
-			const tmp = exercises[index];
-			exercises[index] = exercises[to];
-			exercises[to] = tmp;
+			if (toIndex === index) return;
+			const [item] = exercises.splice(index, 1);
+			const dest = Math.max(0, Math.min(toIndex, exercises.length));
+			exercises.splice(dest, 0, item);
 			return this.trackOptimistic(
 				this.confirmExerciseOp(
-					service.moveProgramExercise(programExerciseId, direction),
+					service.reorderProgramExercise(programExerciseId, toIndex),
 					this.selectedProgramId,
 					'reload-on-fail',
 					'Could not reorder — reverted.'
@@ -565,7 +566,7 @@ class ProgramBuilderState {
 		}
 		return this.trackOptimistic(
 			this.confirmExerciseOp(
-				service.moveProgramExercise(programExerciseId, direction),
+				service.reorderProgramExercise(programExerciseId, toIndex),
 				this.selectedProgramId,
 				'always-reload',
 				'Could not reorder.'
