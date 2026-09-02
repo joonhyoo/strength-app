@@ -21,6 +21,7 @@
 
 	let exercises = $state<Exercise[]>([]);
 	let loading = $state(true);
+	let loadError = $state(false);
 	let loadToken = 0;
 
 	$effect(() => {
@@ -36,15 +37,26 @@
 			exercises = cached;
 			loading = false;
 		} else {
+			// Clear the previous day so the stale list can't leak through — into
+			// the "Copy day" disabled state, or a frame where the new date's
+			// heading renders above the old day's exercises.
+			exercises = [];
 			loading = true;
 		}
+		loadError = false;
 
-		getWorkoutDay(id, key).then((list) => {
-			if (token !== loadToken) return;
-			exercises = list;
-			loading = false;
-			program.setDayStatus(key, list);
-		});
+		getWorkoutDay(id, key)
+			.then((list) => {
+				if (token !== loadToken) return;
+				exercises = list;
+				loading = false;
+				program.setDayStatus(key, list);
+			})
+			.catch(() => {
+				if (token !== loadToken) return;
+				loading = false;
+				if (cached === null) loadError = true;
+			});
 	});
 
 	async function handleRemove(id: string) {
@@ -97,6 +109,8 @@
 
 		{#if loading}
 			<p class="py-6 text-center text-base-content/60">Loading…</p>
+		{:else if loadError}
+			<p class="py-6 text-center text-base-content/60">Couldn't load this day.</p>
 		{:else if exercises.length === 0}
 			<p class="py-6 text-center text-base-content/60">No exercises scheduled for this day.</p>
 		{:else}
@@ -113,7 +127,7 @@
 						<div class="flex min-w-0 flex-1 items-center gap-3 py-1">
 							<div class="min-w-0 flex-1">
 								{#if exercise.category === 'note'}
-									<p class="truncate text-sm text-base-content/80">{exercise.note}</p>
+									<p class="text-sm break-words text-base-content/80">{exercise.note}</p>
 								{:else}
 									<div class="flex items-baseline gap-2">
 										<span class="font-medium">{exercise.activity}</span>
@@ -122,7 +136,7 @@
 										>
 									</div>
 									{#if formatPlan(exercise.plan) || exercise.note}
-										<p class="truncate text-sm text-base-content/60">
+										<p class="text-sm break-words text-base-content/60">
 											{formatPlan(exercise.plan)}{exercise.plan.length && exercise.note.length
 												? ' · '
 												: ''}{exercise.note}
