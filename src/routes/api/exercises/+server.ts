@@ -12,7 +12,7 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			// feature but isn't a real, pickable catalog exercise.
 			const { data: exercises } = await supabase
 				.from('exercises')
-				.select('id, name, category')
+				.select('id, name, category, video_url')
 				.neq('category', 'note')
 				.order('name');
 
@@ -20,19 +20,19 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 		}
 
 		case 'create': {
-			const { name, category } = data;
-			const exercise = await getOrCreateExercise(supabase, name, category);
+			const { name, category, videoUrl } = data;
+			const exercise = await getOrCreateExercise(supabase, name, category, videoUrl);
 			if (!exercise) return error(500, 'Failed to create exercise');
 			return json({ data: exercise });
 		}
 
 		case 'update': {
-			const { id, name, category } = data;
+			const { id, name, category, videoUrl } = data;
 			const { data: updated, error: updateErr } = await supabase
 				.from('exercises')
-				.update({ name, category })
+				.update({ name, category, video_url: videoUrl || null })
 				.eq('id', id)
-				.select('id, name, category')
+				.select('id, name, category, video_url')
 				.single();
 
 			if (updateErr) {

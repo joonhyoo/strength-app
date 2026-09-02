@@ -1,10 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-/** Look up an exercise definition by name, creating it if it doesn't exist yet. */
+/** Look up an exercise definition by name, creating it if it doesn't exist yet.
+ *  `videoUrl` only applies on the create path — an existing row's link is left
+ *  alone here (use the 'update' API action to change one). */
 export async function getOrCreateExercise(
 	supabase: SupabaseClient,
 	name: string,
-	category: string
+	category: string,
+	videoUrl?: string | null
 ) {
 	const { data: existing } = await supabase
 		.from('exercises')
@@ -16,7 +19,7 @@ export async function getOrCreateExercise(
 
 	const { data: created } = await supabase
 		.from('exercises')
-		.insert({ name, category })
+		.insert({ name, category, video_url: videoUrl || null })
 		.select('id, name, category')
 		.single();
 

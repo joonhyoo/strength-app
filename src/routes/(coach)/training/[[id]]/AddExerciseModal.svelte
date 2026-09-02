@@ -5,6 +5,7 @@
 		getExerciseLibrary,
 		findExercise,
 		addExerciseDefinition,
+		updateExerciseDefinition,
 		loadExerciseLibrary
 	} from '$lib/data/exerciseLibrary.svelte';
 	import type { Exercise, ExerciseCategory } from '$lib/types';
@@ -43,6 +44,10 @@
 	let selectedName = $state('');
 	let newName = $state('');
 	let newCategory = $state<ExerciseCategory>('warmup');
+	// Shared by both branches: the new exercise's link while creating, or the
+	// selected catalog exercise's existing link while picking/editing one —
+	// see the sync effect below.
+	let videoUrl = $state('');
 	let sets = $state(3);
 	let reps = $state(5);
 	let note = $state('');
@@ -67,6 +72,7 @@
 				selectedName = inLibrary ? editing.activity : (library[0]?.name ?? '');
 				newName = editing.activity;
 				newCategory = editing.category;
+				videoUrl = '';
 				sets = editing.plan.length || 3;
 				reps = (editing.plan[0] as number) ?? 5;
 				note = editing.note;
@@ -75,6 +81,7 @@
 				creatingNew = false;
 				selectedName = library[0]?.name ?? '';
 				newCategory = 'warmup';
+				videoUrl = '';
 				sets = 3;
 				reps = 5;
 				note = '';
@@ -92,6 +99,15 @@
 				if (!creatingNew && selectedName === '') selectedName = first;
 			});
 		}
+	});
+
+	// Keep the video-link field in sync with whichever catalog exercise is
+	// selected — picking a different one from the dropdown (including while
+	// editing an existing scheduled exercise) shows *that* exercise's current
+	// link, editable right here instead of only from the Library tab.
+	$effect(() => {
+		if (creatingNew) return;
+		videoUrl = findExercise(selectedName)?.videoUrl ?? '';
 	});
 
 	const isEditing = $derived(program.editingExercise !== null);
@@ -135,8 +151,26 @@
 			complete: isNote ? false : complete
 		};
 
+		// Picking an existing catalog exercise (whether adding it fresh or
+		// editing a scheduled exercise that already uses it) also lets the video
+		// link be edited right here — persist it to the catalog row if changed.
+		const existing = !isNote && !creatingNew ? findExercise(selectedName) : null;
+		const trimmedVideoUrl = videoUrl.trim();
+		const videoUrlChanged = !!existing && (existing.videoUrl ?? '') !== trimmedVideoUrl;
+
 		if (creating) {
-			await addExerciseDefinition({ name: exercise.activity, category: exercise.category });
+			await addExerciseDefinition({
+				name: exercise.activity,
+				category: exercise.category,
+				videoUrl: trimmedVideoUrl || undefined
+			});
+		} else if (existing && videoUrlChanged) {
+			await updateExerciseDefinition({
+				id: existing.id,
+				name: existing.name,
+				category: existing.category,
+				videoUrl: trimmedVideoUrl || undefined
+			});
 		}
 
 		await program.saveExercise(exercise);
@@ -182,6 +216,19 @@
 						Category: {CATEGORY_LABEL[category]}
 					</span>
 				</label>
+
+				<label class="form-control w-full">
+					<span class="label">Video link (optional)</span>
+					<input
+						class="input-bordered input"
+						type="url"
+						placeholder="https://youtube.com/watch?v=..."
+						bind:value={videoUrl}
+					/>
+					<span class="label -mt-1 text-base-content/60">
+						Shown to the athlete under this exercise. Plays inside the app.
+					</span>
+				</label>
 			{/if}
 
 			{#if !isNote && creatingNew}
@@ -202,6 +249,19 @@
 							<option value={cat}>{CATEGORY_LABEL[cat]}</option>
 						{/each}
 					</select>
+				</label>
+
+				<label class="form-control w-full">
+					<span class="label">Video link (optional)</span>
+					<input
+						class="input-bordered input"
+						type="url"
+						placeholder="https://youtube.com/watch?v=..."
+						bind:value={videoUrl}
+					/>
+					<span class="label -mt-1 text-base-content/60">
+						Shown to the athlete under this exercise. Plays inside the app.
+					</span>
 				</label>
 			{/if}
 

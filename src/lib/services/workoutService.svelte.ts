@@ -135,7 +135,11 @@ export async function getWorkoutDay(athleteId: string, dateKey: string): Promise
 	}
 
 	const exercises = ordered.map((row) => {
-		const ex = row.exercises as { name: string; category: ExerciseCategory };
+		const ex = row.exercises as {
+			name: string;
+			category: ExerciseCategory;
+			video_url: string | null;
+		};
 		const sets = (row.athlete_sets as Record<string, unknown>[])
 			?.sort((a, b) => (a.set_number as number) - (b.set_number as number))
 			.map((s) => ({
@@ -151,6 +155,7 @@ export async function getWorkoutDay(athleteId: string, dateKey: string): Promise
 			exerciseId: row.exercise_id as string,
 			category: ex.category,
 			activity: ex.name,
+			videoUrl: ex.video_url ?? undefined,
 			note: (row.note as string) ?? '',
 			complete: (row.complete as boolean) ?? false,
 			plan: sets?.map((s) => s.target_reps) ?? [],

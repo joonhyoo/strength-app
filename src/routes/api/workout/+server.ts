@@ -91,7 +91,7 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			const { data: workout } = await supabase
 				.from('athlete_workouts')
 				.select(
-					'id, athlete_exercises(id, exercise_id, note, complete, position, exercises(name, category), athlete_sets(id, set_number, target_reps, weight, reps))'
+					'id, athlete_exercises(id, exercise_id, note, complete, position, exercises(name, category, video_url), athlete_sets(id, set_number, target_reps, weight, reps))'
 				)
 				.eq('athlete_id', athleteId)
 				.eq('scheduled_date', dateKey)
