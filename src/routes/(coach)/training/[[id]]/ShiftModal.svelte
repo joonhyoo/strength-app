@@ -1,4 +1,6 @@
 <script lang="ts">
+	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
+	import SubtractFillIcon from '@iconify-svelte/mingcute/subtract-fill';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import { checkShiftConflicts, shiftSchedule } from '$lib/services/programTemplateService.svelte';
 
@@ -66,7 +68,30 @@
 
 		<label class="form-control mb-4 w-full">
 			<span class="label">Shift by (weeks — negative moves it earlier)</span>
-			<input class="input" type="number" step="1" bind:value={shiftWeeks} />
+			<div class="join w-full">
+				<button
+					type="button"
+					class="btn join-item"
+					aria-label="Decrease weeks"
+					onclick={() => (shiftWeeks -= 1)}
+				>
+					<SubtractFillIcon class="size-4" />
+				</button>
+				<input
+					class="input join-item min-w-0 flex-1 text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+					type="number"
+					step="1"
+					bind:value={shiftWeeks}
+				/>
+				<button
+					type="button"
+					class="btn join-item"
+					aria-label="Increase weeks"
+					onclick={() => (shiftWeeks += 1)}
+				>
+					<PlusFillIcon class="size-4" />
+				</button>
+			</div>
 		</label>
 
 		{#if moving === null}

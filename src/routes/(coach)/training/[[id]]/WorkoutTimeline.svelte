@@ -284,7 +284,7 @@
 						class="btn flex-1 border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
 						onclick={() => openAddExercise(day)}
 					>
-						<PlusFillIcon class="size-5" />
+						<PlusFillIcon class="size-4" />
 						Add exercise
 					</button>
 					<button

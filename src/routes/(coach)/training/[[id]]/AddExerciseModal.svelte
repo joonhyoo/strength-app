@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
+	import SubtractFillIcon from '@iconify-svelte/mingcute/subtract-fill';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import {
 		getExerciseLibrary,
@@ -281,11 +283,57 @@
 				<div class="grid grid-cols-2 gap-4">
 					<label class="form-control w-full">
 						<span class="label">Sets</span>
-						<input class="input" type="number" min="1" bind:value={sets} />
+						<div class="join w-full">
+							<button
+								type="button"
+								class="btn join-item"
+								aria-label="Decrease sets"
+								onclick={() => (sets = Math.max(1, sets - 1))}
+							>
+								<SubtractFillIcon class="size-4" />
+							</button>
+							<input
+								class="input join-item min-w-0 flex-1 text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+								type="number"
+								min="1"
+								bind:value={sets}
+							/>
+							<button
+								type="button"
+								class="btn join-item"
+								aria-label="Increase sets"
+								onclick={() => (sets += 1)}
+							>
+								<PlusFillIcon class="size-4" />
+							</button>
+						</div>
 					</label>
 					<label class="form-control w-full">
 						<span class="label">Reps per set</span>
-						<input class="input" type="number" min="1" bind:value={reps} />
+						<div class="join w-full">
+							<button
+								type="button"
+								class="btn join-item"
+								aria-label="Decrease reps"
+								onclick={() => (reps = Math.max(1, reps - 1))}
+							>
+								<SubtractFillIcon class="size-4" />
+							</button>
+							<input
+								class="input join-item min-w-0 flex-1 text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+								type="number"
+								min="1"
+								bind:value={reps}
+							/>
+							<button
+								type="button"
+								class="btn join-item"
+								aria-label="Increase reps"
+								onclick={() => (reps += 1)}
+							>
+								<PlusFillIcon class="size-4" />
+							</button>
+						</div>
 					</label>
 				</div>
 			{/if}

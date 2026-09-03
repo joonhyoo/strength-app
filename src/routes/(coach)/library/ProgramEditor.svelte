@@ -62,7 +62,7 @@
 			class="btn border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
 			onclick={() => builder.openModal({ type: 'cycle', programId: program.id, cycleId: null })}
 		>
-			<PlusFillIcon class="size-5" />
+			<PlusFillIcon class="size-4" />
 			Add cycle
 		</button>
 	</div>

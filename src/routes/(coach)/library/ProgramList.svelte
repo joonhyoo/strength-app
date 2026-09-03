@@ -39,7 +39,7 @@
 			class="btn mt-2 border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
 			onclick={() => builder.openModal({ type: 'program', programId: null })}
 		>
-			<PlusFillIcon class="size-5" />
+			<PlusFillIcon class="size-4" />
 			New program
 		</button>
 	</div>

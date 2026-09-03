@@ -190,7 +190,7 @@
 				aria-label={`Add a blank week to ${cycle.name}`}
 				onclick={() => builder.addWeek(cycle.id)}
 			>
-				<PlusFillIcon class="size-5" />
+				<PlusFillIcon class="size-4" />
 			</button>
 		</div>
 		{#if copyError}
@@ -456,7 +456,7 @@
 										programExerciseId: null
 									})}
 							>
-								<PlusFillIcon class="size-5" />
+								<PlusFillIcon class="size-4" />
 								Add exercise
 							</button>
 							<button
