@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
+	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import Button from '$lib/components/Button.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import {
@@ -15,6 +15,12 @@
 	import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '$lib/data/categories';
 
 	const NOTE_MAX_HEIGHT_PX = 192; // matches max-h-48
+
+	// Matches the athlete workout modal's ghost nav-button treatment
+	// (train/WorkoutModal.svelte's navBtn) — color-only feedback, no
+	// border or background, so it stays consistent across the app.
+	const stepBtn =
+		'flex size-9 cursor-pointer items-center justify-center rounded-full text-base-content/80 transition-colors duration-150 active:text-base-content/45';
 
 	const supportsFieldSizing = typeof CSS !== 'undefined' && CSS.supports('field-sizing', 'content');
 
@@ -296,56 +302,56 @@
 			{#if isWeight}
 				<div class="grid grid-cols-2 gap-4">
 					<label class="form-control w-full">
-						<span class="label">Sets</span>
-						<div class="join w-full">
+						<span class="label text-sm">Sets</span>
+						<div class="my-2 flex items-center justify-center gap-4">
 							<button
 								type="button"
-								class="btn join-item btn-square"
+								class={stepBtn}
 								aria-label="Decrease sets"
 								onclick={() => (sets = Math.max(1, sets - 1))}
 							>
-								<span class="block h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true"></span>
+								<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
 							</button>
 							<input
-								class="input join-item min-w-0 flex-1 text-center"
+								class="input w-16 text-center text-sm"
 								type="number"
 								min="1"
 								bind:value={sets}
 							/>
 							<button
 								type="button"
-								class="btn join-item btn-square"
+								class={stepBtn}
 								aria-label="Increase sets"
 								onclick={() => (sets += 1)}
 							>
-								<PlusLineIcon class="size-4" />
+								<PlusFillIcon class="size-4" />
 							</button>
 						</div>
 					</label>
 					<label class="form-control w-full">
-						<span class="label">Reps per set</span>
-						<div class="join w-full">
+						<span class="label text-sm">Reps per set</span>
+						<div class="my-2 flex items-center justify-center gap-4">
 							<button
 								type="button"
-								class="btn join-item btn-square"
+								class={stepBtn}
 								aria-label="Decrease reps"
 								onclick={() => (reps = Math.max(1, reps - 1))}
 							>
-								<span class="block h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true"></span>
+								<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
 							</button>
 							<input
-								class="input join-item min-w-0 flex-1 text-center"
+								class="input w-16 text-center text-sm"
 								type="number"
 								min="1"
 								bind:value={reps}
 							/>
 							<button
 								type="button"
-								class="btn join-item btn-square"
+								class={stepBtn}
 								aria-label="Increase reps"
 								onclick={() => (reps += 1)}
 							>
-								<PlusLineIcon class="size-4" />
+								<PlusFillIcon class="size-4" />
 							</button>
 						</div>
 					</label>

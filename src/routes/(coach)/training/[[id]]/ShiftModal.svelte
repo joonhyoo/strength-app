@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
+	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import Button from '$lib/components/Button.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import { checkShiftConflicts, shiftSchedule } from '$lib/services/programTemplateService.svelte';
@@ -7,6 +7,12 @@
 	let { athleteId, athleteName }: { athleteId: string; athleteName: string } = $props();
 
 	const program = getCoachProgramState();
+
+	// Matches the athlete workout modal's ghost nav-button treatment
+	// (train/WorkoutModal.svelte's navBtn) — color-only feedback, no
+	// border or background, so it stays consistent across the app.
+	const stepBtn =
+		'flex size-9 cursor-pointer items-center justify-center rounded-full text-base-content/80 transition-colors duration-150 active:text-base-content/45';
 
 	function parseKey(key: string) {
 		const [y, m, d] = key.split('-').map(Number);
@@ -42,11 +48,14 @@
 	// moves whatever's actually scheduled from fromDate onward, hand-written
 	// days included. A zero-week shift is a no-op (Confirm is disabled for
 	// it below) — skip the fetch rather than ask the server to evaluate
-	// moving every session onto its own current date.
+	// moving every session onto its own current date. Deliberately does NOT
+	// blank `moving` before the fetch resolves — the stepper's own +/-
+	// buttons trigger this on every click, and clearing it first flashed the
+	// skeleton in and out on each one. The stale result sits for one round
+	// trip (near-instant locally) instead, then the token guard swaps it.
 	$effect(() => {
 		const date = fromDate;
 		const weeks = shiftWeeks;
-		moving = null;
 		if (weeks === 0) return;
 		const token = ++loadToken;
 		checkShiftConflicts(athleteId, date, weeks).then((result) => {
@@ -55,6 +64,15 @@
 			conflicts = result.conflicts;
 		});
 	});
+
+	// Zero is skipped entirely in either direction — a same-week "shift" is a
+	// no-op, so there's nothing useful to land on there.
+	function decrementWeeks() {
+		shiftWeeks = shiftWeeks - 1 === 0 ? -1 : shiftWeeks - 1;
+	}
+	function incrementWeeks() {
+		shiftWeeks = shiftWeeks + 1 === 0 ? 1 : shiftWeeks + 1;
+	}
 
 	async function confirmShift() {
 		if (shiftWeeks === 0) return;
@@ -84,29 +102,19 @@
 		</p>
 
 		<label class="form-control mb-4 w-full">
-			<span class="label">Shift by (weeks — negative moves it earlier)</span>
-			<div class="join w-full">
-				<button
-					type="button"
-					class="btn join-item btn-square"
-					aria-label="Decrease weeks"
-					onclick={() => (shiftWeeks -= 1)}
-				>
-					<span class="block h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true"></span>
+			<span class="label text-sm">Shift by (weeks — negative moves it earlier)</span>
+			<div class="my-2 flex items-center justify-center gap-4">
+				<button type="button" class={stepBtn} aria-label="Decrease weeks" onclick={decrementWeeks}>
+					<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
 				</button>
 				<input
-					class="input join-item min-w-0 flex-1 text-center"
+					class="input w-20 text-center text-sm"
 					type="number"
 					step="1"
 					bind:value={shiftWeeks}
 				/>
-				<button
-					type="button"
-					class="btn join-item btn-square"
-					aria-label="Increase weeks"
-					onclick={() => (shiftWeeks += 1)}
-				>
-					<PlusLineIcon class="size-4" />
+				<button type="button" class={stepBtn} aria-label="Increase weeks" onclick={incrementWeeks}>
+					<PlusFillIcon class="size-4" />
 				</button>
 			</div>
 		</label>
