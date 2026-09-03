@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
-	import SubtractFillIcon from '@iconify-svelte/mingcute/subtract-fill';
+	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
 	import Button from '$lib/components/Button.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import {
@@ -301,25 +300,25 @@
 						<div class="join w-full">
 							<button
 								type="button"
-								class="btn join-item"
+								class="btn join-item btn-square"
 								aria-label="Decrease sets"
 								onclick={() => (sets = Math.max(1, sets - 1))}
 							>
-								<SubtractFillIcon class="size-4" />
+								<span class="block h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true"></span>
 							</button>
 							<input
-								class="input join-item min-w-0 flex-1 text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+								class="input join-item min-w-0 flex-1 text-center"
 								type="number"
 								min="1"
 								bind:value={sets}
 							/>
 							<button
 								type="button"
-								class="btn join-item"
+								class="btn join-item btn-square"
 								aria-label="Increase sets"
 								onclick={() => (sets += 1)}
 							>
-								<PlusFillIcon class="size-4" />
+								<PlusLineIcon class="size-4" />
 							</button>
 						</div>
 					</label>
@@ -328,25 +327,25 @@
 						<div class="join w-full">
 							<button
 								type="button"
-								class="btn join-item"
+								class="btn join-item btn-square"
 								aria-label="Decrease reps"
 								onclick={() => (reps = Math.max(1, reps - 1))}
 							>
-								<SubtractFillIcon class="size-4" />
+								<span class="block h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true"></span>
 							</button>
 							<input
-								class="input join-item min-w-0 flex-1 text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+								class="input join-item min-w-0 flex-1 text-center"
 								type="number"
 								min="1"
 								bind:value={reps}
 							/>
 							<button
 								type="button"
-								class="btn join-item"
+								class="btn join-item btn-square"
 								aria-label="Increase reps"
 								onclick={() => (reps += 1)}
 							>
-								<PlusFillIcon class="size-4" />
+								<PlusLineIcon class="size-4" />
 							</button>
 						</div>
 					</label>

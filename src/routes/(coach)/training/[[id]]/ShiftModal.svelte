@@ -1,6 +1,5 @@
 <script lang="ts">
-	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
-	import SubtractFillIcon from '@iconify-svelte/mingcute/subtract-fill';
+	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
 	import Button from '$lib/components/Button.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import { checkShiftConflicts, shiftSchedule } from '$lib/services/programTemplateService.svelte';
@@ -25,13 +24,30 @@
 
 	const fromDate = $derived(program.selectedWeekStart);
 
+	// Direction-aware intro copy — a negative shift's destination dates land
+	// before fromDate, inside the "earlier weeks" a forward shift leaves
+	// alone, so it gets its own warning instead of the blanket claim.
+	const directionNote = $derived.by(() => {
+		if (shiftWeeks > 0) {
+			return `, later by ${shiftWeeks} week${shiftWeeks === 1 ? '' : 's'}. Earlier weeks are untouched.`;
+		}
+		if (shiftWeeks < 0) {
+			const n = Math.abs(shiftWeeks);
+			return `, earlier by ${n} week${n === 1 ? '' : 's'} — this can overwrite sessions already scheduled on those earlier dates.`;
+		}
+		return '.';
+	});
+
 	// Works whether or not the athlete has a formal program assignment — it
 	// moves whatever's actually scheduled from fromDate onward, hand-written
-	// days included.
+	// days included. A zero-week shift is a no-op (Confirm is disabled for
+	// it below) — skip the fetch rather than ask the server to evaluate
+	// moving every session onto its own current date.
 	$effect(() => {
 		const date = fromDate;
 		const weeks = shiftWeeks;
 		moving = null;
+		if (weeks === 0) return;
 		const token = ++loadToken;
 		checkShiftConflicts(athleteId, date, weeks).then((result) => {
 			if (token !== loadToken || !result) return;
@@ -64,7 +80,7 @@
 
 		<p class="mb-4 text-sm text-base-content/60">
 			Moves <strong class="text-base-content">{athleteName}</strong>'s schedule from the week of
-			<strong class="text-base-content">{formatShort(fromDate)}</strong> onward. Earlier weeks are untouched.
+			<strong class="text-base-content">{formatShort(fromDate)}</strong> onward{directionNote}
 		</p>
 
 		<label class="form-control mb-4 w-full">
@@ -72,56 +88,58 @@
 			<div class="join w-full">
 				<button
 					type="button"
-					class="btn join-item"
+					class="btn join-item btn-square"
 					aria-label="Decrease weeks"
 					onclick={() => (shiftWeeks -= 1)}
 				>
-					<SubtractFillIcon class="size-4" />
+					<span class="block h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true"></span>
 				</button>
 				<input
-					class="input join-item min-w-0 flex-1 text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+					class="input join-item min-w-0 flex-1 text-center"
 					type="number"
 					step="1"
 					bind:value={shiftWeeks}
 				/>
 				<button
 					type="button"
-					class="btn join-item"
+					class="btn join-item btn-square"
 					aria-label="Increase weeks"
 					onclick={() => (shiftWeeks += 1)}
 				>
-					<PlusFillIcon class="size-4" />
+					<PlusLineIcon class="size-4" />
 				</button>
 			</div>
 		</label>
 
-		{#if moving === null}
-			<div class="h-14 w-full skeleton"></div>
-		{:else if moving.length === 0}
-			<div class="rounded-lg bg-warning/15 p-3 text-sm">
-				Nothing scheduled from this week onward for {athleteName} — nothing to shift.
-			</div>
-		{:else if conflicts.length === 0}
-			<div class="rounded-lg bg-success/10 p-3 text-sm">
-				Ready — <strong>{moving.length}</strong> session{moving.length === 1 ? '' : 's'} will move
-				{shiftWeeks >= 0 ? 'later' : 'earlier'} by {Math.abs(shiftWeeks)} week{Math.abs(
-					shiftWeeks
-				) === 1
-					? ''
-					: 's'}.
-			</div>
-		{:else}
-			<div class="rounded-lg bg-warning/15 p-3 text-sm">
-				<strong>{conflicts.length}</strong> date{conflicts.length === 1 ? '' : 's'} already {conflicts.length ===
-				1
-					? 'has'
-					: 'have'} a workout that will be <strong>replaced</strong>:
-				<ul class="mt-1 list-disc pl-5">
-					{#each conflicts as dateKey (dateKey)}
-						<li>{formatShort(dateKey)}</li>
-					{/each}
-				</ul>
-			</div>
+		{#if shiftWeeks !== 0}
+			{#if moving === null}
+				<div class="h-14 w-full skeleton"></div>
+			{:else if moving.length === 0}
+				<div class="rounded-lg bg-warning/15 p-3 text-sm">
+					Nothing scheduled from this week onward for {athleteName} — nothing to shift.
+				</div>
+			{:else if conflicts.length === 0}
+				<div class="rounded-lg bg-success/10 p-3 text-sm">
+					Ready — <strong>{moving.length}</strong> session{moving.length === 1 ? '' : 's'} will move
+					{shiftWeeks >= 0 ? 'later' : 'earlier'} by {Math.abs(shiftWeeks)} week{Math.abs(
+						shiftWeeks
+					) === 1
+						? ''
+						: 's'}.
+				</div>
+			{:else}
+				<div class="rounded-lg bg-warning/15 p-3 text-sm">
+					<strong>{conflicts.length}</strong> date{conflicts.length === 1 ? '' : 's'} already {conflicts.length ===
+					1
+						? 'has'
+						: 'have'} a workout that will be <strong>replaced</strong>:
+					<ul class="mt-1 list-disc pl-5">
+						{#each conflicts as dateKey (dateKey)}
+							<li>{formatShort(dateKey)}</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
 		{/if}
 
 		<div class="modal-action">
