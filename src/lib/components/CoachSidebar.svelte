@@ -22,6 +22,17 @@
 
 	let { open = false, onclose }: Props = $props();
 
+	// Two-letter initials for the footer avatar chip, e.g. "Jordan Rivera" -> "JR".
+	const initials = $derived(
+		(page.data.user?.name ?? '')
+			.trim()
+			.split(/\s+/)
+			.filter(Boolean)
+			.slice(0, 2)
+			.map((w: string) => w[0]?.toUpperCase())
+			.join('') || '?'
+	);
+
 	const links = [
 		{
 			href: '/dashboard',
@@ -39,7 +50,7 @@
 	<div class="flex h-full flex-col">
 		<div class="flex items-center gap-2 border-b border-base-300 px-4 py-3">
 			<img src="/favicon.svg" alt="" class="h-6 w-6 shrink-0 self-center" />
-			<span class="text-lg leading-none font-bold">Strength App</span>
+			<span class="font-display text-lg leading-none font-bold uppercase">Strength App</span>
 		</div>
 
 		<!-- Nav switches replace rather than push; see the note in src/app.html. -->
@@ -51,9 +62,9 @@
 					href={resolve(link.href)}
 					aria-current={active ? 'page' : undefined}
 					onclick={onclose}
-					class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium {active
-						? 'bg-primary/10 text-primary'
-						: 'text-base-content/60 hover:bg-base-200'}"
+					class="flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium {active
+						? 'border-primary bg-primary/10 text-primary'
+						: 'border-transparent text-base-content/60 hover:bg-base-200'}"
 				>
 					<Icon class="size-5" />
 					{link.label}
@@ -62,7 +73,14 @@
 		</nav>
 
 		<div class="flex items-center justify-between gap-2 border-t border-base-300 p-3">
-			<p class="min-w-0 flex-1 truncate text-sm text-base-content/60">{page.data.user?.name}</p>
+			<div class="flex min-w-0 items-center gap-2">
+				<span
+					class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-xs font-bold text-primary-content"
+				>
+					{initials}
+				</span>
+				<p class="min-w-0 flex-1 truncate text-sm text-base-content/60">{page.data.user?.name}</p>
+			</div>
 			<form
 				method="POST"
 				action="/auth/login?/logout"
@@ -75,7 +93,7 @@
 {/snippet}
 
 <!-- Desktop: persistent sidebar -->
-<aside class="hidden w-56 shrink-0 border-r border-base-300 bg-base-100 lg:block">
+<aside class="hidden w-56 shrink-0 border-r border-base-300 bg-base-200 lg:block">
 	{@render content()}
 </aside>
 
@@ -99,7 +117,7 @@
 		tabindex={open ? 0 : -1}
 	></button>
 	<aside
-		class="absolute inset-y-0 left-0 w-56 -translate-x-full bg-base-100 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-xl transition-transform duration-200 {open
+		class="absolute inset-y-0 left-0 w-56 -translate-x-full bg-base-200 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-xl transition-transform duration-200 {open
 			? 'translate-x-0'
 			: ''}"
 	>
