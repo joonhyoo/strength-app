@@ -7,8 +7,9 @@
 	import Button from '$lib/components/Button.svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getCachedWorkoutDay, getWorkoutDay } from '$lib/services/workoutService.svelte';
+	import { getBreadcrumb } from '$lib/services/programTemplateService.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
-	import type { Exercise } from '$lib/types';
+	import type { Exercise, Breadcrumb } from '$lib/types';
 	import { CATEGORY_LABEL } from '$lib/data/categories';
 	import { formatPlan } from '$lib/formatPlan';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
@@ -56,6 +57,10 @@
 		exercises: Exercise[];
 		loading: boolean;
 		loadError: boolean;
+		/** This day's own program/rest-day label (e.g. "Lower Body Strength" or
+		 * "Rest day") — null until resolved. Shown as a per-day chip instead of
+		 * once at the top, since a whole week of days is visible at once. */
+		crumb: Breadcrumb | null;
 	}
 
 	// One entry per day of the focused week, Monday first. Each carries its own
@@ -95,7 +100,8 @@
 				date: parseDateKey(dateKey),
 				exercises: cached ?? [],
 				loading: cached === null,
-				loadError: false
+				loadError: false,
+				crumb: null
 			};
 		});
 
@@ -116,6 +122,12 @@
 					day.loading = false;
 					if (getCachedWorkoutDay(id, dateKey) === null) day.loadError = true;
 				});
+
+			getBreadcrumb(id, dateKey).then((result) => {
+				if (token !== loadToken) return;
+				const day = days.find((d) => d.dateKey === dateKey);
+				if (day) day.crumb = result;
+			});
 		}
 	});
 
@@ -164,7 +176,10 @@
 </script>
 
 <div class="flex w-full min-w-0 flex-col gap-4">
-	{#each days as day (day.dateKey)}
+	{#each days as day, i (day.dateKey)}
+		{#if i > 0}
+			<div class="mx-auto w-[70%] border-t border-dashed border-muted-fg"></div>
+		{/if}
 		<div
 			bind:this={dayEls[day.dateKey]}
 			class="card w-full min-w-0 border-2 bg-base-100 shadow-sm {day.dateKey === focusDateKey
@@ -173,13 +188,20 @@
 		>
 			<div class="card-body">
 				<div class="flex flex-wrap items-center justify-between gap-2">
-					<h2 class="card-title text-base">
-						{day.date.toLocaleDateString('en-AU', {
-							weekday: 'long',
-							day: 'numeric',
-							month: 'long'
-						})}
-					</h2>
+					<div class="flex flex-wrap items-center gap-2">
+						<h2 class="card-title text-base">
+							{day.date.toLocaleDateString('en-AU', {
+								weekday: 'long',
+								day: 'numeric',
+								month: 'long'
+							})}
+						</h2>
+						{#if day.crumb}
+							<span class="rounded-lg bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+								{day.crumb.label}
+							</span>
+						{/if}
+					</div>
 					<div class="flex shrink-0 gap-2">
 						<Button
 							variant="secondary"
