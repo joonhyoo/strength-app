@@ -136,7 +136,7 @@
 {/if}
 
 <div class="my-4 grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-	<aside class="card h-fit bg-base-100 shadow-sm">
+	<aside class="card h-fit bg-base-100 shadow-sm lg:sticky lg:top-4 lg:z-10 lg:self-start">
 		<div class="card-body">
 			<label class="form-control w-full">
 				<span class="label">Athlete</span>
