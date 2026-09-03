@@ -115,7 +115,7 @@
 			<div class="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
 				{#if workout.selected.note.length}
 					<div
-						class="my-4 rounded-lg bg-neutral/20 p-4 whitespace-pre-wrap {workout.selected
+						class="my-4 rounded-lg bg-neutral/30 p-4 whitespace-pre-wrap {workout.selected
 							.category === 'note'
 							? 'text-left'
 							: ''}"
