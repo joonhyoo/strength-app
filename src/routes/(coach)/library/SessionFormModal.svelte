@@ -62,12 +62,7 @@
 
 			<label class="form-control w-full">
 				<span class="label">Session name</span>
-				<input
-					class="input-bordered input"
-					type="text"
-					placeholder="e.g. Lower Body Strength"
-					bind:value={name}
-				/>
+				<input class="input" type="text" placeholder="e.g. Lower Body Strength" bind:value={name} />
 			</label>
 
 			<div class="modal-action">

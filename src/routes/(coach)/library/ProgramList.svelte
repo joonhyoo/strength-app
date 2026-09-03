@@ -36,7 +36,7 @@
 
 		<button
 			type="button"
-			class="btn-dashed btn mt-2 border-dashed border-base-300 text-primary"
+			class="btn mt-2 border-dashed border-base-300 text-primary"
 			onclick={() => builder.openModal({ type: 'program', programId: null })}
 		>
 			<PlusLineIcon height="1.2em" />

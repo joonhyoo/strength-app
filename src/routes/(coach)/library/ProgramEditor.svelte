@@ -49,7 +49,7 @@
 
 	<div class="mt-4 flex flex-col gap-4">
 		{#if program.cycles.length === 0}
-			<p class="empty-state py-6 text-center text-base-content/60">
+			<p class="py-6 text-center text-base-content/60">
 				No cycles yet — a program needs at least one cycle to organize its weeks.
 			</p>
 		{:else}
@@ -59,7 +59,7 @@
 		{/if}
 		<button
 			type="button"
-			class="btn-dashed btn border-dashed border-base-300 text-primary"
+			class="btn border-dashed border-base-300 text-primary"
 			onclick={() => builder.openModal({ type: 'cycle', programId: program.id, cycleId: null })}
 		>
 			<PlusLineIcon height="1.2em" />

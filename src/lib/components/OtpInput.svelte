@@ -115,7 +115,7 @@
 			maxlength={i === 0 ? LENGTH : 1}
 			autocomplete={i === 0 ? 'one-time-code' : 'off'}
 			aria-label="Digit {i + 1} of {LENGTH}"
-			class="input-bordered input h-14 w-11 text-center text-2xl font-semibold"
+			class="input h-14 w-11 text-center text-2xl font-semibold"
 		/>
 	{/each}
 </div>

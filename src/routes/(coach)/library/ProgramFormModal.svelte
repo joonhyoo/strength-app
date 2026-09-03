@@ -55,7 +55,7 @@
 			<label class="form-control w-full">
 				<span class="label">Program name</span>
 				<input
-					class="input-bordered input"
+					class="input"
 					type="text"
 					placeholder="e.g. 12-Week Strength Program"
 					bind:value={name}
@@ -65,7 +65,7 @@
 			<label class="form-control w-full">
 				<span class="label">Description</span>
 				<textarea
-					class="textarea-bordered textarea"
+					class="textarea"
 					rows="3"
 					placeholder="What is this program for?"
 					bind:value={description}

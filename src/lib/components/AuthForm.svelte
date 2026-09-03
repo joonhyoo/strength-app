@@ -296,11 +296,11 @@
 				type="email"
 				bind:value={emailValue}
 				placeholder="Your email"
-				class="input-bordered input w-full"
+				class="input w-full"
 				required
 			/>
 			{#if form?.errors?.email}
-				<span class="text-sm text-error">{form.errors.email}</span>
+				<span class="text-xs text-error">{form.errors.email}</span>
 			{/if}
 
 			{#if form?.step === 'agree'}
@@ -313,7 +313,7 @@
 						class="checkbox checkbox-sm"
 						required
 					/>
-					<span class="label-text text-xs">
+					<span class="text-xs">
 						I agree to the
 						<a href="https://hyuji.dev/privacy" target="_blank" rel="noopener" class="link"
 							>Privacy Policy</a
@@ -339,7 +339,7 @@
 			<!-- Quick login (testing only) -->
 			<div class="border-t border-base-300 pt-6">
 				<p
-					class="mb-3 text-center text-xs font-semibold tracking-wider text-base-content/40 uppercase"
+					class="mb-3 text-center text-xs font-semibold tracking-widest text-base-content/40 uppercase"
 				>
 					Test Accounts
 				</p>
