@@ -220,6 +220,7 @@
 				athleteId={athlete.id}
 				date={program.selectedDate}
 				revision={program.revision}
+				showLabel={false}
 			/>
 			<WorkoutTimeline
 				athleteId={athlete.id}
