@@ -147,7 +147,7 @@
 </svelte:head>
 
 <div class="my-4">
-	<h1 class="mb-4 text-xl font-bold">Library</h1>
+	<h1 class="mb-4 font-display text-xl font-bold uppercase">Library</h1>
 
 	<div class="tabs-boxed mb-4 tabs w-fit">
 		<button
@@ -177,7 +177,7 @@
 		<div class="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
 			<div class="card h-fit bg-base-100 shadow-sm">
 				<div class="card-body">
-					<h2 class="card-title text-base">Add exercise</h2>
+					<h2 class="card-title font-display text-base uppercase">Add exercise</h2>
 					<form class="flex flex-col gap-3" onsubmit={handleAdd}>
 						<label class="form-control w-full">
 							<span class="label">Name</span>
@@ -208,7 +208,11 @@
 						{#if addError}
 							<p class="text-xs text-error">{addError}</p>
 						{/if}
-						<button type="submit" class="btn btn-primary" disabled={adding || !newName.trim()}>
+						<button
+							type="submit"
+							class="btn tracking-wider uppercase btn-primary"
+							disabled={adding || !newName.trim()}
+						>
 							{adding ? 'Adding...' : 'Add exercise'}
 						</button>
 					</form>
@@ -217,7 +221,7 @@
 
 			<div class="card bg-base-100 shadow-sm">
 				<div class="card-body">
-					<h2 class="card-title text-base">Exercise catalog</h2>
+					<h2 class="card-title font-display text-base uppercase">Exercise catalog</h2>
 					{#if exercises === null}
 						<div class="mt-2 flex flex-col gap-2">
 							{#each [0, 1, 2, 3] as n (n)}
@@ -241,7 +245,7 @@
 									aria-label="Clear search"
 									onclick={() => (query = '')}
 								>
-									<CloseLineIcon height="1em" />
+									<CloseLineIcon class="size-4" />
 								</button>
 							{/if}
 						</div>
@@ -287,14 +291,14 @@
 															<div class="flex gap-2">
 																<button
 																	type="submit"
-																	class="btn btn-sm btn-primary"
+																	class="btn tracking-wider uppercase btn-sm btn-primary"
 																	disabled={saving || !editName.trim()}
 																>
 																	{saving ? 'Saving...' : 'Save'}
 																</button>
 																<button
 																	type="button"
-																	class="btn btn-ghost btn-sm"
+																	class="btn tracking-wider uppercase btn-ghost btn-sm"
 																	onclick={cancelEdit}
 																>
 																	Cancel
@@ -304,18 +308,18 @@
 													{:else}
 														<div class="flex items-center justify-between gap-2 text-base">
 															<span class="flex min-w-0 flex-1 items-center gap-2">
-																<CatIcon height="1.3em" class="{color} shrink-0" />
+																<CatIcon class="size-5 {color} shrink-0" />
 																<span class="truncate">{item.name}</span>
 																{#if item.videoUrl}
 																	<span title="Has video" class="shrink-0 text-base-content/40">
-																		<PlayCircleFillIcon height="1.3em" />
+																		<PlayCircleFillIcon class="size-5" />
 																	</span>
 																{/if}
 															</span>
 															<div class="flex shrink-0 items-center gap-1">
 																<button
 																	type="button"
-																	class="btn btn-ghost btn-sm"
+																	class="btn tracking-wider uppercase btn-ghost btn-sm"
 																	onclick={() => startEdit(item)}
 																>
 																	Edit
@@ -330,7 +334,7 @@
 																	{#if deletingId === item.id}
 																		<span class="loading loading-sm loading-spinner"></span>
 																	{:else}
-																		<Delete3LineIcon height="1.3em" />
+																		<Delete3LineIcon class="size-5" />
 																	{/if}
 																</button>
 															</div>

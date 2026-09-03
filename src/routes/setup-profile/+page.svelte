@@ -20,7 +20,7 @@
 <CenteredColumn>
 	<div class="card bg-base-100 shadow-sm">
 		<div class="card-body">
-			<h2 class="card-title">Set up your profile</h2>
+			<h2 class="card-title font-display uppercase">Set up your profile</h2>
 			<p class="text-sm text-base-content/70">
 				Your name is visible to your coach. Your username is private — only you can see it.
 			</p>

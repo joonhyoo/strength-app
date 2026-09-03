@@ -60,7 +60,7 @@
 	<header class="shrink-0 border-b border-base-300 pt-[env(safe-area-inset-top)] sm:pt-8">
 		<div class="relative flex min-h-14 items-center px-2">
 			<button type="button" class="btn gap-1 btn-ghost" onclick={onclose}>
-				<LeftLineIcon height="1.4em" />
+				<LeftLineIcon class="size-6" />
 				Back
 			</button>
 			<div

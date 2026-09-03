@@ -14,7 +14,7 @@
 		/>
 	</figure>
 	<div class="card-body items-center text-center">
-		<h2 class="card-title">{page.data.user?.name}</h2>
+		<h2 class="card-title font-display uppercase">{page.data.user?.name}</h2>
 		<form
 			method="POST"
 			action="/auth/login?/logout"

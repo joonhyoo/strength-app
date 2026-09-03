@@ -125,13 +125,6 @@ export async function reorderProgramExercise(programExerciseId: string, toIndex:
 	return postProgram('reorderProgramExercise', { programExerciseId, toIndex });
 }
 
-export async function getActiveAssignment(athleteId: string) {
-	const res = await postProgram('getActiveAssignment', { athleteId });
-	return res.ok
-		? (res.data as { id: string; program_id: string; start_date: string } | null)
-		: null;
-}
-
 export async function checkAssignConflicts(
 	programId: string,
 	athleteId: string,
@@ -145,23 +138,13 @@ export async function assignProgram(programId: string, athleteId: string, startD
 	return postProgram('assignProgram', { programId, athleteId, startDate });
 }
 
-export async function checkShiftConflicts(
-	assignmentId: string,
-	athleteId: string,
-	fromDate: string,
-	shiftWeeks: number
-) {
-	const res = await postProgram('checkShiftConflicts', {
-		assignmentId,
-		athleteId,
-		fromDate,
-		shiftWeeks
-	});
+export async function checkShiftConflicts(athleteId: string, fromDate: string, shiftWeeks: number) {
+	const res = await postProgram('checkShiftConflicts', { athleteId, fromDate, shiftWeeks });
 	return res.ok ? (res.data as { moving: string[]; conflicts: string[] }) : null;
 }
 
-export async function shiftSchedule(assignmentId: string, fromDate: string, shiftWeeks: number) {
-	return postProgram('shiftSchedule', { assignmentId, fromDate, shiftWeeks });
+export async function shiftSchedule(athleteId: string, fromDate: string, shiftWeeks: number) {
+	return postProgram('shiftSchedule', { athleteId, fromDate, shiftWeeks });
 }
 
 export async function getBreadcrumb(athleteId: string, dateKey: string) {

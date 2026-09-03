@@ -1,7 +1,7 @@
 <script lang="ts">
 	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
-	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
+	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import CopyLineIcon from '@iconify-svelte/mingcute/copy-line';
 	import PasteLineIcon from '@iconify-svelte/mingcute/paste-line';
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
@@ -139,7 +139,7 @@
 					onclick={() =>
 						builder.openModal({ type: 'cycle', programId: cycle.id, cycleId: cycle.id })}
 				>
-					<EditBoxLineIcon height="1.1em" />
+					<EditBoxLineIcon class="size-4" />
 				</button>
 				<button
 					type="button"
@@ -147,7 +147,7 @@
 					aria-label={`Delete ${cycle.name}`}
 					onclick={handleDeleteCycle}
 				>
-					<Delete3LineIcon height="1.1em" />
+					<Delete3LineIcon class="size-4" />
 				</button>
 			</span>
 			{#if cycle.goal}
@@ -173,7 +173,7 @@
 			{#if cycle.weeks.length > 0}
 				<button
 					type="button"
-					class="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-sm text-primary hover:bg-primary/10 disabled:opacity-50"
+					class="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-sm tracking-wider text-primary uppercase hover:bg-primary/10 disabled:opacity-50"
 					aria-label={`Copy the last week of ${cycle.name} into a new week`}
 					disabled={copyBusy}
 					onclick={handleCopyPreviousWeek}
@@ -190,7 +190,7 @@
 				aria-label={`Add a blank week to ${cycle.name}`}
 				onclick={() => builder.addWeek(cycle.id)}
 			>
-				<PlusLineIcon height="1.2em" />
+				<PlusFillIcon class="size-5" />
 			</button>
 		</div>
 		{#if copyError}
@@ -213,14 +213,14 @@
 					<div
 						class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm"
 					>
-						<CopyLineIcon height="1.1em" class="shrink-0 text-primary" />
+						<CopyLineIcon class="size-4 shrink-0 text-primary" />
 						<span>
 							Copied <span class="font-semibold">{clipboard.sessionName}</span> — pick a day below to
 							paste it in.
 						</span>
 						<button
 							type="button"
-							class="btn ml-auto btn-ghost btn-xs"
+							class="btn ml-auto tracking-wider uppercase btn-ghost btn-xs"
 							onclick={() => builder.clearSessionClipboard()}
 						>
 							Done
@@ -235,10 +235,10 @@
 						<span class="font-mono text-xs text-base-content/50">Week {expandedWeekIndex + 1}</span>
 						<button
 							type="button"
-							class="btn text-error btn-ghost btn-xs"
+							class="btn tracking-wider text-error uppercase btn-ghost btn-xs"
 							onclick={() => handleDeleteWeek(expandedWeek.id)}
 						>
-							<Delete3LineIcon height="1em" />
+							<Delete3LineIcon class="size-4" />
 							Delete week
 						</button>
 					</div>
@@ -259,19 +259,19 @@
 									disabled={isSource || pasteBusy}
 									onclick={() => handlePasteInto(dayNumber, dowLabel, session)}
 								>
-									<span class="text-[0.64rem] tracking-wide text-base-content/50 uppercase"
+									<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase"
 										>{dowLabel}</span
 									>
 									{#if isSource}
 										<span class="mt-1 text-xs text-base-content/50">Copied from here</span>
 									{:else if session}
 										<span class="mt-1 flex items-center gap-1 text-sm font-semibold text-primary">
-											<PasteLineIcon height="1em" /> Replace
+											<PasteLineIcon class="size-4" /> Replace
 										</span>
 										<span class="truncate text-[0.66rem] text-base-content/50">{session.name}</span>
 									{:else}
 										<span class="mt-1 flex items-center gap-1 text-sm font-semibold text-primary">
-											<PasteLineIcon height="1em" /> Paste here
+											<PasteLineIcon class="size-4" /> Paste here
 										</span>
 									{/if}
 								</button>
@@ -287,7 +287,7 @@
 									inert={sessionPending}
 									onclick={() => builder.toggleSession(session.id)}
 								>
-									<span class="text-[0.64rem] tracking-wide text-base-content/50 uppercase"
+									<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase"
 										>{dowLabel}</span
 									>
 									<span class="mt-1 block text-sm font-semibold">{session.name}</span>
@@ -301,13 +301,13 @@
 								<div
 									class="flex min-h-[4.6rem] flex-col gap-1 rounded-lg border border-base-300 bg-base-200 p-2"
 								>
-									<span class="text-[0.64rem] tracking-wide text-base-content/50 uppercase"
+									<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase"
 										>{dowLabel}</span
 									>
 									<span class="text-xs text-base-content/40">Rest</span>
 									<button
 										type="button"
-										class="mt-auto rounded border border-dashed border-base-300 py-1 text-[0.7rem] text-base-content/50 hover:border-primary hover:text-primary"
+										class="mt-auto rounded border border-dashed border-base-300 py-1 text-[0.7rem] tracking-wider text-base-content/50 uppercase hover:border-primary hover:text-primary"
 										onclick={() =>
 											builder.openModal({
 												type: 'session',
@@ -316,7 +316,7 @@
 												sessionId: null
 											})}
 									>
-										<PlusLineIcon height="1em" class="inline" /> Add session
+										<PlusFillIcon class="inline size-4" /> Add session
 									</button>
 								</div>
 							{/if}
@@ -332,11 +332,11 @@
 							<span class="flex gap-1">
 								<button
 									type="button"
-									class="btn btn-ghost btn-xs"
+									class="btn tracking-wider uppercase btn-ghost btn-xs"
 									aria-label={`Copy ${expandedSession.name} to another day`}
 									onclick={() => builder.copySession(expandedSession.id)}
 								>
-									<CopyLineIcon height="1.1em" />
+									<CopyLineIcon class="size-4" />
 									Copy
 								</button>
 								<button
@@ -351,7 +351,7 @@
 											sessionId: expandedSession.id
 										})}
 								>
-									<EditBoxLineIcon height="1.1em" />
+									<EditBoxLineIcon class="size-4" />
 								</button>
 								<button
 									type="button"
@@ -359,7 +359,7 @@
 									aria-label="Remove session"
 									onclick={() => handleDeleteSession(expandedSession.id)}
 								>
-									<Delete3LineIcon height="1.1em" />
+									<Delete3LineIcon class="size-4" />
 								</button>
 							</span>
 						</div>
@@ -415,7 +415,7 @@
 													class="cursor-grab text-base-content/40 active:cursor-grabbing"
 													aria-hidden="true"
 												>
-													<DotGridLineIcon height="1.2em" />
+													<DotGridLineIcon class="size-5" />
 												</span>
 											{/if}
 											<button
@@ -429,7 +429,7 @@
 														programExerciseId: exercise.id
 													})}
 											>
-												<EditBoxLineIcon height="1.2em" />
+												<EditBoxLineIcon class="size-5" />
 											</button>
 											<button
 												type="button"
@@ -437,7 +437,7 @@
 												aria-label={`Remove ${exercise.activity}`}
 												onclick={() => handleDeleteExercise(exercise.id)}
 											>
-												<Delete3LineIcon height="1.2em" />
+												<Delete3LineIcon class="size-5" />
 											</button>
 										</div>
 									</div>
@@ -448,7 +448,7 @@
 						<div class="mt-2 flex gap-2">
 							<button
 								type="button"
-								class="btn flex-1 border-dashed border-base-300 text-primary"
+								class="btn flex-1 border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',
@@ -456,12 +456,12 @@
 										programExerciseId: null
 									})}
 							>
-								<PlusLineIcon height="1.2em" />
+								<PlusFillIcon class="size-5" />
 								Add exercise
 							</button>
 							<button
 								type="button"
-								class="btn border-dashed border-base-300 text-base-content/70"
+								class="btn border-dashed border-base-300 tracking-wider text-base-content/70 uppercase btn-neutral"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',
@@ -470,7 +470,7 @@
 										mode: 'note'
 									})}
 							>
-								<Message3LineIcon height="1.2em" />
+								<Message3LineIcon class="size-5" />
 								Add note
 							</button>
 						</div>

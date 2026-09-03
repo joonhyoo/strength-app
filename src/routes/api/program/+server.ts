@@ -523,18 +523,6 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			return json({ data: { success: true } });
 		}
 
-		case 'getActiveAssignment': {
-			const { athleteId } = data;
-			const { data: assignment } = await supabase
-				.from('program_assignments')
-				.select('id, program_id, start_date')
-				.eq('athlete_id', athleteId)
-				.eq('status', 'active')
-				.maybeSingle();
-
-			return json({ data: assignment ?? null });
-		}
-
 		case 'checkAssignConflicts': {
 			const { programId, athleteId, startDate } = data;
 			const result = await checkAssignConflictsImpl(supabase, programId, athleteId, startDate);
@@ -554,21 +542,15 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 		}
 
 		case 'checkShiftConflicts': {
-			const { assignmentId, athleteId, fromDate, shiftWeeks } = data;
-			const result = await checkShiftConflictsImpl(
-				supabase,
-				assignmentId,
-				athleteId,
-				fromDate,
-				shiftWeeks
-			);
+			const { athleteId, fromDate, shiftWeeks } = data;
+			const result = await checkShiftConflictsImpl(supabase, athleteId, fromDate, shiftWeeks);
 			return json({ data: result });
 		}
 
 		case 'shiftSchedule': {
-			const { assignmentId, fromDate, shiftWeeks } = data;
+			const { athleteId, fromDate, shiftWeeks } = data;
 			const { data: movedCount, error: rpcErr } = await supabase.rpc('shift_program_schedule', {
-				p_assignment_id: assignmentId,
+				p_athlete_id: athleteId,
 				p_from_date: fromDate,
 				p_shift_weeks: shiftWeeks
 			});

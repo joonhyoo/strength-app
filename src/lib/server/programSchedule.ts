@@ -333,16 +333,21 @@ export async function checkAssignConflicts(
 }
 
 /**
- * Preview only. A destination date only counts as a real conflict if it's
- * occupied by a row OUTSIDE the moving set — a moving row can legitimately
- * currently sit at another moving row's destination (e.g. shifting by
- * exactly one week), which the real shift_program_schedule RPC resolves
- * safely via a temp-offset move. `movingSet` is what excludes those
- * false positives here.
+ * Preview only. Scoped by athlete + date, not a program_assignment_id — a
+ * hand-written schedule (never run through Assign Program) has no assignment
+ * to key off, so this moves whatever's actually scheduled from fromDate
+ * onward regardless of how it got there. Mirrors shift_program_schedule's own
+ * athlete-scoped query exactly, so this preview can never disagree with what
+ * the real shift then does.
+ *
+ * A destination date only counts as a real conflict if it's occupied by a
+ * row OUTSIDE the moving set — a moving row can legitimately currently sit at
+ * another moving row's destination (e.g. shifting by exactly one week),
+ * which the real shift_program_schedule RPC resolves safely via a
+ * temp-offset move. `movingSet` is what excludes those false positives here.
  */
 export async function checkShiftConflicts(
 	supabase: SupabaseClient,
-	assignmentId: string,
 	athleteId: string,
 	fromDate: string,
 	shiftWeeks: number
@@ -350,7 +355,7 @@ export async function checkShiftConflicts(
 	const { data: moving } = await supabase
 		.from('athlete_workouts')
 		.select('scheduled_date')
-		.eq('program_assignment_id', assignmentId)
+		.eq('athlete_id', athleteId)
 		.gte('scheduled_date', fromDate);
 
 	const movingDates = (moving ?? []).map((r) => r.scheduled_date as string);

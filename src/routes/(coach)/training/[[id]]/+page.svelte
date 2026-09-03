@@ -109,6 +109,8 @@
 	<title>Strength App — Training</title>
 </svelte:head>
 
+<h1 class="mt-4 mb-4 font-display text-xl font-bold uppercase">Training</h1>
+
 {#if program.clipboard}
 	{@const cb = program.clipboard}
 	<div
@@ -123,7 +125,7 @@
 		</span>
 		<button
 			type="button"
-			class="btn btn-ghost btn-sm"
+			class="btn tracking-wider uppercase btn-ghost btn-sm"
 			aria-label="Clear clipboard"
 			onclick={() => program.clearClipboard()}
 		>
@@ -169,12 +171,16 @@
 					<span class="w-full text-xs text-base-content/50"
 						>Week of {formatWeekLabel(program.selectedWeekStart)}</span
 					>
-					<button type="button" class="btn btn-sm" onclick={() => program.openAssignModal()}>
+					<button
+						type="button"
+						class="btn tracking-wider uppercase btn-sm btn-neutral"
+						onclick={() => program.openAssignModal()}
+					>
 						Assign program
 					</button>
 					<button
 						type="button"
-						class="btn btn-sm"
+						class="btn tracking-wider uppercase btn-sm btn-neutral"
 						disabled={program.selectedWeekCount === 0}
 						onclick={() => handleCopyWeek(athlete.name)}
 					>
@@ -182,7 +188,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn btn-sm btn-primary"
+						class="btn tracking-wider uppercase btn-sm btn-primary"
 						disabled={!program.clipboard || program.clipboard.type !== 'week'}
 						onclick={() => handlePasteWeek(athlete.name)}
 					>
@@ -190,13 +196,17 @@
 					</button>
 					<button
 						type="button"
-						class="btn bg-error/10 text-error btn-sm hover:bg-error/20"
+						class="btn border border-error bg-transparent tracking-wider text-error uppercase btn-sm hover:bg-error/10"
 						disabled={program.selectedWeekCount === 0}
 						onclick={() => handleClearWeek(athlete.name)}
 					>
 						Clear week
 					</button>
-					<button type="button" class="btn btn-sm" onclick={() => program.openShiftModal()}>
+					<button
+						type="button"
+						class="btn tracking-wider uppercase btn-sm btn-neutral"
+						onclick={() => program.openShiftModal()}
+					>
 						Shift schedule
 					</button>
 				</div>

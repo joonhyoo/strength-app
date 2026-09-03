@@ -199,7 +199,7 @@
 
 <dialog bind:this={dialog} class="modal" onclose={() => builder.closeModal()}>
 	<div class="modal-box">
-		<h3 class="mb-4 text-lg font-bold">
+		<h3 class="mb-4 font-display text-lg font-bold uppercase">
 			{isNote
 				? isEditing
 					? 'Edit note'
@@ -322,12 +322,14 @@
 			<div class="modal-action">
 				<button
 					type="button"
-					class="btn bg-error/10 text-error hover:bg-error/20"
+					class="btn border border-error bg-transparent tracking-wider text-error uppercase hover:bg-error/10"
 					onclick={() => builder.closeModal()}
 				>
 					Cancel
 				</button>
-				<button class="btn btn-primary" type="submit" disabled={!canSave}> Save </button>
+				<button class="btn tracking-wider uppercase btn-primary" type="submit" disabled={!canSave}>
+					Save
+				</button>
 			</div>
 		</form>
 	</div>

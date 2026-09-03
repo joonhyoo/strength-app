@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 @plugin 'daisyui' {
 	logs: false;
@@ -6,6 +9,10 @@
 html,
 body {
 	overscroll-behavior: none;
+}
+
+body {
+	font-family: var(--font-body);
 }
 
 @theme {
@@ -28,7 +35,11 @@ body {
 	--color-teal: #14b8a6;
 	--color-violet: #8b5cf6;
 
-	--background-image-brand-gradient: linear-gradient(90deg, #f1e0c5 0%, #f46036 50%, #d7263d 100%);
+	--background-image-brand-gradient: linear-gradient(135deg, #f1e0c5 0%, #f46036 50%, #d7263d 100%);
+
+	--font-display: 'Barlow Condensed', sans-serif;
+	--font-body: 'Outfit', sans-serif;
+	--font-mono: 'JetBrains Mono', monospace;
 }
 
 /* Maps brand palette onto DaisyUI theme slots (see testing-notes.md). */

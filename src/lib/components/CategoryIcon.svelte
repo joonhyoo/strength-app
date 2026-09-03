@@ -10,8 +10,8 @@
 
 <div class="rounded-full border p-3 {complete ? 'text-success' : color}">
 	{#if complete}
-		<CheckFillIcon height="1.4em" />
+		<CheckFillIcon class="size-6" />
 	{:else}
-		<Icon height="1.4em" />
+		<Icon class="size-6" />
 	{/if}
 </div>

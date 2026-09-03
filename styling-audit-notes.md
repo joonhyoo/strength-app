@@ -3,26 +3,27 @@
 One-time pass comparing the live app (`src/`) against the canonical design system
 reference (`design_system/`, not edited). Scope per the brief: `src/lib/components/**/*.svelte`,
 `src/routes/**/*.svelte`, and `src/routes/layout.css`. Every file in that scope was read in full
-(38 Svelte files, ~5,000 lines, plus `layout.css`). No logic or behavior changes anywhere —
-class-string edits only.
+(38 Svelte files, ~5,000 lines, plus `layout.css`). Two rounds: an initial mechanical pass, then a
+second round implementing the design-level items the first round had flagged for a human call
+(the user reviewed each and gave direction — see "Follow-up round" below). Styling/markup only,
+no logic changes, throughout both rounds.
 
 ## What "the design system" turned out to mean here
 
 `design_system/` is a Figma Make React export with its own 3-font type scale (Barlow Condensed /
 Outfit / JetBrains Mono), `--radius-sm` component sizing, and a documented badge/card/nav catalog.
-The real app does **not** implement that type scale at all — no Google Fonts import exists
-anywhere in `src/` or `app.html`, so the whole app runs on Tailwind/DaisyUI's default font stack.
-Given that gap, this audit mostly compared the app **against itself** (same kind of element styled
-the same way everywhere it appears) rather than pixel-matching the reference, and used the
+At the start of this audit the real app implemented **none** of that type scale — no Google Fonts
+import existed anywhere in `src/` or `app.html`. The initial pass therefore compared the app mostly
+**against itself** (same kind of element styled the same way everywhere it appears) and used the
 reference for color tokens, opacity/weight conventions, and radius/spacing scale, which the app
-_does_ implement (via `layout.css`'s `@theme` block and the `[data-theme='brand']` DaisyUI mapping).
-See "Flagged, not fixed" #1 for the type-scale gap itself.
+already implemented (via `layout.css`'s `@theme` block and the `[data-theme='brand']` DaisyUI
+mapping). The follow-up round then closed that type-scale gap for real — see below.
 
 The one deliberate exception called out in the brief — `--color-amber`/`--color-teal`/`--color-violet`
 in `layout.css` and `src/lib/data/cycleColors.ts` as an extended data-viz palette — was left alone,
-as instructed.
+as instructed, in both rounds.
 
-## Fixed
+## Round 1 — mechanical fixes
 
 ### 1. Dead DaisyUI v4 classnames (no visual effect — verified against the installed package)
 
@@ -48,10 +49,9 @@ about how any page looks today, so this was safe to do without a browser:
   `ProgramList.svelte`, `ProgramEditor.svelte`, `CycleBand.svelte` ×2, `WorkoutTimeline.svelte` ×2).
   Note: v5's real dashed-button modifier is spelled `btn-dash`, not `btn-dashed` — but every one of
   these buttons already gets its dashed look from an accompanying `border-dashed border-base-300`
-  Tailwind utility pair sitting right next to the dead class, so I only removed the no-op token and
-  left the working `border-dashed` styling untouched. Switching to the real `btn-dash` component
-  class instead would change the rendered border/padding treatment in a way I can't verify without
-  a browser — that's a separate, judgment-call fix, not a mechanical one.
+  Tailwind utility pair sitting right next to the dead class, so only the no-op token was removed;
+  the working `border-dashed` styling was left untouched (confirmed visually in round 2 — still
+  renders dashed).
 - **`label-text`** — removed from `AuthForm.svelte` (checkbox agreement caption) and
   `setup-profile/+page.svelte` (×2 field labels). Same story: not a real v5 class, zero effect.
 - **`empty-state`** — removed from `ProgramEditor.svelte`'s "No cycles yet" message. Not a DaisyUI
@@ -68,29 +68,17 @@ under a field or action) uses `text-xs text-error`. Changed the one outlier to `
 `AuthForm.svelte` and `setup-profile/+page.svelte` — are a different, consistent pattern and were
 left as `text-sm`, that's correct for a banner.)
 
-### 3. Mismatched letter-spacing on twin "eyebrow" labels in the same screen
-
-`AuthHeader.svelte`'s "Strength App" caption (always visible, above the sign-in title) and
-`AuthForm.svelte`'s dev-only "Test Accounts" caption (rendered directly below it in the same flow)
-share every class except one: `text-xs font-semibold text-base-content/40 uppercase`, but
-`tracking-widest` vs. `tracking-wider`. Reads as drift rather than an intentional two-tier system —
-unlike the other tracking/opacity variants found elsewhere (see "Flagged" #3), these two sit
-back-to-back on the identical screen. Changed `AuthForm.svelte`'s to `tracking-widest` to match.
-Low-risk either way since this block only renders with `dev` true.
-
-### 4. One-off `rounded-md` on an otherwise-`rounded-lg` app
+### 3. One-off `rounded-md` on an otherwise-`rounded-lg` app
 
 `WorkoutModal.svelte`'s note-preview box was the only one of 25 similarly-styled rounded
-content/info boxes in the whole app using `rounded-md`; the other 24 (including every other
-"muted background note/info box" like `CycleBand.svelte`'s clipboard banner and
-`AssignModal.svelte`/`ShiftModal.svelte`'s conflict boxes) use `rounded-lg`. No pattern anywhere
-else in the app scales radius down for a nested box. Changed to `rounded-lg`.
+content/info boxes in the whole app using `rounded-md`; the other 24 use `rounded-lg`. Changed to
+`rounded-lg`.
 
-## Reviewed, no change made — genuinely fine
+### Reviewed in round 1, no change made — genuinely fine
 
 - **Cards**: all 17 `card` usages consistently pair `bg-base-100 shadow-sm` — no drift.
-- **Modal titles**: all 7 modal dialogs use `h3 class="mb-4 text-lg font-bold"` for their heading —
-  consistent.
+- **Modal titles**: all 7 modal dialogs used (and still use) `h3 class="... text-lg font-bold ..."`
+  for their heading — consistent.
 - **Error/warning/success info boxes**: `bg-error/10`, `bg-success/10` (both /10, matching each
   other) and `bg-warning/15` (used 3×, always /15) — different opacity per hue is a defensible,
   internally-consistent choice, not drift.
@@ -100,76 +88,110 @@ else in the app scales radius down for a nested box. Changed to `rounded-lg`.
 - **`card-title` size split** (`text-base` override in 7 dense-dashboard cards vs. the DaisyUI
   default 1.125rem/`text-lg` in 4 solo hero cards): checked DaisyUI's own `--cardtitle-fs` default
   directly — the split correlates exactly with "dense multi-card grid" vs. "single centered card"
-  layouts, which reads as intentional information hierarchy, not a bug.
+  layouts, reads as intentional information hierarchy, left alone.
 
-## Flagged, not fixed — needs a human call
+## Round 2 — the 7 flagged items, resolved
 
-1. **Type scale from `design_system` isn't implemented at all.** No Google Fonts import anywhere in
-   `src/` or `app.html`; the app runs entirely on the default Tailwind/DaisyUI font stack. The only
-   `font-mono`/`font-display` utility classes anywhere in `src/` are two in `CycleBand.svelte` (the
-   week-number chip and its "Week N" label), which as a result render in the browser's default
-   monospace stack, not JetBrains Mono — they're outliers by default since nothing else in the app
-   uses a font-family utility at all. I didn't touch these: unlike the dead DaisyUI classes above,
-   `font-mono` is a real, active utility that visibly changes rendering today (proportional → mono),
-   so removing it is a visual change I can't verify without a browser, and adopting the reference's
-   3-font system app-wide is a much bigger call than this pass's mandate. Left exactly as-is either
-   way; flagging for a deliberate decision either direction.
-2. **`--background-image-brand-gradient` in `layout.css` is unused.** It's declared (`90deg`,
-   vs. the reference's `135deg` — otherwise identical stops) but no class or inline style anywhere
-   in `src/` actually references it; the splash/auth-mark SVGs each inline their own gradient with
-   explicit stops instead. Since nothing renders it, the angle mismatch against the reference has no
-   live effect — noting it in case it's meant to be wired up somewhere, but there's nothing to fix
-   mechanically (an unused declaration's "correct" value isn't mine to guess at).
-3. **Three different "small uppercase eyebrow label" treatments now exist**, each internally
-   consistent and each tied to a distinct context, but never reconciled with each other:
-   - `tracking-widest`, `text-base-content/40` — auth flow (`AuthHeader.svelte` +
-     `AuthForm.svelte`, after fix #3 above)
-   - `tracking-wide`, `text-base-content/60` — dense dashboard section headers (`athletes/+page.svelte`,
-     `library/+page.svelte`)
-   - `tracking-wide`, `text-base-content/50`, `text-[0.64rem]` — day-of-week micro-labels inside
-     grid cells (`CycleBand.svelte` ×3)
-     Each pattern is self-consistent and plausibly matched to its context (hero/auth vs. dashboard
-     section vs. dense grid cell), so I didn't collapse them into one — but a real type scale (see #1)
-     would settle this properly instead of each context inventing its own eyebrow style.
-4. **Micro-variance in icon size for the same button-size class.** `btn-ghost btn-sm` pairs with a
-   1.2em icon in `MonthGrid.svelte`'s month-nav chevrons, but 1.3em in `WorkoutTimeline.svelte`'s and
-   `athletes/+page.svelte`'s row-action icons. ~1.6px difference at default type size, the two are
-   never seen side by side, and I have no way to confirm which "looks right" against each button's
-   padding without rendering both. Noting it, not guessing at it.
-5. **Field-label span convention still has a visible split after the dead-class cleanup.** Most
-   field labels across the Library/Training modals use `<span class="label">Text</span>` (a real
-   DaisyUI class: muted color, `inline-flex`, small gap). `AuthForm.svelte`'s checkbox caption and
-   `setup-profile/+page.svelte`'s two field labels only ever had the dead `label-text` sitting next
-   to plain `text-xs` (and, in `setup-profile`, `label` was already present alongside it) — so after
-   removing the no-op class, those three spans still don't get the same muted/inline-flex treatment
-   real `.label` usage gives everywhere else. Fixing this means either adding `.label` (a visible
-   color/layout change) or confirming plain text is intentional there — a call I can't make blind.
-6. **`WorkoutModal.svelte`'s modal is a structurally different archetype from every other modal.**
-   It's `rounded-none` at every breakpoint (deliberately — it's an edge-to-edge full-viewport dialog
-   on the athlete's phone-width column) and gains `md:border-x` at desktop without ever restoring
-   rounding, while all 7 other modals use DaisyUI's default `modal-box` rounding untouched. Given
-   this modal's whole layout (full-height, capped `max-w-[750px]` to mirror `(athlete)/+layout.svelte`)
-   is intentionally a different shape from the coach's small centered form dialogs, this reads as a
-   deliberate second archetype rather than a missed override — flagging for awareness, not fixing.
-7. **`Athletes` and `Training` pages have no page-level `<h1>`.** `Dashboard` and `Library` both open
-   with `<h1 class="mb-4 text-xl font-bold">{Page name}</h1>`; Athletes and Training go straight into
-   their content grid with no equivalent heading. This is an information-architecture/content
-   question, not a token/color/radius one, and fixing it means adding new copy — outside what a
-   styling pass should decide unilaterally.
+Round 1 flagged seven items as needing a human call instead of guessing. Each was reviewed with the
+user one at a time; here's what was decided and done.
 
-## Verification
+1. **Type scale — adopt app-wide.** Wired up all three fonts for real: added the Google Fonts
+   `@import`s to `layout.css` (matching the reference's weights) and added `--font-display`
+   (Barlow Condensed), `--font-body` (Outfit), `--font-mono` (JetBrains Mono) to the existing
+   `@theme` block, which makes Tailwind generate real `font-display`/`font-body`/`font-mono`
+   utilities from them — `font-mono` already existed as a class name in `CycleBand.svelte`'s week
+   chips, so those now correctly render JetBrains Mono instead of falling back to the browser
+   default monospace stack. Set `body { font-family: var(--font-body); }` as the app-wide default.
+   For the display font's reach, the user chose **"page headings + card/modal titles"**: applied
+   `font-display uppercase` to every page `<h1>` (Dashboard/Library/Athletes/Training, the welcome
+   splash, the auth `AuthHeader` title), every `card-title`, every modal `<h3>` dialog title,
+   `WorkoutModal`'s exercise-name heading, the athlete Train page's status heading, and
+   `ProgramEditor`'s program-name `<h2>`. Deliberately **not** extended to non-heading inline
+   "identity" text in dense contexts — `CycleBand.svelte`'s cycle-name span and session-name spans
+   inside its small grid cells, and `ProgramList.svelte`'s program-name buttons — since forcing a
+   bold condensed-uppercase treatment into cramped, small-text UI is exactly the kind of visual call
+   that needs a browser to verify, and this round's screenshots (see Verification) only exist for
+   the elements actually changed. Also **not** extended to `join/+page.svelte`'s card-title ("Not
+   linked to a coach yet") — that's a full sentence, not a short identifier, and every reference
+   usage of the display treatment is on short text; forcing it there would very likely look wrong.
+2. **Unused brand-gradient token.** User chose to align its angle to the reference now, since it's
+   free (nothing renders it, so no visual risk either way): `90deg` → `135deg` in `layout.css`.
+3. **Three eyebrow-label variants — unify into one.** Picked
+   `text-xs font-semibold tracking-wide text-base-content/60 uppercase` as the single target (the
+   plurality across the three original variants, and the most legible of the three opacities) and
+   applied it everywhere the small-caps "eyebrow" pattern appears: `AuthHeader.svelte` and
+   `AuthForm.svelte`'s auth-flow captions (previously `tracking-widest`/`40`), and
+   `CycleBand.svelte`'s three day-of-week grid-cell labels (previously a custom `text-[0.64rem]` at
+   `tracking-wide`/`50`, un-bolded). `athletes/+page.svelte` and `library/+page.svelte` already used
+   this exact class list, so those needed no change.
+4. **Icon-size sprawl — replace with Tailwind's scale, applied app-wide.** The user asked to go
+   further than the original MonthGrid-only finding: convert every icon's `height="X.Yem"` (some
+   also had `width=`) prop to a Tailwind `size-*` class instead, app-wide. Checked directly (a
+   throwaway probe component + `vite build`, since Tailwind v4's dynamic spacing scale turned out to
+   only generate fractional steps at the classic `.5`/`1.5`/`2.5`/`3.5` values, not arbitrary
+   decimals like `4.5`/`5.5`/`6.5` — confirmed by inspecting the actual built CSS) which whole-`rem`
+   steps were available, then mapped each of the app's 9 distinct em values (assuming the standard
+   16px root) to the nearest one: `1em`/`1.1em` → `size-4`, `1.2em`/`1.3em` → `size-5`,
+   `1.4em`/`1.5em`/`1.6em` → `size-6`, `3.5em` → `size-14`. That consolidated the original
+   MonthGrid-vs-WorkoutTimeline 1.2/1.3em mismatch into a single shared value, along with several
+   other near-duplicates, across ~49 icon usages in 15 files. Verified the icon components
+   (`@iconify-svelte/mingcute` → `@iconify/css-svelte`) only apply explicit `width`/`height` SVG
+   attributes when those props are passed, and forward `class` straight to the `<svg>` — so dropping
+   the prop and adding the Tailwind class sizes correctly via CSS with no attribute/class conflict.
+5. **Label-span convention split — retracted, no fix needed.** On closer inspection this wasn't a
+   real inconsistency: `setup-profile/+page.svelte`'s spans already kept the real `.label` class
+   (round 1 only stripped the dead `label-text` sitting next to it). `AuthForm.svelte`'s checkbox
+   caption doesn't have `.label` on the `<span>` itself, but its parent `<label>` does, and `.label`'s
+   muted color is an inherited CSS property — so the caption already inherits the same muted look via
+   its ancestor. Different, equally-idiomatic use of the same class (wrapping a checkbox vs. a
+   caption above an input), not drift. Left as-is.
+6. **`WorkoutModal`'s modal shape — confirmed intentional, left as-is.** Found stronger evidence on
+   a second look: `(athlete)/+layout.svelte` (the athlete app shell itself) uses the exact same
+   `md:border-x md:border-base-300`-with-no-rounding treatment, for the same reason (a phone-width
+   column that's bordered, not rounded, once the viewport is wider than the column). `WorkoutModal`
+   matches its own parent layout's established convention rather than drifting from it. User agreed;
+   no change.
+7. **Missing page-level `<h1>` on Athletes and Training — added.** Added
+   `<h1 class="mb-4 font-display text-xl font-bold uppercase">Athletes</h1>` (restructuring
+   `athletes/+page.svelte` to wrap its content grid the same way Dashboard/Library do: an outer
+   `<div class="my-4">` with the heading, then the grid with its own `my-4` removed) and
+   `<h1 class="mt-4 mb-4 font-display text-xl font-bold uppercase">Training</h1>` in
+   `training/[[id]]/+page.svelte` (as a standalone heading before the existing clipboard-banner
+   conditional, since that page has no single wrapping element to borrow spacing from — given its
+   own `mt-4`/`mb-4` instead). Both match Dashboard/Library's heading treatment exactly (now also
+   carrying the font-display/uppercase treatment from item 1).
 
-- `npm run check`: clean before and after (0 errors, 0 warnings on the 516 project files both times).
-  It always prints a `design_system/vite.config.ts` module-resolution error to stderr
+## Visual verification (round 2)
+
+Round 1 had no way to render the app. For round 2 — a real font swap, uppercase headings, and an
+app-wide icon resize — that was too much visual surface to sign off on blind, so the dev server was
+actually launched and driven headlessly (Playwright, since `chromium-cli` wasn't available in this
+sandbox; the project's own `playwright` devDependency and cached Chromium build were used directly,
+pointing `executablePath` at the installed browser directly since its cached revision
+didn't match what `playwright-core@1.60.0` expected). Screenshotted, logged in as each test account
+(dev-only quick-login): the sign-in screen, coach Dashboard, Library (Programs tab with a real
+program open — cycle/week chips, `font-mono` week numbers — and the Exercises tab), Athletes,
+Training, and the athlete Train tab. All rendered cleanly: both new fonts loading and visibly
+distinct from each other, uppercase condensed headings reading crisply at every size from page `<h1>`
+down to modal titles, the unified eyebrow label legible in both the auth flow and dashboard sections,
+icons proportionate to their buttons at every new size step, and the `btn-dashed` cleanup's dashed
+borders still rendering correctly. No console errors on any screen. Not visually spot-checked:
+`WorkoutModal` itself and the in-workout exercise view (the seeded test athletes had no exercises
+scheduled on the day tested) — these use the exact same font/icon-sizing mechanism already confirmed
+working elsewhere, just not seen directly.
+
+## Verification (both rounds)
+
+- `npm run check`: clean throughout (0 errors, 0 warnings on the 516 project files, checked after
+  every round). It always prints a `design_system/vite.config.ts` module-resolution error to stderr
   (`@vitejs/plugin-react` isn't installed for that standalone Figma-export app) — pre-existing,
-  unrelated to `src/`, and unaffected by anything in this pass.
-- `npm run lint` (`prettier --check . && eslint .`): the baseline, taken _before_ any edit in this
-  pass, already failed at the prettier step on `.opencode/package.json` (pre-existing, untouched by
-  this audit) and — checked separately by running `eslint .` directly since the prettier failure
-  short-circuits the npm script — already had 18 `svelte/no-unused-svelte-ignore` errors in
-  `AuthForm.svelte`'s script block (lines 35/46/86/90), also pre-existing and out of scope for a
-  styling/markup-only pass. After this pass's edits, `eslint .` reports the exact same 18 errors at
-  the same locations (nothing new), and `prettier --check .` reports only the same pre-existing
-  `.opencode/package.json` warning — confirmed by running `prettier --write` on just the files this
-  audit touched (three of them had lines that now fit `printWidth: 100` after the dead classes were
-  removed, so prettier collapsed them back onto fewer lines) and re-checking.
+  unrelated to `src/`, and unaffected by anything in this audit.
+- `npm run lint` (`prettier --check . && eslint .`): the baseline, taken _before_ any edit, already
+  failed at the prettier step on `.opencode/package.json` (pre-existing, untouched here) and —
+  checked separately by running `eslint .` directly since the prettier failure short-circuits the
+  npm script — already had 18 `svelte/no-unused-svelte-ignore` errors in `AuthForm.svelte`'s script
+  block (lines 35/46/86/90), also pre-existing and out of scope for a styling/markup-only pass.
+  After every round of edits, `eslint .` reports the exact same 18 errors at the same locations
+  (nothing new), and `prettier --check .` reports only the same pre-existing `.opencode/package.json`
+  warning — confirmed each time by running `prettier --write` on just the files that round touched
+  (reflowing line-wrapping after class strings got shorter or longer) and re-checking.

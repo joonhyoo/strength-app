@@ -533,7 +533,7 @@ export type Database = {
       revoke_invite: { Args: { p_email: string }; Returns: undefined }
       shift_program_schedule: {
         Args: {
-          p_assignment_id: string
+          p_athlete_id: string
           p_from_date: string
           p_shift_weeks: number
         }

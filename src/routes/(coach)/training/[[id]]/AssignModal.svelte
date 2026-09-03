@@ -68,7 +68,7 @@
 
 <dialog bind:this={dialog} class="modal" onclose={() => program.closeAssignModal()}>
 	<div class="modal-box">
-		<h3 class="mb-4 text-lg font-bold">Assign program</h3>
+		<h3 class="mb-4 font-display text-lg font-bold uppercase">Assign program</h3>
 
 		<p class="mb-4 text-sm text-base-content/60">
 			Assigning to <strong class="text-base-content">{athleteName}</strong>, starting the week of
@@ -116,14 +116,14 @@
 		<div class="modal-action">
 			<button
 				type="button"
-				class="btn bg-error/10 text-error hover:bg-error/20"
+				class="btn border border-error bg-transparent tracking-wider text-error uppercase hover:bg-error/10"
 				onclick={() => program.closeAssignModal()}
 			>
 				Cancel
 			</button>
 			<button
 				type="button"
-				class="btn btn-primary"
+				class="btn tracking-wider uppercase btn-primary"
 				disabled={!selectedProgramId || conflicts === null || submitting}
 				onclick={confirmAssign}
 			>

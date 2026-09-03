@@ -22,7 +22,7 @@
 					aria-label="Open navigation"
 					onclick={() => (sidebarOpen = true)}
 				>
-					<MenuLineIcon height="1.4em" />
+					<MenuLineIcon class="size-6" />
 				</button>
 			</div>
 		</header>
