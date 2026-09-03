@@ -1,7 +1,7 @@
 <script lang="ts">
 	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
-	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
+	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import CopyLineIcon from '@iconify-svelte/mingcute/copy-line';
 	import PasteLineIcon from '@iconify-svelte/mingcute/paste-line';
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
@@ -190,7 +190,7 @@
 				aria-label={`Add a blank week to ${cycle.name}`}
 				onclick={() => builder.addWeek(cycle.id)}
 			>
-				<PlusLineIcon class="size-5" />
+				<PlusFillIcon class="size-5" />
 			</button>
 		</div>
 		{#if copyError}
@@ -316,7 +316,7 @@
 												sessionId: null
 											})}
 									>
-										<PlusLineIcon class="inline size-4" /> Add session
+										<PlusFillIcon class="inline size-4" /> Add session
 									</button>
 								</div>
 							{/if}
@@ -448,7 +448,7 @@
 						<div class="mt-2 flex gap-2">
 							<button
 								type="button"
-								class="btn flex-1 border-dashed border-base-300 tracking-wider text-primary uppercase"
+								class="btn flex-1 border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',
@@ -456,12 +456,12 @@
 										programExerciseId: null
 									})}
 							>
-								<PlusLineIcon class="size-5" />
+								<PlusFillIcon class="size-5" />
 								Add exercise
 							</button>
 							<button
 								type="button"
-								class="btn border-dashed border-base-300 tracking-wider text-base-content/70 uppercase"
+								class="btn border-dashed border-base-300 tracking-wider text-base-content/70 uppercase btn-neutral"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',

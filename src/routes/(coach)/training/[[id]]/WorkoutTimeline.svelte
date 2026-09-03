@@ -1,7 +1,7 @@
 <script lang="ts">
 	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
-	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
+	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
 	import DotGridLineIcon from '@iconify-svelte/mingcute/dot-grid-line';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
@@ -182,7 +182,7 @@
 					<div class="flex shrink-0 gap-2">
 						<button
 							type="button"
-							class="btn tracking-wider uppercase btn-sm"
+							class="btn tracking-wider uppercase btn-sm btn-neutral"
 							disabled={day.exercises.length === 0}
 							onclick={() => handleCopyDay(day)}
 						>
@@ -281,14 +281,14 @@
 
 				<div class="mt-2 flex gap-2">
 					<button
-						class="btn flex-1 border-dashed border-base-300 tracking-wider text-primary uppercase"
+						class="btn flex-1 border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
 						onclick={() => openAddExercise(day)}
 					>
-						<PlusLineIcon class="size-5" />
+						<PlusFillIcon class="size-5" />
 						Add exercise
 					</button>
 					<button
-						class="btn border-dashed border-base-300 tracking-wider text-base-content/70 uppercase"
+						class="btn border-dashed border-base-300 tracking-wider text-base-content/70 uppercase btn-neutral"
 						onclick={() => openAddNote(day)}
 					>
 						<Message3LineIcon class="size-5" />

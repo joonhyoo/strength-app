@@ -322,7 +322,7 @@
 			<div class="modal-action">
 				<button
 					type="button"
-					class="btn bg-error/10 tracking-wider text-error uppercase hover:bg-error/20"
+					class="btn border border-error bg-transparent tracking-wider text-error uppercase hover:bg-error/10"
 					onclick={() => builder.closeModal()}
 				>
 					Cancel

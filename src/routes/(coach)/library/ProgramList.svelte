@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
+	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 
 	const builder = getProgramBuilderState();
@@ -36,10 +36,10 @@
 
 		<button
 			type="button"
-			class="btn mt-2 border-dashed border-base-300 tracking-wider text-primary uppercase"
+			class="btn mt-2 border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
 			onclick={() => builder.openModal({ type: 'program', programId: null })}
 		>
-			<PlusLineIcon class="size-5" />
+			<PlusFillIcon class="size-5" />
 			New program
 		</button>
 	</div>

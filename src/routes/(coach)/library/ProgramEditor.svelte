@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PlusLineIcon from '@iconify-svelte/mingcute/plus-line';
+	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
@@ -59,10 +59,10 @@
 		{/if}
 		<button
 			type="button"
-			class="btn border-dashed border-base-300 tracking-wider text-primary uppercase"
+			class="btn border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
 			onclick={() => builder.openModal({ type: 'cycle', programId: program.id, cycleId: null })}
 		>
-			<PlusLineIcon class="size-5" />
+			<PlusFillIcon class="size-5" />
 			Add cycle
 		</button>
 	</div>

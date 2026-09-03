@@ -173,14 +173,14 @@
 					>
 					<button
 						type="button"
-						class="btn tracking-wider uppercase btn-sm"
+						class="btn tracking-wider uppercase btn-sm btn-neutral"
 						onclick={() => program.openAssignModal()}
 					>
 						Assign program
 					</button>
 					<button
 						type="button"
-						class="btn tracking-wider uppercase btn-sm"
+						class="btn tracking-wider uppercase btn-sm btn-neutral"
 						disabled={program.selectedWeekCount === 0}
 						onclick={() => handleCopyWeek(athlete.name)}
 					>
@@ -196,7 +196,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn bg-error/10 tracking-wider text-error uppercase btn-sm hover:bg-error/20"
+						class="btn border border-error bg-transparent tracking-wider text-error uppercase btn-sm hover:bg-error/10"
 						disabled={program.selectedWeekCount === 0}
 						onclick={() => handleClearWeek(athlete.name)}
 					>
@@ -204,7 +204,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn tracking-wider uppercase btn-sm"
+						class="btn tracking-wider uppercase btn-sm btn-neutral"
 						onclick={() => program.openShiftModal()}
 					>
 						Shift schedule
