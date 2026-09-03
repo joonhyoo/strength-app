@@ -180,7 +180,7 @@
 
 <dialog bind:this={dialog} class="modal" onclose={() => program.closeModal()}>
 	<div class="modal-box">
-		<h3 class="mb-4 text-lg font-bold">
+		<h3 class="mb-4 font-display text-lg font-bold uppercase">
 			{isNote
 				? isEditing
 					? 'Edit note'

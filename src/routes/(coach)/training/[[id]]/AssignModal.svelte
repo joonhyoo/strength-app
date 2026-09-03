@@ -68,7 +68,7 @@
 
 <dialog bind:this={dialog} class="modal" onclose={() => program.closeAssignModal()}>
 	<div class="modal-box">
-		<h3 class="mb-4 text-lg font-bold">Assign program</h3>
+		<h3 class="mb-4 font-display text-lg font-bold uppercase">Assign program</h3>
 
 		<p class="mb-4 text-sm text-base-content/60">
 			Assigning to <strong class="text-base-content">{athleteName}</strong>, starting the week of

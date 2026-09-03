@@ -239,7 +239,7 @@
 <div class="grid h-full grid-rows-[auto_1fr]">
 	<header class="flex w-full items-center justify-center gap-4 border-b bg-base-100 py-4">
 		<button class="btn btn-ghost" onclick={() => changeDate(-1)}>
-			<LeftFillIcon height="1.5em" />
+			<LeftFillIcon class="size-6" />
 		</button>
 		<span>
 			{date.toLocaleDateString('en-AU', {
@@ -250,7 +250,7 @@
 			})}
 		</span>
 		<button class="btn btn-ghost" onclick={() => changeDate(1)}>
-			<RightFillIcon height="1.5em" />
+			<RightFillIcon class="size-6" />
 		</button>
 	</header>
 
@@ -320,7 +320,7 @@
 						<button class="btn btn-sm" onclick={() => loadDay()}>Try again</button>
 					</div>
 				{:else}
-					<h2 class="text-lg font-bold">
+					<h2 class="font-display text-lg font-bold uppercase">
 						{#if workout.exercises.length}
 							Scheduled Workout
 						{:else if breadcrumb?.isComplete}

@@ -7,7 +7,7 @@
 		<img src={gif} alt="dancing cat" class="rounded-xl" />
 	</figure>
 	<div class="card-body items-center text-center">
-		<h2 class="card-title">Coming Soon!</h2>
+		<h2 class="card-title font-display uppercase">Coming Soon!</h2>
 		<p>Watch this space.</p>
 	</div>
 </div>

@@ -24,13 +24,13 @@
 </svelte:head>
 
 <div class="my-4">
-	<h1 class="mb-4 text-xl font-bold">Dashboard</h1>
+	<h1 class="mb-4 font-display text-xl font-bold uppercase">Dashboard</h1>
 
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		{#each tiles as tile (tile.title)}
 			<div class="card bg-base-100 shadow-sm">
 				<div class="card-body">
-					<h2 class="card-title text-base">{tile.title}</h2>
+					<h2 class="card-title font-display text-base uppercase">{tile.title}</h2>
 					<p class="text-sm text-base-content/60">{tile.body}</p>
 					<span class="mt-2 badge self-start badge-ghost badge-sm">Coming soon</span>
 				</div>

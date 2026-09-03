@@ -101,11 +101,11 @@
 	<div class="card-body">
 		<div class="flex items-center justify-between">
 			<button class="btn btn-ghost btn-sm" onclick={() => changeMonth(-1)}>
-				<LeftFillIcon height="1.2em" />
+				<LeftFillIcon class="size-5" />
 			</button>
-			<h2 class="card-title text-base">{monthLabel}</h2>
+			<h2 class="card-title font-display text-base uppercase">{monthLabel}</h2>
 			<button class="btn btn-ghost btn-sm" onclick={() => changeMonth(1)}>
-				<RightFillIcon height="1.2em" />
+				<RightFillIcon class="size-5" />
 			</button>
 		</div>
 

@@ -44,7 +44,7 @@
 						? 'text-primary'
 						: 'text-base-content/60'}"
 				>
-					<Icon height="1.6em" />
+					<Icon class="size-6" />
 					<span class="text-xs">{link.label}</span>
 				</a>
 			{/each}

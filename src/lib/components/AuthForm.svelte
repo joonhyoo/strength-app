@@ -339,7 +339,7 @@
 			<!-- Quick login (testing only) -->
 			<div class="border-t border-base-300 pt-6">
 				<p
-					class="mb-3 text-center text-xs font-semibold tracking-widest text-base-content/40 uppercase"
+					class="mb-3 text-center text-xs font-semibold tracking-wide text-base-content/60 uppercase"
 				>
 					Test Accounts
 				</p>

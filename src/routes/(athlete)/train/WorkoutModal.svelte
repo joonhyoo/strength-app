@@ -84,7 +84,9 @@
 			class="relative modal-box flex h-full max-h-none w-full max-w-[750px] flex-col overflow-hidden rounded-none px-5 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-center sm:pt-8 sm:pb-8 md:border-x md:border-base-300"
 			style="scale:1"
 		>
-			<h3 class="mt-4 mb-4 shrink-0 px-4 text-lg font-bold">{workout.selected.activity}</h3>
+			<h3 class="mt-4 mb-4 shrink-0 px-4 font-display text-lg font-bold uppercase">
+				{workout.selected.activity}
+			</h3>
 
 			{#if videoEmbed}
 				<div class="mb-4 shrink-0 overflow-hidden rounded-lg bg-black">
@@ -172,7 +174,7 @@
 						tabindex={canShowHistory ? undefined : -1}
 						onclick={canShowHistory ? () => (historyOpen = true) : undefined}
 					>
-						<HistoryIcon height="1.5em" />
+						<HistoryIcon class="size-6" />
 					</button>
 				{/if}
 
@@ -184,10 +186,10 @@
 						aria-label="Previous exercise"
 						onclick={() => step(-1)}
 					>
-						<ArrowLeftFillIcon width="1.4em" height="1.4em" />
+						<ArrowLeftFillIcon class="size-6" />
 					</button>
 					<button type="button" class={navBtn} aria-label="Close" onclick={closeModal}>
-						<CloseFillIcon width="1.4em" height="1.4em" />
+						<CloseFillIcon class="size-6" />
 					</button>
 					<button
 						type="button"
@@ -196,7 +198,7 @@
 						aria-label="Next exercise"
 						onclick={() => step(1)}
 					>
-						<ArrowRightFillIcon width="1.4em" height="1.4em" />
+						<ArrowRightFillIcon class="size-6" />
 					</button>
 				</div>
 
@@ -215,7 +217,7 @@
 						tabindex={completeInteractive ? undefined : -1}
 						onclick={completeInteractive ? () => workout.toggleComplete() : undefined}
 					>
-						<CheckFillIcon height="1.5em" />
+						<CheckFillIcon class="size-6" />
 					</button>
 				{/if}
 			</div>

@@ -177,7 +177,7 @@
 										class="cursor-grab text-base-content/40 active:cursor-grabbing"
 										aria-hidden="true"
 									>
-										<DotGridLineIcon height="1.3em" />
+										<DotGridLineIcon class="size-5" />
 									</span>
 								{/if}
 								<button
@@ -185,14 +185,14 @@
 									aria-label={`Edit ${exercise.activity}`}
 									onclick={() => exercise.id && program.openEdit(exercise)}
 								>
-									<EditBoxLineIcon height="1.3em" />
+									<EditBoxLineIcon class="size-5" />
 								</button>
 								<button
 									class="btn text-error btn-ghost btn-sm"
 									aria-label={`Remove ${exercise.activity}`}
 									onclick={() => exercise.id && handleRemove(exercise.id)}
 								>
-									<Delete3LineIcon height="1.3em" />
+									<Delete3LineIcon class="size-5" />
 								</button>
 							</div>
 						</div>
@@ -206,14 +206,14 @@
 				class="btn flex-1 border-dashed border-base-300 text-primary"
 				onclick={() => program.openModal()}
 			>
-				<PlusLineIcon height="1.2em" />
+				<PlusLineIcon class="size-5" />
 				Add exercise
 			</button>
 			<button
 				class="btn border-dashed border-base-300 text-base-content/70"
 				onclick={() => program.openModal('note')}
 			>
-				<Message3LineIcon height="1.2em" />
+				<Message3LineIcon class="size-5" />
 				Add note
 			</button>
 		</div>

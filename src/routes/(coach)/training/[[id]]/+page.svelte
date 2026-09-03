@@ -109,6 +109,8 @@
 	<title>Strength App — Training</title>
 </svelte:head>
 
+<h1 class="mt-4 mb-4 font-display text-xl font-bold uppercase">Training</h1>
+
 {#if program.clipboard}
 	{@const cb = program.clipboard}
 	<div

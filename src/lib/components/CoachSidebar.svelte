@@ -55,7 +55,7 @@
 						? 'bg-primary/10 text-primary'
 						: 'text-base-content/60 hover:bg-base-200'}"
 				>
-					<Icon height="1.3em" />
+					<Icon class="size-5" />
 					{link.label}
 				</a>
 			{/each}

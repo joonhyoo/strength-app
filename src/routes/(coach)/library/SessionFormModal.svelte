@@ -49,7 +49,9 @@
 
 <dialog bind:this={dialog} class="modal" onclose={() => builder.closeModal()}>
 	<div class="modal-box">
-		<h3 class="mb-4 text-lg font-bold">{editingSession ? 'Rename session' : 'Add session'}</h3>
+		<h3 class="mb-4 font-display text-lg font-bold uppercase">
+			{editingSession ? 'Rename session' : 'Add session'}
+		</h3>
 
 		<form
 			class="flex flex-col gap-4"

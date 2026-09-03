@@ -23,14 +23,14 @@
 	<div class="flex items-start justify-between gap-4">
 		<div class="min-w-0">
 			<div class="flex items-center gap-1">
-				<h2 class="text-xl font-bold">{program.name}</h2>
+				<h2 class="font-display text-xl font-bold uppercase">{program.name}</h2>
 				<button
 					type="button"
 					class="btn btn-ghost btn-xs"
 					aria-label="Edit program name and description"
 					onclick={() => builder.openModal({ type: 'program', programId: program.id })}
 				>
-					<EditBoxLineIcon height="1.1em" />
+					<EditBoxLineIcon class="size-4" />
 				</button>
 				<button
 					type="button"
@@ -38,7 +38,7 @@
 					aria-label="Delete program"
 					onclick={() => handleDeleteProgram(program.id, program.name)}
 				>
-					<Delete3LineIcon height="1.1em" />
+					<Delete3LineIcon class="size-4" />
 				</button>
 			</div>
 			{#if program.description}
@@ -62,7 +62,7 @@
 			class="btn border-dashed border-base-300 text-primary"
 			onclick={() => builder.openModal({ type: 'cycle', programId: program.id, cycleId: null })}
 		>
-			<PlusLineIcon height="1.2em" />
+			<PlusLineIcon class="size-5" />
 			Add cycle
 		</button>
 	</div>

@@ -68,7 +68,7 @@
 
 <dialog bind:this={dialog} class="modal" onclose={() => program.closeShiftModal()}>
 	<div class="modal-box">
-		<h3 class="mb-4 text-lg font-bold">Shift schedule</h3>
+		<h3 class="mb-4 font-display text-lg font-bold uppercase">Shift schedule</h3>
 
 		{#if assignmentId === null}
 			<div class="h-10 w-full skeleton"></div>

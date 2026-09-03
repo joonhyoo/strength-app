@@ -7,7 +7,7 @@
 
 <div class="card h-fit bg-base-100 shadow-sm">
 	<div class="card-body">
-		<h2 class="card-title text-base">Programs</h2>
+		<h2 class="card-title font-display text-base uppercase">Programs</h2>
 
 		{#if builder.programs === null}
 			<div class="mt-1 flex flex-col gap-2">
@@ -39,7 +39,7 @@
 			class="btn mt-2 border-dashed border-base-300 text-primary"
 			onclick={() => builder.openModal({ type: 'program', programId: null })}
 		>
-			<PlusLineIcon height="1.2em" />
+			<PlusLineIcon class="size-5" />
 			New program
 		</button>
 	</div>
