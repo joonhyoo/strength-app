@@ -208,7 +208,11 @@
 						{#if addError}
 							<p class="text-xs text-error">{addError}</p>
 						{/if}
-						<button type="submit" class="btn btn-primary" disabled={adding || !newName.trim()}>
+						<button
+							type="submit"
+							class="btn tracking-wider uppercase btn-primary"
+							disabled={adding || !newName.trim()}
+						>
 							{adding ? 'Adding...' : 'Add exercise'}
 						</button>
 					</form>
@@ -287,14 +291,14 @@
 															<div class="flex gap-2">
 																<button
 																	type="submit"
-																	class="btn btn-sm btn-primary"
+																	class="btn tracking-wider uppercase btn-sm btn-primary"
 																	disabled={saving || !editName.trim()}
 																>
 																	{saving ? 'Saving...' : 'Save'}
 																</button>
 																<button
 																	type="button"
-																	class="btn btn-ghost btn-sm"
+																	class="btn tracking-wider uppercase btn-ghost btn-sm"
 																	onclick={cancelEdit}
 																>
 																	Cancel
@@ -315,7 +319,7 @@
 															<div class="flex shrink-0 items-center gap-1">
 																<button
 																	type="button"
-																	class="btn btn-ghost btn-sm"
+																	class="btn tracking-wider uppercase btn-ghost btn-sm"
 																	onclick={() => startEdit(item)}
 																>
 																	Edit

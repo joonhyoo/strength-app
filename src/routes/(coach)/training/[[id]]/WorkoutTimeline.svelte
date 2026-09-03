@@ -107,7 +107,7 @@
 			<div class="flex shrink-0 gap-2">
 				<button
 					type="button"
-					class="btn btn-sm"
+					class="btn tracking-wider uppercase btn-sm"
 					disabled={exercises.length === 0}
 					onclick={handleCopyDay}
 				>
@@ -115,7 +115,7 @@
 				</button>
 				<button
 					type="button"
-					class="btn btn-sm btn-primary"
+					class="btn tracking-wider uppercase btn-sm btn-primary"
 					disabled={!program.clipboard || program.clipboard.type !== 'day'}
 					onclick={handlePasteDay}
 				>
@@ -203,14 +203,14 @@
 
 		<div class="mt-2 flex gap-2">
 			<button
-				class="btn flex-1 border-dashed border-base-300 text-primary"
+				class="btn flex-1 border-dashed border-base-300 tracking-wider text-primary uppercase"
 				onclick={() => program.openModal()}
 			>
 				<PlusLineIcon class="size-5" />
 				Add exercise
 			</button>
 			<button
-				class="btn border-dashed border-base-300 text-base-content/70"
+				class="btn border-dashed border-base-300 tracking-wider text-base-content/70 uppercase"
 				onclick={() => program.openModal('note')}
 			>
 				<Message3LineIcon class="size-5" />

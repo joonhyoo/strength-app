@@ -116,14 +116,14 @@
 		<div class="modal-action">
 			<button
 				type="button"
-				class="btn bg-error/10 text-error hover:bg-error/20"
+				class="btn bg-error/10 tracking-wider text-error uppercase hover:bg-error/20"
 				onclick={() => program.closeAssignModal()}
 			>
 				Cancel
 			</button>
 			<button
 				type="button"
-				class="btn btn-primary"
+				class="btn tracking-wider uppercase btn-primary"
 				disabled={!selectedProgramId || conflicts === null || submitting}
 				onclick={confirmAssign}
 			>

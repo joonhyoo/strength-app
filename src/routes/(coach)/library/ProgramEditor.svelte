@@ -59,7 +59,7 @@
 		{/if}
 		<button
 			type="button"
-			class="btn border-dashed border-base-300 text-primary"
+			class="btn border-dashed border-base-300 tracking-wider text-primary uppercase"
 			onclick={() => builder.openModal({ type: 'cycle', programId: program.id, cycleId: null })}
 		>
 			<PlusLineIcon class="size-5" />

@@ -32,7 +32,10 @@
 				<div class="card-body">
 					<h2 class="card-title font-display text-base uppercase">{tile.title}</h2>
 					<p class="text-sm text-base-content/60">{tile.body}</p>
-					<span class="mt-2 badge self-start badge-ghost badge-sm">Coming soon</span>
+					<span
+						class="mt-2 badge self-start badge-ghost badge-sm tracking-wider text-base-content/50 uppercase"
+						>Coming soon</span
+					>
 				</div>
 			</div>
 		{/each}

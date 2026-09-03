@@ -68,7 +68,11 @@
 						class="input w-full"
 						required
 					/>
-					<button type="submit" class="btn btn-primary" disabled={inviting}>
+					<button
+						type="submit"
+						class="btn tracking-wider uppercase btn-primary"
+						disabled={inviting}
+					>
 						{inviting ? 'Inviting...' : 'Invite'}
 					</button>
 				</form>
@@ -88,7 +92,9 @@
 								<span class="truncate">{invite.email}</span>
 								<form method="POST" action="?/revoke_invite" use:enhance={enhanceReplace({})}>
 									<input type="hidden" name="email" value={invite.email} />
-									<button type="submit" class="btn btn-ghost btn-sm">Revoke</button>
+									<button type="submit" class="btn tracking-wider uppercase btn-ghost btn-sm"
+										>Revoke</button
+									>
 								</form>
 							</li>
 						{/each}

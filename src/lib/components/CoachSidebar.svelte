@@ -68,7 +68,7 @@
 				action="/auth/login?/logout"
 				use:enhance={enhanceReplace({ onDone: () => void clearClientCaches() })}
 			>
-				<button type="submit" class="btn btn-ghost btn-sm">Log out</button>
+				<button type="submit" class="btn tracking-wider uppercase btn-ghost btn-sm">Log out</button>
 			</form>
 		</div>
 	</div>

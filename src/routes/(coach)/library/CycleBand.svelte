@@ -173,7 +173,7 @@
 			{#if cycle.weeks.length > 0}
 				<button
 					type="button"
-					class="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-sm text-primary hover:bg-primary/10 disabled:opacity-50"
+					class="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-sm tracking-wider text-primary uppercase hover:bg-primary/10 disabled:opacity-50"
 					aria-label={`Copy the last week of ${cycle.name} into a new week`}
 					disabled={copyBusy}
 					onclick={handleCopyPreviousWeek}
@@ -220,7 +220,7 @@
 						</span>
 						<button
 							type="button"
-							class="btn ml-auto btn-ghost btn-xs"
+							class="btn ml-auto tracking-wider uppercase btn-ghost btn-xs"
 							onclick={() => builder.clearSessionClipboard()}
 						>
 							Done
@@ -235,7 +235,7 @@
 						<span class="font-mono text-xs text-base-content/50">Week {expandedWeekIndex + 1}</span>
 						<button
 							type="button"
-							class="btn text-error btn-ghost btn-xs"
+							class="btn tracking-wider text-error uppercase btn-ghost btn-xs"
 							onclick={() => handleDeleteWeek(expandedWeek.id)}
 						>
 							<Delete3LineIcon class="size-4" />
@@ -307,7 +307,7 @@
 									<span class="text-xs text-base-content/40">Rest</span>
 									<button
 										type="button"
-										class="mt-auto rounded border border-dashed border-base-300 py-1 text-[0.7rem] text-base-content/50 hover:border-primary hover:text-primary"
+										class="mt-auto rounded border border-dashed border-base-300 py-1 text-[0.7rem] tracking-wider text-base-content/50 uppercase hover:border-primary hover:text-primary"
 										onclick={() =>
 											builder.openModal({
 												type: 'session',
@@ -332,7 +332,7 @@
 							<span class="flex gap-1">
 								<button
 									type="button"
-									class="btn btn-ghost btn-xs"
+									class="btn tracking-wider uppercase btn-ghost btn-xs"
 									aria-label={`Copy ${expandedSession.name} to another day`}
 									onclick={() => builder.copySession(expandedSession.id)}
 								>
@@ -448,7 +448,7 @@
 						<div class="mt-2 flex gap-2">
 							<button
 								type="button"
-								class="btn flex-1 border-dashed border-base-300 text-primary"
+								class="btn flex-1 border-dashed border-base-300 tracking-wider text-primary uppercase"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',
@@ -461,7 +461,7 @@
 							</button>
 							<button
 								type="button"
-								class="btn border-dashed border-base-300 text-base-content/70"
+								class="btn border-dashed border-base-300 tracking-wider text-base-content/70 uppercase"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',
