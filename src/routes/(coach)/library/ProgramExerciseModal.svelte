@@ -219,7 +219,7 @@
 			{#if !isNote && !creatingNew}
 				<label class="form-control w-full">
 					<span class="label">Exercise</span>
-					<select class="select-bordered select" bind:value={selectedName}>
+					<select class="select" bind:value={selectedName}>
 						{#each CATEGORY_OPTIONS as cat (cat)}
 							{@const items = library.filter((item) => item.category === cat)}
 							{#if items.length > 0}
@@ -239,7 +239,7 @@
 				<label class="form-control w-full">
 					<span class="label">Video link (optional)</span>
 					<input
-						class="input-bordered input"
+						class="input"
 						type="url"
 						placeholder="https://youtube.com/watch?v=..."
 						bind:value={videoUrl}
@@ -254,7 +254,7 @@
 				<label class="form-control w-full">
 					<span class="label">Exercise name</span>
 					<input
-						class="input-bordered input"
+						class="input"
 						type="text"
 						placeholder="e.g. Barbell Back Squat"
 						bind:value={newName}
@@ -263,7 +263,7 @@
 
 				<label class="form-control w-full">
 					<span class="label">Category</span>
-					<select class="select-bordered select" bind:value={newCategory}>
+					<select class="select" bind:value={newCategory}>
 						{#each CATEGORY_OPTIONS as cat (cat)}
 							<option value={cat}>{CATEGORY_LABEL[cat]}</option>
 						{/each}
@@ -273,7 +273,7 @@
 				<label class="form-control w-full">
 					<span class="label">Video link (optional)</span>
 					<input
-						class="input-bordered input"
+						class="input"
 						type="url"
 						placeholder="https://youtube.com/watch?v=..."
 						bind:value={videoUrl}
@@ -295,11 +295,11 @@
 				<div class="grid grid-cols-2 gap-4">
 					<label class="form-control w-full">
 						<span class="label">Sets</span>
-						<input class="input-bordered input" type="number" min="1" bind:value={sets} />
+						<input class="input" type="number" min="1" bind:value={sets} />
 					</label>
 					<label class="form-control w-full">
 						<span class="label">Reps per set</span>
-						<input class="input-bordered input" type="number" min="1" bind:value={reps} />
+						<input class="input" type="number" min="1" bind:value={reps} />
 					</label>
 				</div>
 			{/if}
@@ -308,7 +308,7 @@
 				<span class="label">{isNote ? 'Note for the athlete' : 'Note'}</span>
 				<textarea
 					use:autoGrowNote={note}
-					class="textarea-bordered textarea field-sizing-content max-h-48 resize-none"
+					class="textarea field-sizing-content max-h-48 resize-none"
 					rows={isNote ? 4 : 3}
 					placeholder={isNote
 						? 'e.g. Deload week — leave 2 reps in the tank on every set.'

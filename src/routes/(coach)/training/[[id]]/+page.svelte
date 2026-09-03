@@ -141,7 +141,7 @@
 					<div class="h-10 w-full skeleton"></div>
 				{:else}
 					<select
-						class="select-bordered select"
+						class="select"
 						value={athlete?.id ?? ''}
 						onchange={(e) => onAthleteChange(e.currentTarget.value)}
 					>

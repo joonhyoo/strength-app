@@ -38,24 +38,24 @@
 				class="mt-2 flex flex-col gap-3"
 			>
 				<label class="form-control w-full">
-					<span class="label-text label text-xs">Name (visible to your coach)</span>
+					<span class="label text-xs">Name (visible to your coach)</span>
 					<input
 						name="name"
 						type="text"
 						value={form?.name ?? ''}
 						placeholder="Your name"
-						class="input-bordered input w-full"
+						class="input w-full"
 						required
 					/>
 				</label>
 				<label class="form-control w-full">
-					<span class="label-text label text-xs">Username (private, only visible to you)</span>
+					<span class="label text-xs">Username (private, only visible to you)</span>
 					<input
 						name="username"
 						type="text"
 						value={form?.username ?? ''}
 						placeholder="username"
-						class="input-bordered input w-full"
+						class="input w-full"
 						autocomplete="off"
 						required
 					/>

@@ -62,7 +62,7 @@
 					name="email"
 					type="email"
 					placeholder="athlete@email.com"
-					class="input-bordered input w-full"
+					class="input w-full"
 					required
 				/>
 				<button type="submit" class="btn btn-primary" disabled={inviting}>
@@ -110,7 +110,7 @@
 			<input
 				type="search"
 				placeholder="Search by name or email…"
-				class="input-bordered input input-sm mt-2 w-full max-w-xs"
+				class="input input-sm mt-2 w-full max-w-xs"
 				bind:value={query}
 			/>
 

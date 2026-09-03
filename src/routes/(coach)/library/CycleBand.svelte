@@ -448,7 +448,7 @@
 						<div class="mt-2 flex gap-2">
 							<button
 								type="button"
-								class="btn-dashed btn flex-1 border-dashed border-base-300 text-primary"
+								class="btn flex-1 border-dashed border-base-300 text-primary"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',
@@ -461,7 +461,7 @@
 							</button>
 							<button
 								type="button"
-								class="btn-dashed btn border-dashed border-base-300 text-base-content/70"
+								class="btn border-dashed border-base-300 text-base-content/70"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',

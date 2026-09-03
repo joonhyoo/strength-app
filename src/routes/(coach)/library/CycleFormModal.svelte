@@ -57,18 +57,13 @@
 		>
 			<label class="form-control w-full">
 				<span class="label">Cycle name</span>
-				<input
-					class="input-bordered input"
-					type="text"
-					placeholder="e.g. Strength Cycle"
-					bind:value={name}
-				/>
+				<input class="input" type="text" placeholder="e.g. Strength Cycle" bind:value={name} />
 			</label>
 
 			<label class="form-control w-full">
 				<span class="label">Goal</span>
 				<input
-					class="input-bordered input"
+					class="input"
 					type="text"
 					placeholder="What is this cycle building toward?"
 					bind:value={goal}

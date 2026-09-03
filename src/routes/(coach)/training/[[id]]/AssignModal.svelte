@@ -83,7 +83,7 @@
 		{:else}
 			<label class="form-control mb-4 w-full">
 				<span class="label">Program</span>
-				<select class="select-bordered select" bind:value={selectedProgramId}>
+				<select class="select" bind:value={selectedProgramId}>
 					{#each programs as p (p.id)}
 						<option value={p.id}>{p.name}</option>
 					{/each}

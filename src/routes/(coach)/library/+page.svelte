@@ -182,7 +182,7 @@
 						<label class="form-control w-full">
 							<span class="label">Name</span>
 							<input
-								class="input-bordered input"
+								class="input"
 								type="text"
 								placeholder="e.g. Barbell Back Squat"
 								bind:value={newName}
@@ -190,7 +190,7 @@
 						</label>
 						<label class="form-control w-full">
 							<span class="label">Category</span>
-							<select class="select-bordered select" bind:value={newCategory}>
+							<select class="select" bind:value={newCategory}>
 								{#each CATEGORY_OPTIONS as cat (cat)}
 									<option value={cat}>{CATEGORY_LABEL[cat]}</option>
 								{/each}
@@ -199,7 +199,7 @@
 						<label class="form-control w-full">
 							<span class="label">Video link (optional)</span>
 							<input
-								class="input-bordered input"
+								class="input"
 								type="url"
 								placeholder="https://youtube.com/watch?v=..."
 								bind:value={newVideoUrl}
@@ -231,7 +231,7 @@
 							<input
 								type="search"
 								placeholder="Search exercises…"
-								class="input-bordered input input-sm w-full pr-8 [&::-webkit-search-cancel-button]:appearance-none"
+								class="input input-sm w-full pr-8 [&::-webkit-search-cancel-button]:appearance-none"
 								bind:value={query}
 							/>
 							{#if query}
@@ -265,21 +265,18 @@
 														<form class="flex flex-col gap-2" onsubmit={saveEdit}>
 															<div class="flex gap-2">
 																<input
-																	class="input-bordered input input-sm w-full"
+																	class="input input-sm w-full"
 																	type="text"
 																	bind:value={editName}
 																/>
-																<select
-																	class="select-bordered select select-sm"
-																	bind:value={editCategory}
-																>
+																<select class="select select-sm" bind:value={editCategory}>
 																	{#each CATEGORY_OPTIONS as c (c)}
 																		<option value={c}>{CATEGORY_LABEL[c]}</option>
 																	{/each}
 																</select>
 															</div>
 															<input
-																class="input-bordered input input-sm w-full"
+																class="input input-sm w-full"
 																type="url"
 																placeholder="Video link (optional)"
 																bind:value={editVideoUrl}

@@ -82,7 +82,7 @@
 
 			<label class="form-control mb-4 w-full">
 				<span class="label">Shift by (weeks — negative moves it earlier)</span>
-				<input class="input-bordered input" type="number" step="1" bind:value={shiftWeeks} />
+				<input class="input" type="number" step="1" bind:value={shiftWeeks} />
 			</label>
 
 			{#if moving === null}
