@@ -207,6 +207,8 @@
 		</div>
 	</aside>
 
+	<hr class="border-t border-base-300 lg:hidden" />
+
 	{#if athletes === null}
 		<div class="card bg-base-100 shadow-sm">
 			<div class="card-body gap-3">
