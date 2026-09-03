@@ -13,6 +13,7 @@
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import PlayCircleFillIcon from '@iconify-svelte/mingcute/play-circle-fill';
 	import CloseLineIcon from '@iconify-svelte/mingcute/close-line';
+	import Button from '$lib/components/Button.svelte';
 	import type { ExerciseCategory } from '$lib/types';
 	import { CATEGORY_LABEL, CATEGORY_OPTIONS, CATEGORY_ICON } from '$lib/data/categories';
 	import { initProgramBuilderState } from '$lib/programBuilderState.svelte';
@@ -208,13 +209,9 @@
 						{#if addError}
 							<p class="text-xs text-error">{addError}</p>
 						{/if}
-						<button
-							type="submit"
-							class="btn tracking-wider uppercase btn-primary"
-							disabled={adding || !newName.trim()}
-						>
+						<Button variant="primary" type="submit" disabled={adding || !newName.trim()}>
 							{adding ? 'Adding...' : 'Add exercise'}
-						</button>
+						</Button>
 					</form>
 				</div>
 			</div>
@@ -289,20 +286,22 @@
 																<p class="text-xs text-error">{editError}</p>
 															{/if}
 															<div class="flex gap-2">
-																<button
+																<Button
+																	variant="primary"
+																	size="sm"
 																	type="submit"
-																	class="btn tracking-wider uppercase btn-sm btn-primary"
 																	disabled={saving || !editName.trim()}
 																>
 																	{saving ? 'Saving...' : 'Save'}
-																</button>
-																<button
+																</Button>
+																<Button
+																	variant="ghost"
+																	size="sm"
 																	type="button"
-																	class="btn tracking-wider uppercase btn-ghost btn-sm"
 																	onclick={cancelEdit}
 																>
 																	Cancel
-																</button>
+																</Button>
 															</div>
 														</form>
 													{:else}
@@ -317,13 +316,9 @@
 																{/if}
 															</span>
 															<div class="flex shrink-0 items-center gap-1">
-																<button
-																	type="button"
-																	class="btn tracking-wider uppercase btn-ghost btn-sm"
-																	onclick={() => startEdit(item)}
-																>
+																<Button variant="ghost" size="sm" onclick={() => startEdit(item)}>
 																	Edit
-																</button>
+																</Button>
 																<button
 																	type="button"
 																	class="btn text-error btn-ghost btn-sm"

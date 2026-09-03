@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/Button.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import {
 		listPrograms,
@@ -114,21 +115,14 @@
 		{/if}
 
 		<div class="modal-action">
-			<button
-				type="button"
-				class="btn border border-error bg-transparent tracking-wider text-error uppercase hover:bg-error/10"
-				onclick={() => program.closeAssignModal()}
-			>
-				Cancel
-			</button>
-			<button
-				type="button"
-				class="btn tracking-wider uppercase btn-primary"
+			<Button variant="destructive" onclick={() => program.closeAssignModal()}>Cancel</Button>
+			<Button
+				variant="primary"
 				disabled={!selectedProgramId || conflicts === null || submitting}
 				onclick={confirmAssign}
 			>
 				Confirm assign
-			</button>
+			</Button>
 		</div>
 	</div>
 </dialog>

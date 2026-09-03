@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
+	import Button from '$lib/components/Button.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import {
 		getExerciseLibrary,
@@ -12,6 +14,12 @@
 	import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '$lib/data/categories';
 
 	const NOTE_MAX_HEIGHT_PX = 192; // matches max-h-48
+
+	// Matches the athlete workout modal's ghost nav-button treatment
+	// (train/WorkoutModal.svelte's navBtn) — color-only feedback, no
+	// border or background, so it stays consistent across the app.
+	const stepBtn =
+		'flex size-9 cursor-pointer items-center justify-center rounded-full text-base-content/80 transition-colors duration-150 active:text-base-content/45';
 
 	const supportsFieldSizing = typeof CSS !== 'undefined' && CSS.supports('field-sizing', 'content');
 
@@ -280,12 +288,58 @@
 			{#if isWeight}
 				<div class="grid grid-cols-2 gap-4">
 					<label class="form-control w-full">
-						<span class="label">Sets</span>
-						<input class="input" type="number" min="1" bind:value={sets} />
+						<span class="label text-sm">Sets</span>
+						<div class="my-2 flex items-center justify-center gap-4">
+							<button
+								type="button"
+								class={stepBtn}
+								aria-label="Decrease sets"
+								onclick={() => (sets = Math.max(1, sets - 1))}
+							>
+								<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
+							</button>
+							<input
+								class="input w-16 text-center text-sm"
+								type="number"
+								min="1"
+								bind:value={sets}
+							/>
+							<button
+								type="button"
+								class={stepBtn}
+								aria-label="Increase sets"
+								onclick={() => (sets += 1)}
+							>
+								<PlusFillIcon class="size-4" />
+							</button>
+						</div>
 					</label>
 					<label class="form-control w-full">
-						<span class="label">Reps per set</span>
-						<input class="input" type="number" min="1" bind:value={reps} />
+						<span class="label text-sm">Reps per set</span>
+						<div class="my-2 flex items-center justify-center gap-4">
+							<button
+								type="button"
+								class={stepBtn}
+								aria-label="Decrease reps"
+								onclick={() => (reps = Math.max(1, reps - 1))}
+							>
+								<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
+							</button>
+							<input
+								class="input w-16 text-center text-sm"
+								type="number"
+								min="1"
+								bind:value={reps}
+							/>
+							<button
+								type="button"
+								class={stepBtn}
+								aria-label="Increase reps"
+								onclick={() => (reps += 1)}
+							>
+								<PlusFillIcon class="size-4" />
+							</button>
+						</div>
 					</label>
 				</div>
 			{/if}
@@ -306,16 +360,8 @@
 			</label>
 
 			<div class="modal-action">
-				<button
-					type="button"
-					class="btn border border-error bg-transparent tracking-wider text-error uppercase hover:bg-error/10"
-					onclick={() => program.closeModal()}
-				>
-					Cancel
-				</button>
-				<button class="btn tracking-wider uppercase btn-primary" type="submit" disabled={!canSave}>
-					Save
-				</button>
+				<Button variant="destructive" onclick={() => program.closeModal()}>Cancel</Button>
+				<Button variant="primary" type="submit" disabled={!canSave}>Save</Button>
 			</div>
 		</form>
 	</div>

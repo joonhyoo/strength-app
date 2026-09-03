@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { enhanceReplace } from '$lib/forms';
 	import { clearClientCaches } from '$lib/clientCache';
+	import Button from '$lib/components/Button.svelte';
 	import DashboardLineIcon from '@iconify-svelte/mingcute/dashboard-line';
 	import DashboardFillIcon from '@iconify-svelte/mingcute/dashboard-fill';
 	import GroupLineIcon from '@iconify-svelte/mingcute/group-line';
@@ -62,7 +63,7 @@
 					href={resolve(link.href)}
 					aria-current={active ? 'page' : undefined}
 					onclick={onclose}
-					class="flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium {active
+					class="flex items-center gap-3 rounded-r-lg border-l-2 px-3 py-2 text-sm font-medium {active
 						? 'border-primary bg-primary/10 text-primary'
 						: 'border-transparent text-base-content/60 hover:bg-base-200'}"
 				>
@@ -86,7 +87,7 @@
 				action="/auth/login?/logout"
 				use:enhance={enhanceReplace({ onDone: () => void clearClientCaches() })}
 			>
-				<button type="submit" class="btn tracking-wider uppercase btn-ghost btn-sm">Log out</button>
+				<Button variant="ghost" size="sm" type="submit">Log out</Button>
 			</form>
 		</div>
 	</div>

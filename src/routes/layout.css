@@ -15,6 +15,18 @@ body {
 	font-family: var(--font-body);
 }
 
+/* Every number input here has its own +/- buttons, so hide the native */
+/* spinner everywhere instead of repeating this per input. */
+input[type='number'] {
+	appearance: textfield;
+	-moz-appearance: textfield;
+}
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
 @theme {
 	--color-background: #0d0d0f;
 	--color-card: #141416;
