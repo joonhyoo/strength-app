@@ -6,6 +6,7 @@
 	import PasteLineIcon from '@iconify-svelte/mingcute/paste-line';
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
 	import DotGridLineIcon from '@iconify-svelte/mingcute/dot-grid-line';
+	import Button from '$lib/components/Button.svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import { CATEGORY_LABEL } from '$lib/data/categories';
@@ -218,13 +219,14 @@
 							Copied <span class="font-semibold">{clipboard.sessionName}</span> — pick a day below to
 							paste it in.
 						</span>
-						<button
-							type="button"
-							class="btn ml-auto tracking-wider uppercase btn-ghost btn-xs"
+						<Button
+							variant="ghost"
+							size="xs"
+							class="ml-auto"
 							onclick={() => builder.clearSessionClipboard()}
 						>
 							Done
-						</button>
+						</Button>
 					</div>
 					{#if pasteError}
 						<p class="mb-3 text-xs text-error">{pasteError}</p>
@@ -233,14 +235,14 @@
 				<div class="overflow-x-auto">
 					<div class="sticky left-0 z-10 mb-2 flex w-fit items-center gap-2 bg-base-100 pr-3">
 						<span class="font-mono text-xs text-base-content/50">Week {expandedWeekIndex + 1}</span>
-						<button
-							type="button"
-							class="btn tracking-wider text-error uppercase btn-ghost btn-xs"
+						<Button
+							variant="destructive"
+							size="xs"
 							onclick={() => handleDeleteWeek(expandedWeek.id)}
 						>
 							<Delete3LineIcon class="size-4" />
 							Delete week
-						</button>
+						</Button>
 					</div>
 
 					<div class="grid min-w-[640px] grid-cols-7 gap-2">
@@ -330,15 +332,15 @@
 						<div class="mb-2 flex items-center justify-between border-b border-base-300 pb-2">
 							<span class="font-semibold">{expandedSession.name}</span>
 							<span class="flex gap-1">
-								<button
-									type="button"
-									class="btn tracking-wider uppercase btn-ghost btn-xs"
+								<Button
+									variant="ghost"
+									size="xs"
 									aria-label={`Copy ${expandedSession.name} to another day`}
 									onclick={() => builder.copySession(expandedSession.id)}
 								>
 									<CopyLineIcon class="size-4" />
 									Copy
-								</button>
+								</Button>
 								<button
 									type="button"
 									class="btn btn-ghost btn-xs"
@@ -446,9 +448,9 @@
 						{/if}
 
 						<div class="mt-2 flex gap-2">
-							<button
-								type="button"
-								class="btn flex-1 border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
+							<Button
+								variant="dashed"
+								class="flex-1"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',
@@ -458,10 +460,9 @@
 							>
 								<PlusFillIcon class="size-4" />
 								Add exercise
-							</button>
-							<button
-								type="button"
-								class="btn border-dashed border-base-300 tracking-wider text-base-content/70 uppercase btn-neutral"
+							</Button>
+							<Button
+								variant="dashed-muted"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',
@@ -472,7 +473,7 @@
 							>
 								<Message3LineIcon class="size-5" />
 								Add note
-							</button>
+							</Button>
 						</div>
 					</div>
 				{/if}

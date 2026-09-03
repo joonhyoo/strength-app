@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import SubtractFillIcon from '@iconify-svelte/mingcute/subtract-fill';
+	import Button from '$lib/components/Button.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import {
 		getExerciseLibrary,
@@ -354,16 +355,8 @@
 			</label>
 
 			<div class="modal-action">
-				<button
-					type="button"
-					class="btn border border-error bg-transparent tracking-wider text-error uppercase hover:bg-error/10"
-					onclick={() => program.closeModal()}
-				>
-					Cancel
-				</button>
-				<button class="btn tracking-wider uppercase btn-primary" type="submit" disabled={!canSave}>
-					Save
-				</button>
+				<Button variant="destructive" onclick={() => program.closeModal()}>Cancel</Button>
+				<Button variant="primary" type="submit" disabled={!canSave}>Save</Button>
 			</div>
 		</form>
 	</div>

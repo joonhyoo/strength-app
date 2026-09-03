@@ -4,6 +4,7 @@
 	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
 	import DotGridLineIcon from '@iconify-svelte/mingcute/dot-grid-line';
+	import Button from '$lib/components/Button.svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getCachedWorkoutDay, getWorkoutDay } from '$lib/services/workoutService.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
@@ -180,22 +181,22 @@
 						})}
 					</h2>
 					<div class="flex shrink-0 gap-2">
-						<button
-							type="button"
-							class="btn tracking-wider uppercase btn-sm btn-neutral"
+						<Button
+							variant="secondary"
+							size="sm"
 							disabled={day.exercises.length === 0}
 							onclick={() => handleCopyDay(day)}
 						>
 							Copy day
-						</button>
-						<button
-							type="button"
-							class="btn tracking-wider uppercase btn-sm btn-primary"
+						</Button>
+						<Button
+							variant="primary"
+							size="sm"
 							disabled={!program.clipboard || program.clipboard.type !== 'day'}
 							onclick={() => handlePasteDay(day)}
 						>
 							Paste day
-						</button>
+						</Button>
 					</div>
 				</div>
 
@@ -280,20 +281,14 @@
 				{/if}
 
 				<div class="mt-2 flex gap-2">
-					<button
-						class="btn flex-1 border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
-						onclick={() => openAddExercise(day)}
-					>
+					<Button variant="dashed" class="flex-1" onclick={() => openAddExercise(day)}>
 						<PlusFillIcon class="size-4" />
 						Add exercise
-					</button>
-					<button
-						class="btn border-dashed border-base-300 tracking-wider text-base-content/70 uppercase btn-neutral"
-						onclick={() => openAddNote(day)}
-					>
+					</Button>
+					<Button variant="dashed-muted" onclick={() => openAddNote(day)}>
 						<Message3LineIcon class="size-5" />
 						Add note
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/Button.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 
 	const builder = getProgramBuilderState();
@@ -75,20 +76,10 @@
 			</label>
 
 			<div class="modal-action">
-				<button
-					type="button"
-					class="btn border border-error bg-transparent tracking-wider text-error uppercase hover:bg-error/10"
-					onclick={() => builder.closeModal()}
-				>
-					Cancel
-				</button>
-				<button
-					class="btn tracking-wider uppercase btn-primary"
-					type="submit"
-					disabled={saving || !name.trim()}
-				>
+				<Button variant="destructive" onclick={() => builder.closeModal()}>Cancel</Button>
+				<Button variant="primary" type="submit" disabled={saving || !name.trim()}>
 					{editingProgram ? 'Save' : 'Create'}
-				</button>
+				</Button>
 			</div>
 		</form>
 	</div>

@@ -2,6 +2,7 @@
 	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
+	import Button from '$lib/components/Button.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import CycleBand from './CycleBand.svelte';
 
@@ -57,14 +58,13 @@
 				<CycleBand {cycle} />
 			{/each}
 		{/if}
-		<button
-			type="button"
-			class="btn border-dashed border-base-300 tracking-wider text-primary uppercase btn-neutral"
+		<Button
+			variant="dashed"
 			onclick={() => builder.openModal({ type: 'cycle', programId: program.id, cycleId: null })}
 		>
 			<PlusFillIcon class="size-4" />
 			Add cycle
-		</button>
+		</Button>
 	</div>
 {:else}
 	<div class="card bg-base-100 shadow-sm">

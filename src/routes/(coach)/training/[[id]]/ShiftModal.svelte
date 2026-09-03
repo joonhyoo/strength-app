@@ -1,6 +1,7 @@
 <script lang="ts">
 	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import SubtractFillIcon from '@iconify-svelte/mingcute/subtract-fill';
+	import Button from '$lib/components/Button.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import { checkShiftConflicts, shiftSchedule } from '$lib/services/programTemplateService.svelte';
 
@@ -124,21 +125,14 @@
 		{/if}
 
 		<div class="modal-action">
-			<button
-				type="button"
-				class="btn border border-error bg-transparent tracking-wider text-error uppercase hover:bg-error/10"
-				onclick={() => program.closeShiftModal()}
-			>
-				Cancel
-			</button>
-			<button
-				type="button"
-				class="btn tracking-wider uppercase btn-primary"
+			<Button variant="destructive" onclick={() => program.closeShiftModal()}>Cancel</Button>
+			<Button
+				variant="primary"
 				disabled={shiftWeeks === 0 || moving === null || moving.length === 0 || submitting}
 				onclick={confirmShift}
 			>
 				Confirm shift
-			</button>
+			</Button>
 		</div>
 	</div>
 </dialog>

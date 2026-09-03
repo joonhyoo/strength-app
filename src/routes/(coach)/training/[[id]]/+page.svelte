@@ -5,6 +5,7 @@
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import { seedExerciseLibrary } from '$lib/data/exerciseLibrary.svelte';
 	import { checkPasteWeekConflicts } from '$lib/services/programService.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import MonthGrid from '$lib/components/MonthGrid.svelte';
 	import ProgramBreadcrumb from '$lib/components/ProgramBreadcrumb.svelte';
 	import WorkoutTimeline from './WorkoutTimeline.svelte';
@@ -123,14 +124,14 @@
 			from <strong>{cb.athleteName}</strong> — switch athlete or date, then use Paste where you want it
 			to land.
 		</span>
-		<button
-			type="button"
-			class="btn tracking-wider uppercase btn-ghost btn-sm"
+		<Button
+			variant="ghost"
+			size="sm"
 			aria-label="Clear clipboard"
 			onclick={() => program.clearClipboard()}
 		>
 			Clear
-		</button>
+		</Button>
 	</div>
 {/if}
 
@@ -171,44 +172,36 @@
 					<span class="w-full text-xs text-base-content/50"
 						>Week of {formatWeekLabel(program.selectedWeekStart)}</span
 					>
-					<button
-						type="button"
-						class="btn tracking-wider uppercase btn-sm btn-neutral"
-						onclick={() => program.openAssignModal()}
-					>
+					<Button variant="secondary" size="sm" onclick={() => program.openAssignModal()}>
 						Assign program
-					</button>
-					<button
-						type="button"
-						class="btn tracking-wider uppercase btn-sm btn-neutral"
+					</Button>
+					<Button
+						variant="secondary"
+						size="sm"
 						disabled={program.selectedWeekCount === 0}
 						onclick={() => handleCopyWeek(athlete.name)}
 					>
 						Copy week
-					</button>
-					<button
-						type="button"
-						class="btn tracking-wider uppercase btn-sm btn-primary"
+					</Button>
+					<Button
+						variant="primary"
+						size="sm"
 						disabled={!program.clipboard || program.clipboard.type !== 'week'}
 						onclick={() => handlePasteWeek(athlete.name)}
 					>
 						Paste week
-					</button>
-					<button
-						type="button"
-						class="btn border border-error bg-transparent tracking-wider text-error uppercase btn-sm hover:bg-error/10"
+					</Button>
+					<Button
+						variant="destructive"
+						size="sm"
 						disabled={program.selectedWeekCount === 0}
 						onclick={() => handleClearWeek(athlete.name)}
 					>
 						Clear week
-					</button>
-					<button
-						type="button"
-						class="btn tracking-wider uppercase btn-sm btn-neutral"
-						onclick={() => program.openShiftModal()}
-					>
+					</Button>
+					<Button variant="secondary" size="sm" onclick={() => program.openShiftModal()}>
 						Shift schedule
-					</button>
+					</Button>
 				</div>
 			{/if}
 		</div>
