@@ -24,11 +24,18 @@ export interface ProgramExerciseInput {
 }
 
 async function postProgram(action: string, data: Record<string, unknown>) {
-	const res = await fetch('/api/program', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ action, data })
-	});
+	let res: Response;
+	try {
+		res = await fetch('/api/program', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ action, data })
+		});
+	} catch {
+		// Offline / dropped connection — never rejects, so optimistic callers can
+		// treat it like any other failed write and roll back.
+		return { ok: false as const, error: 'Request failed.' };
+	}
 
 	if (!res.ok) {
 		const body = await res.json().catch(() => null);
