@@ -305,6 +305,10 @@
 				</div>
 			</div>
 
+			{#if workout.saveError}
+				<p class="shrink-0 pb-2 text-center text-xs text-error">{workout.saveError}</p>
+			{/if}
+
 			<div class="flex shrink-0 items-center justify-center gap-4">
 				{#if showSideButtons}
 					<button
