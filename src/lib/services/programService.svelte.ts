@@ -1,12 +1,30 @@
 import type { Exercise, ExerciseCategory } from '$lib/types';
 
+/**
+ * Normalises every `/api/workout` call to `{ ok, data | error }` (mirrors
+ * `postProgram` in programTemplateService) and never rejects — a network
+ * failure comes back as `{ ok: false }` too. Optimistic callers rely on this
+ * to know when to roll a local change back.
+ */
 async function postWorkout(action: string, data: Record<string, unknown>) {
-	const res = await fetch('/api/workout', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ action, data })
-	});
-	return res.json();
+	let res: Response;
+	try {
+		res = await fetch('/api/workout', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ action, data })
+		});
+	} catch {
+		return { ok: false as const, error: 'Request failed.' };
+	}
+
+	if (!res.ok) {
+		const body = await res.json().catch(() => null);
+		return { ok: false as const, error: body?.message ?? 'Request failed.' };
+	}
+
+	const { data: result } = await res.json();
+	return { ok: true as const, data: result };
 }
 
 export async function addExerciseToDay(athleteId: string, dateKey: string, exercise: Exercise) {
@@ -83,8 +101,9 @@ export async function checkPasteWeekConflicts(
 		destAthleteId,
 		destWeekStart
 	});
-	const { data } = res;
-	return data ?? { total: 0, conflicts: [] };
+	return res.ok
+		? ((res.data as { total: number; conflicts: string[] }) ?? { total: 0, conflicts: [] })
+		: { total: 0, conflicts: [] };
 }
 
 export async function pasteWeek(

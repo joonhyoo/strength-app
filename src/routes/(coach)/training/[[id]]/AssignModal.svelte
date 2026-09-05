@@ -24,7 +24,6 @@
 	let selectedProgramId = $state('');
 	let conflicts = $state<string[] | null>(null);
 	let totalSessions = $state(0);
-	let submitting = $state(false);
 	let loadToken = 0;
 
 	const startDate = $derived(program.selectedWeekStart);
@@ -51,10 +50,12 @@
 
 	async function confirmAssign() {
 		if (!selectedProgramId) return;
-		submitting = true;
-		await assignProgram(selectedProgramId, athleteId, startDate);
-		submitting = false;
-		await program.onScheduleChanged();
+		// Close now; the calendar + timeline refresh once the server has built the
+		// schedule, or show an inline error if it couldn't.
+		program.closeAssignModal();
+		const res = await assignProgram(selectedProgramId, athleteId, startDate);
+		if (res.ok) await program.onScheduleChanged();
+		else program.opError = res.error || 'Could not assign the program.';
 	}
 
 	let dialog = $state() as HTMLDialogElement;
@@ -118,7 +119,7 @@
 			<Button variant="destructive" onclick={() => program.closeAssignModal()}>Cancel</Button>
 			<Button
 				variant="primary"
-				disabled={!selectedProgramId || conflicts === null || submitting}
+				disabled={!selectedProgramId || conflicts === null}
 				onclick={confirmAssign}
 			>
 				Confirm assign

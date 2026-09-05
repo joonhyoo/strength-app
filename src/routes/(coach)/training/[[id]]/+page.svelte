@@ -2,10 +2,11 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
+	import { getCoachProgramState, type Clipboard } from '$lib/coachProgramState.svelte';
 	import { seedExerciseLibrary } from '$lib/data/exerciseLibrary.svelte';
 	import { checkPasteWeekConflicts } from '$lib/services/programService.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import CopyPasteButton from '$lib/components/CopyPasteButton.svelte';
 	import MonthGrid from '$lib/components/MonthGrid.svelte';
 	import ProgramBreadcrumb from '$lib/components/ProgramBreadcrumb.svelte';
 	import WorkoutTimeline from './WorkoutTimeline.svelte';
@@ -20,6 +21,15 @@
 	function formatWeekLabel(key: string) {
 		return parseKey(key).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
 	}
+
+	// The "copied" toast stays mounted and fades via a CSS class toggle (this
+	// app doesn't use Svelte's transition: directives), so it can animate out
+	// after `program.clipboard` clears on Cancel or a paste. `lastClipboard`
+	// holds its text steady through that fade.
+	let lastClipboard = $state<Clipboard | null>(null);
+	$effect(() => {
+		if (program.clipboard) lastClipboard = program.clipboard;
+	});
 
 	async function handleCopyWeek(name: string) {
 		program.copyWeek(name);
@@ -81,14 +91,25 @@
 			program.loadStatusMap();
 		} else {
 			program.selectAthlete(null);
+			program.weekDays = [];
 			program.statusMap.clear();
 		}
+	});
+
+	// The visible week's workout days — reloads whenever the athlete or the
+	// selected week changes ($derived so an in-week date tap doesn't refetch).
+	const weekStart = $derived(program.selectedWeekStart);
+	$effect(() => {
+		if (athlete) program.loadWeek(athlete.id, weekStart);
 	});
 
 	$effect(() => {
 		if (typeof document === 'undefined') return;
 		const handler = () => {
-			if (athlete) program.loadStatusMap();
+			if (athlete) {
+				program.loadWeek(athlete.id, program.selectedWeekStart);
+				program.loadStatusMap();
+			}
 		};
 		document.addEventListener('visibilitychange', handler);
 		return () => document.removeEventListener('visibilitychange', handler);
@@ -110,34 +131,40 @@
 	<title>Strength App — Training</title>
 </svelte:head>
 
-<h1 class="mt-4 mb-4 font-display text-xl font-bold uppercase">Training</h1>
-
-{#if program.clipboard}
-	{@const cb = program.clipboard}
-	<div
-		class="mt-4 flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm"
-	>
-		<span class="flex-1">
-			Copied {cb.type === 'day'
-				? formatWeekLabel(cb.dateKey)
-				: `the week of ${formatWeekLabel(cb.weekStart)}`}
-			from <strong>{cb.athleteName}</strong> — switch athlete or date, then use Paste where you want it
-			to land.
-		</span>
-		<Button
-			variant="ghost"
-			size="sm"
-			aria-label="Clear clipboard"
-			onclick={() => program.clearClipboard()}
+<div
+	class="fixed top-4 right-4 z-50 max-w-sm transition-opacity duration-200 {program.clipboard
+		? 'pointer-events-auto opacity-100'
+		: 'pointer-events-none opacity-0'}"
+	inert={!program.clipboard}
+>
+	{#if lastClipboard}
+		{@const cb = lastClipboard}
+		<div
+			class="flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm shadow-lg"
 		>
-			Clear
-		</Button>
-	</div>
-{/if}
+			<span class="flex-1">
+				Copied {cb.type === 'day'
+					? formatWeekLabel(cb.dateKey)
+					: `the week of ${formatWeekLabel(cb.weekStart)}`}
+				from <strong>{cb.athleteName}</strong>
+			</span>
+			<Button
+				variant="outline"
+				size="sm"
+				aria-label="Cancel copy"
+				onclick={() => program.clearClipboard()}
+			>
+				Cancel
+			</Button>
+		</div>
+	{/if}
+</div>
 
 <div class="my-4 grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-	<aside class="card h-fit bg-base-100 shadow-sm">
+	<aside class="card h-fit bg-base-100 shadow-sm lg:sticky lg:top-4 lg:z-10 lg:self-start">
 		<div class="card-body">
+			<h1 class="mb-2 font-display text-xl font-bold uppercase">Training</h1>
+
 			<label class="form-control w-full">
 				<span class="label">Athlete</span>
 				{#if athletes === null}
@@ -175,22 +202,14 @@
 					<Button variant="secondary" size="sm" onclick={() => program.openAssignModal()}>
 						Assign program
 					</Button>
-					<Button
-						variant="secondary"
-						size="sm"
-						disabled={program.selectedWeekCount === 0}
-						onclick={() => handleCopyWeek(athlete.name)}
-					>
-						Copy week
-					</Button>
-					<Button
-						variant="primary"
-						size="sm"
-						disabled={!program.clipboard || program.clipboard.type !== 'week'}
-						onclick={() => handlePasteWeek(athlete.name)}
-					>
-						Paste week
-					</Button>
+					<CopyPasteButton
+						mode={program.weekClipboardMode}
+						noun="week"
+						canCopy={program.selectedWeekCount > 0}
+						oncopy={() => handleCopyWeek(athlete.name)}
+						onpaste={() => handlePasteWeek(athlete.name)}
+						oncancel={() => program.clearClipboard()}
+					/>
 					<Button
 						variant="destructive"
 						size="sm"
@@ -207,6 +226,8 @@
 		</div>
 	</aside>
 
+	<hr class="border-t border-base-300 lg:hidden" />
+
 	{#if athletes === null}
 		<div class="card bg-base-100 shadow-sm">
 			<div class="card-body gap-3">
@@ -220,6 +241,8 @@
 				athleteId={athlete.id}
 				date={program.selectedDate}
 				revision={program.revision}
+				showLabel={false}
+				class="px-6"
 			/>
 			<WorkoutTimeline
 				athleteId={athlete.id}
