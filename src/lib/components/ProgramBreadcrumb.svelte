@@ -12,11 +12,13 @@
 		date,
 		revision = 0,
 		showLabel = true,
-		onResolved
+		onResolved,
+		class: extraClass = ''
 	}: {
 		athleteId: string;
 		date: Date;
 		revision?: number;
+		class?: string;
 		/** Set false to render only the Program › Cycle › Week X of Y line,
 		 * without the trailing day-label chip — used on the coach Training
 		 * page, where WorkoutTimeline shows each visible day's own label
@@ -64,7 +66,7 @@
 </script>
 
 {#if crumb}
-	<nav class="mb-4 flex flex-wrap items-center gap-1 text-sm">
+	<nav class="mb-4 flex flex-wrap items-center gap-1 text-sm {extraClass}">
 		<span class="text-base-content/60">{crumb.programName}</span>
 		<span class="text-base-content/40">›</span>
 		<span class="text-base-content/60">{crumb.cycleName}</span>
