@@ -81,14 +81,25 @@
 			program.loadStatusMap();
 		} else {
 			program.selectAthlete(null);
+			program.weekDays = [];
 			program.statusMap.clear();
 		}
+	});
+
+	// The visible week's workout days — reloads whenever the athlete or the
+	// selected week changes ($derived so an in-week date tap doesn't refetch).
+	const weekStart = $derived(program.selectedWeekStart);
+	$effect(() => {
+		if (athlete) program.loadWeek(athlete.id, weekStart);
 	});
 
 	$effect(() => {
 		if (typeof document === 'undefined') return;
 		const handler = () => {
-			if (athlete) program.loadStatusMap();
+			if (athlete) {
+				program.loadWeek(athlete.id, program.selectedWeekStart);
+				program.loadStatusMap();
+			}
 		};
 		document.addEventListener('visibilitychange', handler);
 		return () => document.removeEventListener('visibilitychange', handler);
