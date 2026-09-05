@@ -454,6 +454,25 @@ class CoachProgramState {
 		this.clipboard = null;
 	}
 
+	/** Which of the merged copy/paste affordances a day cell should show:
+	 * 'cancel' on the day that's currently copied, 'paste' on every other day
+	 * once something's on the clipboard, 'copy' otherwise. */
+	dayClipboardMode(athleteId: string, dateKey: string): 'copy' | 'paste' | 'cancel' {
+		const cb = this.clipboard;
+		if (cb?.type !== 'day') return 'copy';
+		if (cb.athleteId === athleteId && cb.dateKey === dateKey) return 'cancel';
+		return 'paste';
+	}
+
+	/** Same three-way state for the selected week's toolbar button. */
+	get weekClipboardMode(): 'copy' | 'paste' | 'cancel' {
+		const cb = this.clipboard;
+		if (cb?.type !== 'week') return 'copy';
+		if (cb.athleteId === this.selectedAthleteId && cb.weekStart === this.selectedWeekStart)
+			return 'cancel';
+		return 'paste';
+	}
+
 	// Paste / assign / shift are server-orchestrated (deep copy with fresh ids,
 	// or an RPC that generates a schedule from a template) — too much to
 	// reconstruct client-side, so these keep a brief wait (assign/shift close
@@ -475,6 +494,9 @@ class CoachProgramState {
 			this.opError = res.error || 'Could not paste the day.';
 			return;
 		}
+		// One paste per copy — clearing here resets every day's button back to
+		// "Copy" and dismisses the toast.
+		this.clipboard = null;
 		this.revision++;
 		await Promise.all([this.loadWeek(athleteId, weekStart), this.loadStatusMap()]);
 	}
@@ -491,6 +513,7 @@ class CoachProgramState {
 			this.opError = res.error || 'Could not paste the week.';
 			return;
 		}
+		this.clipboard = null;
 		this.revision++;
 		await Promise.all([this.loadWeek(athleteId, weekStart), this.loadStatusMap()]);
 	}

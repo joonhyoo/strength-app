@@ -5,6 +5,7 @@
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
 	import DotGridLineIcon from '@iconify-svelte/mingcute/dot-grid-line';
 	import Button from '$lib/components/Button.svelte';
+	import CopyPasteButton from '$lib/components/CopyPasteButton.svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getCoachProgramState, type DayEntry } from '$lib/coachProgramState.svelte';
 	import type { Exercise } from '$lib/types';
@@ -90,7 +91,7 @@
 			bind:this={dayEls[day.dateKey]}
 			class="card w-full min-w-0 border-2 bg-base-100 shadow-sm {day.dateKey === focusDateKey
 				? 'border-primary'
-				: 'border-transparent'}"
+				: 'border-base-300'}"
 		>
 			<div class="card-body">
 				<div class="flex flex-wrap items-center justify-between gap-2">
@@ -108,24 +109,14 @@
 							</span>
 						{/if}
 					</div>
-					<div class="flex shrink-0 gap-2">
-						<Button
-							variant="secondary"
-							size="sm"
-							disabled={day.exercises.length === 0}
-							onclick={() => handleCopyDay(day)}
-						>
-							Copy day
-						</Button>
-						<Button
-							variant="primary"
-							size="sm"
-							disabled={!program.clipboard || program.clipboard.type !== 'day'}
-							onclick={() => handlePasteDay(day)}
-						>
-							Paste day
-						</Button>
-					</div>
+					<CopyPasteButton
+						mode={program.dayClipboardMode(athleteId, day.dateKey)}
+						noun="day"
+						canCopy={day.exercises.length > 0}
+						oncopy={() => handleCopyDay(day)}
+						onpaste={() => handlePasteDay(day)}
+						oncancel={() => program.clearClipboard()}
+					/>
 				</div>
 
 				{#if day.loading}
@@ -164,7 +155,7 @@
 									></span>
 								</div>
 
-								<div class="flex min-w-0 flex-1 items-center gap-3 py-1">
+								<div class="flex min-w-0 flex-1 items-center gap-3 py-3">
 									<div class="min-w-0 flex-1">
 										{#if exercise.category === 'note'}
 											<p class="text-sm break-words text-base-content/80">{exercise.note}</p>
@@ -214,8 +205,8 @@
 					</div>
 				{/if}
 
-				<div class="mt-2 flex gap-2">
-					<Button variant="dashed" class="flex-1" onclick={() => openAddExercise(day)}>
+				<div class="mt-2 flex justify-center gap-2">
+					<Button variant="dashed" onclick={() => openAddExercise(day)}>
 						<PlusFillIcon class="size-4" />
 						Add exercise
 					</Button>
