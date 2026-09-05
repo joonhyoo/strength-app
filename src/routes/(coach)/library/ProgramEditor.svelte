@@ -19,6 +19,10 @@
 	}
 </script>
 
+{#if builder.opError}
+	<p class="mb-3 rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{builder.opError}</p>
+{/if}
+
 {#if builder.selectedProgram}
 	{@const program = builder.selectedProgram}
 	<div class="flex items-start justify-between gap-4">

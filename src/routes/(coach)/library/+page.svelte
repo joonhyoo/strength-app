@@ -59,7 +59,6 @@
 	let newName = $state('');
 	let newCategory = $state<ExerciseCategory>('warmup');
 	let newVideoUrl = $state('');
-	let adding = $state(false);
 	let addError = $state('');
 
 	async function handleAdd(e: SubmitEvent) {
@@ -72,16 +71,19 @@
 			return;
 		}
 
-		adding = true;
+		// The row appears in the catalog straight away; clear the form now.
 		addError = '';
-		await addExerciseDefinition({
-			name,
-			category: newCategory,
-			videoUrl: newVideoUrl.trim() || undefined
-		});
+		const category = newCategory;
+		const videoUrl = newVideoUrl.trim() || undefined;
 		newName = '';
 		newVideoUrl = '';
-		adding = false;
+
+		const res = await addExerciseDefinition({ name, category, videoUrl });
+		if (!res.ok) {
+			addError = res.error ?? 'Failed to add exercise.';
+			newName = name;
+			newVideoUrl = videoUrl ?? '';
+		}
 	}
 
 	let editingId = $state<string | null>(null);
@@ -89,8 +91,6 @@
 	let editCategory = $state<ExerciseCategory>('warmup');
 	let editVideoUrl = $state('');
 	let editError = $state('');
-	let saving = $state(false);
-	let deletingId = $state<string | null>(null);
 	let rowError = $state<{ id: string; message: string } | null>(null);
 
 	function startEdit(item: ExerciseDef) {
@@ -114,35 +114,32 @@
 		const name = editName.trim();
 		if (!name) return;
 
-		saving = true;
+		// Close the row editor now — the change is already live in the list.
+		const id = editingId;
 		editError = '';
+		editingId = null;
+
 		const result = await updateExerciseDefinition({
-			id: editingId,
+			id,
 			name,
 			category: editCategory,
 			videoUrl: editVideoUrl.trim() || undefined
 		});
-		saving = false;
 
 		if (!result.ok) {
+			// Reopen so the coach sees the error; the edit fields still hold their attempt.
+			editingId = id;
 			editError = result.error ?? 'Failed to update exercise.';
-			return;
 		}
-
-		editingId = null;
 	}
 
 	async function handleDelete(item: ExerciseDef) {
 		if (!confirm(`Warning: are you sure you want to delete "${item.name}"?`)) return;
 
-		deletingId = item.id;
 		rowError = null;
 		const result = await deleteExerciseDefinition(item.id);
-		deletingId = null;
-
 		if (!result.ok) {
 			rowError = { id: item.id, message: result.error ?? 'Failed to delete exercise.' };
-			return;
 		}
 	}
 </script>
@@ -207,9 +204,7 @@
 						{#if addError}
 							<p class="text-xs text-error">{addError}</p>
 						{/if}
-						<Button variant="primary" type="submit" disabled={adding || !newName.trim()}>
-							{adding ? 'Adding...' : 'Add exercise'}
-						</Button>
+						<Button variant="primary" type="submit" disabled={!newName.trim()}>Add exercise</Button>
 					</form>
 				</div>
 			</div>
@@ -295,9 +290,9 @@
 																variant="primary"
 																size="sm"
 																type="submit"
-																disabled={saving || !editName.trim()}
+																disabled={!editName.trim()}
 															>
-																{saving ? 'Saving...' : 'Save'}
+																Save
 															</Button>
 															<Button variant="ghost" size="sm" type="button" onclick={cancelEdit}>
 																Cancel
@@ -323,14 +318,9 @@
 																type="button"
 																class="btn text-error btn-ghost btn-sm"
 																aria-label={`Delete ${item.name}`}
-																disabled={deletingId === item.id}
 																onclick={() => handleDelete(item)}
 															>
-																{#if deletingId === item.id}
-																	<span class="loading loading-sm loading-spinner"></span>
-																{:else}
-																	<Delete3LineIcon class="size-5" />
-																{/if}
+																<Delete3LineIcon class="size-5" />
 															</button>
 														</div>
 													</div>

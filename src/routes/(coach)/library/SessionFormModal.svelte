@@ -23,7 +23,6 @@
 	});
 
 	let name = $state('');
-	let saving = $state(false);
 
 	$effect(() => {
 		if (!builder.modal) return;
@@ -39,12 +38,11 @@
 		};
 	});
 
-	async function submit() {
+	function submit() {
 		const trimmed = name.trim();
 		if (!trimmed) return;
-		saving = true;
-		await builder.saveSession(weekId, dayNumber, editingSessionId, trimmed);
-		saving = false;
+		// Applies optimistically and closes this modal itself.
+		builder.saveSession(weekId, dayNumber, editingSessionId, trimmed);
 	}
 </script>
 
@@ -70,7 +68,7 @@
 
 			<div class="modal-action">
 				<Button variant="destructive" onclick={() => builder.closeModal()}>Cancel</Button>
-				<Button variant="primary" type="submit" disabled={saving || !name.trim()}>
+				<Button variant="primary" type="submit" disabled={!name.trim()}>
 					{editingSession ? 'Save' : 'Add session'}
 				</Button>
 			</div>

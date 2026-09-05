@@ -207,7 +207,7 @@
 				{#if weekPending}
 					<p class="mb-2 flex items-center gap-2 text-xs text-base-content/60">
 						<span class="loading loading-xs loading-spinner"></span>
-						Copying week…
+						Saving…
 					</p>
 				{/if}
 				{#if clipboard}
@@ -366,8 +366,8 @@
 							</span>
 						</div>
 
-						{#if builder.exerciseOpError}
-							<p class="mt-2 text-xs text-error">{builder.exerciseOpError}</p>
+						{#if builder.opError}
+							<p class="mt-2 text-xs text-error">{builder.opError}</p>
 						{/if}
 
 						{#if dragItems.length === 0}

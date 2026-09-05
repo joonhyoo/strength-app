@@ -25,7 +25,6 @@
 	let shiftWeeks = $state(1);
 	let moving = $state<string[] | null>(null);
 	let conflicts = $state<string[]>([]);
-	let submitting = $state(false);
 	let loadToken = 0;
 
 	const fromDate = $derived(program.selectedWeekStart);
@@ -76,10 +75,12 @@
 
 	async function confirmShift() {
 		if (shiftWeeks === 0) return;
-		submitting = true;
-		await shiftSchedule(athleteId, fromDate, shiftWeeks);
-		submitting = false;
-		await program.onScheduleChanged();
+		// Close now; the calendar + timeline refresh once the server has moved the
+		// sessions, or show an inline error if it couldn't.
+		program.closeShiftModal();
+		const res = await shiftSchedule(athleteId, fromDate, shiftWeeks);
+		if (res.ok) await program.onScheduleChanged();
+		else program.opError = res.error || 'Could not shift the schedule.';
 	}
 
 	let dialog = $state() as HTMLDialogElement;
@@ -154,7 +155,7 @@
 			<Button variant="destructive" onclick={() => program.closeShiftModal()}>Cancel</Button>
 			<Button
 				variant="primary"
-				disabled={shiftWeeks === 0 || moving === null || moving.length === 0 || submitting}
+				disabled={shiftWeeks === 0 || moving === null || moving.length === 0}
 				onclick={confirmShift}
 			>
 				Confirm shift

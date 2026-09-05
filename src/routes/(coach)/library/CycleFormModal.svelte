@@ -18,7 +18,6 @@
 	let name = $state('');
 	let goal = $state('');
 	let colorKey = $state<ColorKey>(DEFAULT_CYCLE_COLOR);
-	let saving = $state(false);
 
 	$effect(() => {
 		if (!builder.modal) return;
@@ -36,12 +35,11 @@
 		};
 	});
 
-	async function submit() {
+	function submit() {
 		const trimmed = name.trim();
 		if (!trimmed) return;
-		saving = true;
-		await builder.saveCycle(programId, editingCycleId, trimmed, goal.trim(), colorKey);
-		saving = false;
+		// Applies optimistically and closes this modal itself.
+		builder.saveCycle(programId, editingCycleId, trimmed, goal.trim(), colorKey);
 	}
 </script>
 
@@ -99,7 +97,7 @@
 
 			<div class="modal-action">
 				<Button variant="destructive" onclick={() => builder.closeModal()}>Cancel</Button>
-				<Button variant="primary" type="submit" disabled={saving || !name.trim()}>
+				<Button variant="primary" type="submit" disabled={!name.trim()}>
 					{editingCycle ? 'Save' : 'Add cycle'}
 				</Button>
 			</div>
