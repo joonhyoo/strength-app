@@ -1,42 +1,105 @@
-# sv
+<p align="center">
+  <img src="static/favicon.svg" width="64" height="64" alt="Strength App logo">
+</p>
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+<h1 align="center">Strength App</h1>
 
-## Creating a project
+A coaching platform where coaches build and assign strength training programs, and athletes
+train from them. Built with SvelteKit and Supabase.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Features
+
+**Coaches**
+
+- Build a reusable exercise/program library (cycles → sessions → exercises)
+- Schedule programs onto a training calendar and shift/assign them per athlete
+- Invite athletes by email and manage their roster
+
+**Athletes**
+
+- View today's (or any day's) workout and log sets, reps, and weight while training
+- Pull up an exercise's history to see past sessions right from the workout
+- Calendar and personal-records views are in progress
+
+## Screenshots
+
+| Program library | Training timeline |
+| :--- | :--- |
+| ![Coach program library](docs/screenshots/coach-library.png) | ![Coach training timeline](docs/screenshots/coach-training.png) |
+
+| Athlete roster | Athlete workout view |
+| :--- | :--- |
+| ![Coach athlete roster](docs/screenshots/coach-athletes.png) | ![Athlete workout view](docs/screenshots/athlete-train.png) |
+
+## Tech Stack
+
+| Technology | Use case                        |
+| :--------- | :------------------------------- |
+| SvelteKit  | Fullstack framework (Svelte 5)   |
+| TypeScript | Type checking                    |
+| Tailwind + DaisyUI | Styling                   |
+| Supabase   | Auth + Postgres database         |
+| Vercel     | Hosting (adapter-vercel)         |
+| Vitest + Playwright | Testing                 |
+
+## Getting Started
+
+### Prerequisites
+
+- Node 22+
+- [Supabase CLI](https://supabase.com/docs/guides/cli) and Docker (for local Supabase)
+
+### Setup
 
 ```sh
-# create a new project
-npx sv create my-app
+npm install
+supabase start        # boots local Postgres/Auth/Storage
+cp .env.example .env.local
 ```
 
-To recreate this project with the same configuration:
+Fill in `.env.local`:
+
+- `PUBLIC_SUPABASE_URL` / `PUBLIC_SUPABASE_PUBLISHABLE_KEY` — from `supabase status`
+- `SUPABASE_SECRET_KEY` — also from `supabase status` locally; see comments in
+  `.env.example` for production (Vercel) setup
 
 ```sh
-# recreate this project
-npx sv@0.15.4 create --template minimal --types ts --add prettier eslint vitest="usages:unit,component" tailwindcss="plugins:none" sveltekit-adapter="adapter:auto" --install npm ./
+npm run dev            # start the dev server
+npm run dev -- --open  # ...and open it in a browser
 ```
 
-## Developing
+### Scripts
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+| Command | Description |
+| :--- | :--- |
+| `npm run dev` | Start the dev server |
+| `npm run build` | Production build |
+| `npm run preview` | Preview the production build |
+| `npm run check` | Type-check (svelte-check) |
+| `npm run lint` | Prettier + ESLint check |
+| `npm run format` | Prettier write |
+| `npm run test` | Run the test suite once |
 
-```sh
-npm run dev
+## Project Structure
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+```
+src/
+  routes/
+    (coach)/     coach dashboard, athlete roster, program library, training calendar
+    (athlete)/   train view, calendar, records, profile
+    auth/        login, signup, email confirmation
+    api/         JSON endpoints backing client-side data fetching
+  lib/
+    components/  shared UI components
+    services/    client-side data-fetching services (*.svelte.ts)
+    server/      server-only code (admin Supabase client, program scheduling)
+    data/        static reference data (categories, cycle colors)
+supabase/
+  migrations/    schema migrations
+  templates/     auth email templates
 ```
 
-## Building
+## Deployment
 
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Deployed to Vercel. Production Supabase config (auth providers, email templates, API keys)
+is set in the Supabase dashboard, not in `supabase/config.toml` (which only applies locally).
