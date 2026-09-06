@@ -5,6 +5,7 @@
 	import { getCoachProgramState, type Clipboard } from '$lib/coachProgramState.svelte';
 	import { seedExerciseLibrary } from '$lib/data/exerciseLibrary.svelte';
 	import { checkPasteWeekConflicts } from '$lib/services/programService.svelte';
+	import { formatDayMonth } from '$lib/dateKey';
 	import Button from '$lib/components/Button.svelte';
 	import CopyPasteButton from '$lib/components/CopyPasteButton.svelte';
 	import MonthGrid from '$lib/components/MonthGrid.svelte';
@@ -13,14 +14,6 @@
 	import type { Athlete } from '$lib/types';
 
 	const program = getCoachProgramState();
-
-	function parseKey(key: string) {
-		const [y, m, d] = key.split('-').map(Number);
-		return new Date(y, m - 1, d);
-	}
-	function formatWeekLabel(key: string) {
-		return parseKey(key).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
-	}
 
 	// The "copied" toast stays mounted and fades via a CSS class toggle (this
 	// app doesn't use Svelte's transition: directives), so it can animate out
@@ -51,7 +44,7 @@
 		);
 
 		if (conflicts.length > 0) {
-			const dates = conflicts.map(formatWeekLabel).join(', ');
+			const dates = conflicts.map(formatDayMonth).join(', ');
 			if (
 				!confirm(
 					`Pasting this week onto ${name} will replace their existing workout on: ${dates}. Continue?`
@@ -68,7 +61,7 @@
 		if (count === 0) return;
 		if (
 			!confirm(
-				`This removes ${count} workout${count === 1 ? '' : 's'} from the week of ${formatWeekLabel(program.selectedWeekStart)} for ${name}. This can't be undone.`
+				`This removes ${count} workout${count === 1 ? '' : 's'} from the week of ${formatDayMonth(program.selectedWeekStart)} for ${name}. This can't be undone.`
 			)
 		)
 			return;
@@ -144,8 +137,8 @@
 		>
 			<span class="flex-1">
 				Copied {cb.type === 'day'
-					? formatWeekLabel(cb.dateKey)
-					: `the week of ${formatWeekLabel(cb.weekStart)}`}
+					? formatDayMonth(cb.dateKey)
+					: `the week of ${formatDayMonth(cb.weekStart)}`}
 				from <strong>{cb.athleteName}</strong>
 			</span>
 			<Button
@@ -197,7 +190,7 @@
 					class="mt-3 flex flex-wrap items-center gap-2 border-t border-dashed border-base-300 pt-3"
 				>
 					<span class="w-full text-xs text-base-content/50"
-						>Week of {formatWeekLabel(program.selectedWeekStart)}</span
+						>Week of {formatDayMonth(program.selectedWeekStart)}</span
 					>
 					<Button variant="secondary" size="sm" onclick={() => program.openAssignModal()}>
 						Assign program

@@ -8,6 +8,7 @@
 	import CopyPasteButton from '$lib/components/CopyPasteButton.svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getCoachProgramState, type DayEntry } from '$lib/coachProgramState.svelte';
+	import { toKey } from '$lib/dateKey';
 	import type { Exercise } from '$lib/types';
 	import { CATEGORY_LABEL } from '$lib/data/categories';
 	import { formatPlan } from '$lib/formatPlan';
@@ -24,7 +25,7 @@
 	let { athleteId, athleteName, date }: { athleteId: string; athleteName: string; date: Date } =
 		$props();
 
-	const focusDateKey = $derived(date.toLocaleDateString('fr-CA'));
+	const focusDateKey = $derived(toKey(date));
 
 	// Plain (non-reactive) DOM refs for scrolling a day's section into view —
 	// same pattern as OtpInput.svelte's `inputs` array.

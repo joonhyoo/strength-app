@@ -8,6 +8,7 @@
 	import ProgramBreadcrumb from '$lib/components/ProgramBreadcrumb.svelte';
 	import { getCachedWorkoutDay, getWorkoutDay } from '$lib/services/workoutService.svelte';
 	import { initWorkoutState } from '$lib/workoutState.svelte';
+	import { toKey } from '$lib/dateKey';
 
 	const workout = initWorkoutState();
 	let date = new SvelteDate();
@@ -56,7 +57,7 @@
 
 	async function loadDay() {
 		const athleteId = page.data.user?.id ?? '';
-		const dateKey = date.toLocaleDateString('fr-CA');
+		const dateKey = toKey(date);
 		// Swiping days fires overlapping loads; only the newest may write state.
 		const token = ++loadToken;
 

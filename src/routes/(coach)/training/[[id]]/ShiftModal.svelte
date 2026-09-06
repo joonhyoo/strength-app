@@ -3,6 +3,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import { checkShiftConflicts, shiftSchedule } from '$lib/services/programTemplateService.svelte';
+	import { formatDayMonth } from '$lib/dateKey';
 
 	let { athleteId, athleteName }: { athleteId: string; athleteName: string } = $props();
 
@@ -13,14 +14,6 @@
 	// border or background, so it stays consistent across the app.
 	const stepBtn =
 		'flex size-9 cursor-pointer items-center justify-center rounded-full text-base-content/80 transition-colors duration-150 active:text-base-content/45';
-
-	function parseKey(key: string) {
-		const [y, m, d] = key.split('-').map(Number);
-		return new Date(y, m - 1, d);
-	}
-	function formatShort(key: string) {
-		return parseKey(key).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
-	}
 
 	let shiftWeeks = $state(1);
 	let moving = $state<string[] | null>(null);
@@ -99,7 +92,7 @@
 
 		<p class="mb-4 text-sm text-base-content/60">
 			Moves <strong class="text-base-content">{athleteName}</strong>'s schedule from the week of
-			<strong class="text-base-content">{formatShort(fromDate)}</strong> onward{directionNote}
+			<strong class="text-base-content">{formatDayMonth(fromDate)}</strong> onward{directionNote}
 		</p>
 
 		<label class="form-control mb-4 w-full">
@@ -144,7 +137,7 @@
 						: 'have'} a workout that will be <strong>replaced</strong>:
 					<ul class="mt-1 list-disc pl-5">
 						{#each conflicts as dateKey (dateKey)}
-							<li>{formatShort(dateKey)}</li>
+							<li>{formatDayMonth(dateKey)}</li>
 						{/each}
 					</ul>
 				</div>

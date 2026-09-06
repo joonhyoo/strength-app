@@ -6,6 +6,7 @@
 		getExerciseHistory,
 		type ExerciseHistorySession
 	} from '$lib/services/workoutService.svelte';
+	import { parseKey } from '$lib/dateKey';
 
 	let {
 		athleteId,
@@ -46,8 +47,7 @@
 	}
 
 	function formatDate(key: string) {
-		const [y, m, d] = key.split('-').map(Number);
-		return new Date(y, m - 1, d).toLocaleDateString('en-AU', {
+		return parseKey(key).toLocaleDateString('en-AU', {
 			weekday: 'short',
 			day: 'numeric',
 			month: 'short',

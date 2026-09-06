@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getOrCreateExercise } from '$lib/server/exercises';
-import { addDays, diffDays } from '$lib/server/programSchedule';
+import { addDays, diffDays } from '$lib/dateKey';
 import { postHandler, json } from '$lib/server/apiHandler';
 import { dbList, dbMaybe, dbWrite, dbWriteReturning } from '$lib/server/db';
 import type { Logger } from '$lib/server/log';

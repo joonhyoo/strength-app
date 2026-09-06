@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getBreadcrumb } from '$lib/services/programTemplateService.svelte';
+	import { toKey } from '$lib/dateKey';
 	import type { Breadcrumb } from '$lib/types';
 
 	// `revision` is an opaque counter the caller bumps after a mutation that
@@ -25,7 +26,7 @@
 		showLabel?: boolean;
 	} = $props();
 
-	const dateKey = $derived(date.toLocaleDateString('fr-CA'));
+	const dateKey = $derived(toKey(date));
 
 	let crumb = $state<Breadcrumb | null>(null);
 	let loadToken = 0;
