@@ -1,39 +1,9 @@
 import type { Exercise, ExerciseCategory } from '$lib/types';
+import { postApi } from './api';
 
-/**
- * Normalises every `/api/workout` call to `{ ok, data | error }` (mirrors
- * `postProgram` in programTemplateService) and never rejects — a network
- * failure comes back as `{ ok: false }` too. Optimistic callers rely on this
- * to know when to roll a local change back.
- *
- * `error` is set only for a 4xx (a user-actionable reason like "that day
- * already has a session"). A 5xx or a network failure leaves it undefined —
- * the server log has the real cause, and the caller shows its own contextual
- * "Could not X — reverted." message instead of a bare "Something went wrong".
- */
-async function postWorkout(action: string, data: Record<string, unknown>) {
-	let res: Response;
-	try {
-		res = await fetch('/api/workout', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ action, data })
-		});
-	} catch (e) {
-		console.error(`[api] POST /api/workout ${action} — network failure`, e);
-		return { ok: false as const, error: undefined };
-	}
-
-	if (!res.ok) {
-		const body = await res.json().catch(() => null);
-		console.error(`[api] POST /api/workout ${action} → ${res.status}`, body);
-		const error = res.status < 500 ? (body?.message as string | undefined) : undefined;
-		return { ok: false as const, error };
-	}
-
-	const { data: result } = await res.json();
-	return { ok: true as const, data: result };
-}
+/** Every `/api/workout` call, normalised to `{ ok, data | error }` — see `postApi`. */
+const postWorkout = (action: string, data: Record<string, unknown>) =>
+	postApi('/api/workout', action, data);
 
 export async function addExerciseToDay(athleteId: string, dateKey: string, exercise: Exercise) {
 	const category: ExerciseCategory = exercise.category;

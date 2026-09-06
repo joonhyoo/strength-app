@@ -5,6 +5,7 @@ import type {
 	Breadcrumb,
 	AssignmentDate
 } from '$lib/types';
+import { postApi } from './api';
 
 export type { ColorKey, ProgramDetail, Breadcrumb, AssignmentDate };
 
@@ -23,34 +24,9 @@ export interface ProgramExerciseInput {
 	plan: number[];
 }
 
-async function postProgram(action: string, data: Record<string, unknown>) {
-	let res: Response;
-	try {
-		res = await fetch('/api/program', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ action, data })
-		});
-	} catch (e) {
-		// Offline / dropped connection — never rejects, so optimistic callers can
-		// treat it like any other failed write and roll back.
-		console.error(`[api] POST /api/program ${action} — network failure`, e);
-		return { ok: false as const, error: undefined };
-	}
-
-	if (!res.ok) {
-		const body = await res.json().catch(() => null);
-		console.error(`[api] POST /api/program ${action} → ${res.status}`, body);
-		// Only a 4xx carries a user-actionable reason; a 5xx / network failure
-		// leaves `error` undefined so the caller uses its own contextual message
-		// (the server log has the real cause).
-		const error = res.status < 500 ? (body?.message as string | undefined) : undefined;
-		return { ok: false as const, error };
-	}
-
-	const { data: result } = await res.json();
-	return { ok: true as const, data: result };
-}
+/** Every `/api/program` call, normalised to `{ ok, data | error }` — see `postApi`. */
+const postProgram = (action: string, data: Record<string, unknown>) =>
+	postApi('/api/program', action, data);
 
 export async function listPrograms() {
 	const res = await postProgram('listPrograms', {});

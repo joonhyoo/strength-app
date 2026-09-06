@@ -1,4 +1,5 @@
 import type { ExerciseCategory } from '$lib/types';
+import { fetchApi, postApi } from '$lib/services/api';
 
 export type ExerciseDef = {
 	id: string;
@@ -61,39 +62,17 @@ export function seedExerciseLibrary(data: ExerciseRow[]) {
 
 export async function loadExerciseLibrary() {
 	if (loaded) return;
-
-	const res = await fetch('/api/exercises', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ action: 'list' })
-	});
-
-	if (res.ok) {
-		const { data } = (await res.json()) as { data: ExerciseRow[] };
-		exercises = data.map(fromRow);
-		loaded = true;
-	}
-}
-
-async function postExercise(action: string, data: Record<string, unknown>) {
 	try {
-		const res = await fetch('/api/exercises', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ action, data })
-		});
-		if (res.ok) return { ok: true as const, data: (await res.json()).data };
-		const body = await res.json().catch(() => null);
-		console.error(`[api] POST /api/exercises ${action} → ${res.status}`, body);
-		// 4xx only ("An exercise with that name already exists"); a 5xx leaves
-		// `error` undefined for the caller's own fallback.
-		const error = res.status < 500 ? (body?.message as string | undefined) : undefined;
-		return { ok: false as const, error };
-	} catch (e) {
-		console.error(`[api] POST /api/exercises ${action} — network failure`, e);
-		return { ok: false as const, error: undefined };
+		exercises = (await fetchApi<ExerciseRow[]>('/api/exercises', 'list')).map(fromRow);
+		loaded = true;
+	} catch {
+		// Leave the catalog unloaded — a later call retries.
 	}
 }
+
+/** Every `/api/exercises` call, normalised to `{ ok, data | error }` — see `postApi`. */
+const postExercise = (action: string, data: Record<string, unknown>) =>
+	postApi('/api/exercises', action, data);
 
 /**
  * The three catalog mutations below all apply their change to `exercises`
@@ -120,7 +99,9 @@ export async function addExerciseDefinition(def: {
 		return { ok: false, error: res.error ?? 'Failed to add exercise' };
 	}
 
-	exercises = exercises.map((e) => (e.id === temp.id ? { ...e, id: res.data.id } : e));
+	exercises = exercises.map((e) =>
+		e.id === temp.id ? { ...e, id: (res.data as { id: string }).id } : e
+	);
 	return { ok: true };
 }
 

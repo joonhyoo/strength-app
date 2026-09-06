@@ -1,6 +1,7 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { CONDITIONING_CATEGORIES, countsTowardCompletion, type DayStatus } from '$lib/complete';
 import type { Exercise, ExerciseCategory } from '$lib/types';
+import { fetchApi } from './api';
 
 /**
  * Day + status-map caches for optimistic rendering. A service worker can't do
@@ -106,20 +107,15 @@ export function dayStatusFromExercises(
 }
 
 export async function getWorkoutDay(athleteId: string, dateKey: string): Promise<Exercise[]> {
-	const res = await fetch('/api/workout', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ action: 'getDay', data: { athleteId, dateKey } })
+	// `fetchApi` throws on a non-2xx (and `fetch` already throws when offline)
+	// rather than resolving `[]` — the callers can't tell an empty result apart
+	// from a real rest day, so a swallowed failure would render "no workout" over
+	// a transient blip. Throwing lets them show a "couldn't load" state and leave
+	// any cached day standing.
+	const workout = await fetchApi<Record<string, unknown> | null>('/api/workout', 'getDay', {
+		athleteId,
+		dateKey
 	});
-
-	// A failed request is not an answer. Throw rather than returning `[]` — the
-	// callers can't tell an empty array apart from a real rest day, so they'd
-	// render "no workout" over a transient network failure. Throwing lets them
-	// show a "couldn't load" state and leave any cached day standing.
-	// (A `fetch` rejection from being offline already throws and propagates here.)
-	if (!res.ok) throw new Error(`getWorkoutDay: ${res.status} ${res.statusText}`);
-
-	const { data: workout } = await res.json();
 	if (!workout) {
 		cacheWorkoutDay(athleteId, dateKey, []);
 		return [];
@@ -196,21 +192,14 @@ export async function getExerciseHistory(
 	exerciseId: string,
 	beforeDateKey: string
 ): Promise<ExerciseHistorySession[]> {
-	const res = await fetch('/api/workout', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			action: 'exerciseHistory',
-			data: { athleteId, exerciseId, before: beforeDateKey }
-		})
+	const data = await fetchApi<Record<string, unknown>[] | null>('/api/workout', 'exerciseHistory', {
+		athleteId,
+		exerciseId,
+		before: beforeDateKey
 	});
 
-	if (!res.ok) throw new Error(`getExerciseHistory: ${res.status} ${res.statusText}`);
-
-	const { data } = await res.json();
-
 	const sessions: ExerciseHistorySession[] = [];
-	for (const workout of (data ?? []) as Record<string, unknown>[]) {
+	for (const workout of data ?? []) {
 		const dateKey = workout.scheduled_date as string;
 		for (const ae of (workout.athlete_exercises as Record<string, unknown>[]) ?? []) {
 			const sets: ExerciseHistorySet[] = ((ae.athlete_sets as Record<string, unknown>[]) ?? [])
@@ -272,22 +261,18 @@ export async function getAthleteStatusMap(
 	athleteId: string,
 	range?: { from: string; to: string }
 ): Promise<SvelteMap<string, DayStatus>> {
-	const res = await fetch('/api/workout', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ action: 'getStatusMap', data: { athleteId, ...range } })
-	});
-
-	// A failed request is not an answer — leave any cached map standing
-	// rather than caching an empty one over it (same reasoning as getWorkoutDay).
-	// The 500 is already logged server-side; note it here too so a stale calendar
-	// is traceable from the browser console.
-	if (!res.ok) {
-		console.warn(`[api] getStatusMap → ${res.status}; keeping cached calendar dots`);
+	// A failed request is not an answer — leave any cached map standing rather
+	// than caching an empty one over it (same reasoning as getWorkoutDay).
+	// fetchApi already logged the failure with its status.
+	let workouts: Record<string, unknown>[];
+	try {
+		workouts = await fetchApi<Record<string, unknown>[]>('/api/workout', 'getStatusMap', {
+			athleteId,
+			...range
+		});
+	} catch {
 		return getCachedStatusMap(athleteId) ?? new SvelteMap();
 	}
-
-	const { data: workouts } = await res.json();
 	// A ranged fetch only covers part of the athlete's history — start from
 	// whatever's already cached and merge in, rather than replacing it
 	// wholesale and losing dots for days outside this window.
