@@ -2,6 +2,7 @@
 	import LeftFillIcon from '@iconify-svelte/mingcute/left-fill';
 	import RightFillIcon from '@iconify-svelte/mingcute/right-fill';
 	import type { DayStatus } from '$lib/complete';
+	import { toKey } from '$lib/dateKey';
 
 	let {
 		selectedDate,
@@ -118,7 +119,7 @@
 				{#if date === null}
 					<span></span>
 				{:else}
-					{@const status = dayStatus(date.toLocaleDateString('fr-CA'))}
+					{@const status = dayStatus(toKey(date))}
 					{@const selected = isSelected(date)}
 					{@const todayCell = isToday(date)}
 					{@const inWeek = isInHighlightedWeek(date)}

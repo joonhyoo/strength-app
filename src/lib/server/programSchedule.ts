@@ -12,6 +12,7 @@ import type {
 } from '$lib/types';
 import { dbList, dbMaybe } from './db';
 import { serverLog, type Logger } from './log';
+import { addDays } from '$lib/dateKey';
 
 export type { ColorKey, ProgramTree, ProgramDetail, WeekDetail, SessionDetail, Breadcrumb };
 
@@ -268,37 +269,6 @@ export function flattenProgram(tree: ProgramTree): FlatProgram {
 		}
 	}
 	return { programId: tree.id, programName: tree.name, totalWeeks: weeks.length, weeks };
-}
-
-// ---------------------------------------------------------------------------
-// Date-key helpers. Dates are plain 'YYYY-MM-DD' strings throughout (matching
-// the rest of the app's `toLocaleDateString('fr-CA')` convention), computed
-// via local-time Date arithmetic — never string/interval math — so DST
-// transitions can't shift a date by a day.
-// ---------------------------------------------------------------------------
-
-function fromKey(key: string): Date {
-	const [y, m, d] = key.split('-').map(Number);
-	return new Date(y, m - 1, d);
-}
-
-function toKey(date: Date): string {
-	return date.toLocaleDateString('fr-CA');
-}
-
-export function addDays(key: string, n: number): string {
-	const d = fromKey(key);
-	d.setDate(d.getDate() + n);
-	return toKey(d);
-}
-
-export function isMonday(key: string): boolean {
-	return fromKey(key).getDay() === 1;
-}
-
-/** Whole-day difference (b - a). Both operands are local midnight, so this is DST-safe. */
-export function diffDays(a: string, b: string): number {
-	return Math.round((fromKey(b).getTime() - fromKey(a).getTime()) / 86_400_000);
 }
 
 export type AssignmentDate = AssignmentDateType;

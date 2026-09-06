@@ -18,38 +18,9 @@ import {
 	dayStatusFromExercises
 } from '$lib/services/workoutService.svelte';
 import { getBreadcrumb } from '$lib/services/programTemplateService.svelte';
+import { toKey, parseKey, addDays, mondayOf } from '$lib/dateKey';
 import type { DayStatus } from '$lib/complete';
 import type { Exercise, Breadcrumb } from '$lib/types';
-
-// Local date-key helpers — deliberately not shared with
-// $lib/server/programSchedule.ts: that module lives under $lib/server and
-// SvelteKit forbids importing it (even for types re-exported as values, and
-// this file needs real functions, not just types) into client-side code.
-// The duplication is a handful of lines of plain Date arithmetic.
-function toDateKey(date: Date): string {
-	return date.toLocaleDateString('fr-CA');
-}
-
-// Plain Date throughout — scratch values for one-off calendar arithmetic, never
-// held as reactive state (same reasoning as the plain Maps in
-// workoutService.svelte.ts). DayEntry.date is likewise just a formatting input.
-function parseDateKey(key: string): Date {
-	const [y, m, d] = key.split('-').map(Number);
-	return new Date(y, m - 1, d);
-}
-
-function addDaysToKey(key: string, n: number): string {
-	const date = parseDateKey(key);
-	date.setDate(date.getDate() + n);
-	return toDateKey(date);
-}
-
-function mondayOfKey(key: string): string {
-	const date = parseDateKey(key);
-	const offset = (date.getDay() + 6) % 7; // Mon=0 .. Sun=6
-	date.setDate(date.getDate() - offset);
-	return toDateKey(date);
-}
 
 // Session-monotonic id for an optimistically-inserted exercise, swapped for the
 // server's real id on success. Only ever matched with `===`, never parsed.
@@ -104,11 +75,11 @@ class CoachProgramState {
 	private pendingOps = new Set<Promise<unknown>>();
 
 	get selectedDateKey(): string {
-		return toDateKey(this.selectedDate);
+		return toKey(this.selectedDate);
 	}
 
 	get selectedWeekStart(): string {
-		return mondayOfKey(this.selectedDateKey);
+		return mondayOf(this.selectedDateKey);
 	}
 
 	/** How many of the selected week's 7 days currently have anything scheduled. */
@@ -116,7 +87,7 @@ class CoachProgramState {
 		const start = this.selectedWeekStart;
 		let n = 0;
 		for (let i = 0; i < 7; i++) {
-			const status = this.statusMap.get(addDaysToKey(start, i));
+			const status = this.statusMap.get(addDays(start, i));
 			if (status && status !== 'none') n++;
 		}
 		return n;
@@ -365,13 +336,13 @@ class CoachProgramState {
 			if (token !== this.weekLoadToken) return;
 		}
 
-		const keys = Array.from({ length: 7 }, (_, i) => addDaysToKey(weekStart, i));
+		const keys = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
 		this.weekDays = keys.map((dateKey) => {
 			const cached = getCachedWorkoutDay(athleteId, dateKey);
 			return {
 				dateKey,
-				date: parseDateKey(dateKey),
+				date: parseKey(dateKey),
 				exercises: cached ?? [],
 				loading: cached === null,
 				loadError: false,
@@ -429,12 +400,10 @@ class CoachProgramState {
 
 		const DAY_MS = 24 * 60 * 60 * 1000;
 		const now = Date.now();
-		const from = new Date(now - 180 * DAY_MS);
-		const to = new Date(now + 60 * DAY_MS);
 
 		this.statusMap = await getAthleteStatusMap(this.selectedAthleteId, {
-			from: from.toLocaleDateString('fr-CA'),
-			to: to.toLocaleDateString('fr-CA')
+			from: toKey(new Date(now - 180 * DAY_MS)),
+			to: toKey(new Date(now + 60 * DAY_MS))
 		});
 	}
 
