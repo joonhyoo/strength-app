@@ -1,6 +1,8 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { adminClient } from '$lib/server/supabaseAdmin';
+import { streamList } from '$lib/server/db';
+import { serverLog } from '$lib/server/log';
 
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	// `athletes` comes from the (coach) layout's load and is merged into
@@ -17,12 +19,14 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 
 	return {
 		pendingInvites: coachId
-			? supabase
-					.from('coach_invites')
-					.select('id, email, created_at')
-					.eq('coach_id', coachId)
-					.order('created_at', { ascending: false })
-					.then(({ data }) => data ?? [])
+			? streamList(
+					'coach.pendingInvites',
+					supabase
+						.from('coach_invites')
+						.select('id, email, created_at')
+						.eq('coach_id', coachId)
+						.order('created_at', { ascending: false })
+				)
 			: Promise.resolve([])
 	};
 };
@@ -37,6 +41,13 @@ export const actions: Actions = {
 		const { error } = await supabase.rpc('invite_athlete', { p_email: email });
 
 		if (error) {
+			const known = [
+				'already_registered',
+				'invalid_email',
+				'already_invited_by_another_coach'
+			].includes(error.message);
+			if (known) serverLog.warn('athletes.inviteAthlete.rejected', { reason: error.message });
+			else serverLog.error('athletes.inviteAthlete', error, { email });
 			const message =
 				error.message === 'already_registered'
 					? 'That email already has an account.'
@@ -59,7 +70,7 @@ export const actions: Actions = {
 		// Anything else (401 bad key, 429 rate limit, SMTP failure) means the
 		// email genuinely didn't send — surface why, so it's diagnosable.
 		if (emailError && emailError.status !== 422) {
-			console.error('inviteUserByEmail failed:', emailError);
+			serverLog.error('athletes.inviteUserByEmail', emailError, { email });
 			return {
 				message: `Invite saved, but the email didn't send (${emailError.status ?? 'error'}: ${emailError.message}). The athlete can still sign in from the login page.`,
 				action: 'invite_athlete'
@@ -70,7 +81,9 @@ export const actions: Actions = {
 	revoke_invite: async ({ request, locals: { supabase } }) => {
 		const formData = await request.formData();
 		const email = formData.get('email') as string;
-		if (email) await supabase.rpc('revoke_invite', { p_email: email });
+		if (!email) return;
+		const { error } = await supabase.rpc('revoke_invite', { p_email: email });
+		if (error) serverLog.error('athletes.revokeInvite', error, { email });
 	},
 
 	remove_athlete: async ({ request, locals: { supabase } }) => {
@@ -82,6 +95,7 @@ export const actions: Actions = {
 		const { error } = await supabase.rpc('remove_athlete', { p_athlete_id: athleteId });
 
 		if (error) {
+			serverLog.error('athletes.removeAthlete', error, { athleteId });
 			return fail(400, {
 				message: 'Could not remove athlete. Please try again.',
 				action: 'remove_athlete'

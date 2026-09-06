@@ -31,15 +31,21 @@ async function postProgram(action: string, data: Record<string, unknown>) {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ action, data })
 		});
-	} catch {
+	} catch (e) {
 		// Offline / dropped connection — never rejects, so optimistic callers can
 		// treat it like any other failed write and roll back.
-		return { ok: false as const, error: 'Request failed.' };
+		console.error(`[api] POST /api/program ${action} — network failure`, e);
+		return { ok: false as const, error: undefined };
 	}
 
 	if (!res.ok) {
 		const body = await res.json().catch(() => null);
-		return { ok: false as const, error: body?.message ?? 'Request failed.' };
+		console.error(`[api] POST /api/program ${action} → ${res.status}`, body);
+		// Only a 4xx carries a user-actionable reason; a 5xx / network failure
+		// leaves `error` undefined so the caller uses its own contextual message
+		// (the server log has the real cause).
+		const error = res.status < 500 ? (body?.message as string | undefined) : undefined;
+		return { ok: false as const, error };
 	}
 
 	const { data: result } = await res.json();
@@ -154,15 +160,11 @@ export async function shiftSchedule(athleteId: string, fromDate: string, shiftWe
 	return postProgram('shiftSchedule', { athleteId, fromDate, shiftWeeks });
 }
 
+/** Resolves a day's Program › Cycle › Week crumb — purely from the day's own
+ * session link (no date-math fallback), so a cleared week, and any exercises
+ * later added to it, stay breadcrumb-free. Shared by the coach Training page
+ * and the athlete Train page. */
 export async function getBreadcrumb(athleteId: string, dateKey: string) {
 	const res = await postProgram('getBreadcrumb', { athleteId, dateKey });
-	return res.ok ? (res.data as Breadcrumb | null) : null;
-}
-
-/** Coach Training page only: resolves a crumb solely from the day's own
- * session link, with no assignment date-math fallback — a cleared week (and
- * any exercises later added to it) stays breadcrumb-free. */
-export async function getScheduledBreadcrumb(athleteId: string, dateKey: string) {
-	const res = await postProgram('getScheduledBreadcrumb', { athleteId, dateKey });
 	return res.ok ? (res.data as Breadcrumb | null) : null;
 }

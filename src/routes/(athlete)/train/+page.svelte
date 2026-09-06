@@ -8,11 +8,9 @@
 	import ProgramBreadcrumb from '$lib/components/ProgramBreadcrumb.svelte';
 	import { getCachedWorkoutDay, getWorkoutDay } from '$lib/services/workoutService.svelte';
 	import { initWorkoutState } from '$lib/workoutState.svelte';
-	import type { Breadcrumb } from '$lib/types';
 
 	const workout = initWorkoutState();
 	let date = new SvelteDate();
-	let breadcrumb = $state<Breadcrumb | null>(null);
 	// `dayLoading`: fetching a day we have no cache for — show a skeleton, not the
 	// day we were just looking at. `dayError`: that fetch failed and we have
 	// nothing cached to fall back on.
@@ -304,7 +302,7 @@
 				style="transform: translateX({swipeX}px)"
 			>
 				{#if athleteId}
-					<ProgramBreadcrumb {athleteId} {date} onResolved={(c) => (breadcrumb = c)} />
+					<ProgramBreadcrumb {athleteId} {date} />
 				{/if}
 
 				{#if dayLoading}
@@ -321,15 +319,7 @@
 					</div>
 				{:else}
 					<h2 class="font-display text-lg font-bold uppercase">
-						{#if workout.exercises.length}
-							Scheduled Workout
-						{:else if breadcrumb?.isComplete}
-							Program Complete
-						{:else if breadcrumb}
-							Rest Day
-						{:else}
-							Scheduled Workout
-						{/if}
+						{workout.exercises.length ? 'Scheduled Workout' : 'Rest Day'}
 					</h2>
 					{#if workout.exercises.length}
 						<ol>

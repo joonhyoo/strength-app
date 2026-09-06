@@ -17,7 +17,7 @@ import {
 	getCachedStatusMap,
 	dayStatusFromExercises
 } from '$lib/services/workoutService.svelte';
-import { getScheduledBreadcrumb } from '$lib/services/programTemplateService.svelte';
+import { getBreadcrumb } from '$lib/services/programTemplateService.svelte';
 import type { DayStatus } from '$lib/complete';
 import type { Exercise, Breadcrumb } from '$lib/types';
 
@@ -388,20 +388,22 @@ class CoachProgramState {
 					day.exercises = list;
 					day.loading = false;
 					this.setDayStatus(dateKey, list);
-					// getScheduledBreadcrumb only resolves a crumb for a day that
-					// carries its own program session link — a rest day, an
-					// ad-hoc day, or a day in a cleared week all come back null,
-					// so the timeline shows no "Upper A" tag and the page hides
-					// the Program › Cycle › Week line for the whole week.
+					// getBreadcrumb only resolves a crumb for a day that carries its
+					// own program session link — a rest day, an ad-hoc day, or a
+					// day in a cleared week all come back null, so the timeline
+					// shows no "Upper A" tag and the page hides the Program ›
+					// Cycle › Week line for the whole week.
 					if (list.length === 0) {
 						day.crumb = null;
 						return;
 					}
-					getScheduledBreadcrumb(athleteId, dateKey).then((result) => {
-						if (token !== this.weekLoadToken) return;
-						const d = this.dayFor(dateKey);
-						if (d) d.crumb = result;
-					});
+					getBreadcrumb(athleteId, dateKey)
+						.then((result) => {
+							if (token !== this.weekLoadToken) return;
+							const d = this.dayFor(dateKey);
+							if (d) d.crumb = result;
+						})
+						.catch((e) => console.warn('[breadcrumb] week load failed', dateKey, e));
 				})
 				.catch(() => {
 					if (token !== this.weekLoadToken) return;
@@ -531,6 +533,15 @@ class CoachProgramState {
 		this.clipboard = null;
 		this.revision++;
 		await Promise.all([this.loadWeek(athleteId, weekStart), this.loadStatusMap()]);
+
+		// The paste itself succeeded, but individual days can still fail. A failed
+		// day is left as it was (not wiped) — surface it so a partial paste
+		// doesn't look clean; the server log has the reason per failed date.
+		const summary = res.data as { pastedCount: number; failedCount: number } | undefined;
+		if (summary && summary.failedCount > 0) {
+			const total = summary.pastedCount + summary.failedCount;
+			this.opError = `Pasted ${summary.pastedCount} of ${total} days — ${summary.failedCount} unchanged (paste failed; check server logs).`;
+		}
 	}
 
 	async clearWeek() {
@@ -570,8 +581,8 @@ class CoachProgramState {
 			this.opError = res.error || 'Could not clear the week — restored.';
 			return;
 		}
-		// Reconcile per-day breadcrumbs (getScheduledBreadcrumb returns null for
-		// every day whose program link this just deleted) and calendar dots.
+		// Reconcile per-day breadcrumbs (getBreadcrumb returns null for every day
+		// whose program link this just deleted) and calendar dots.
 		await Promise.all([this.loadWeek(athleteId, weekStart), this.loadStatusMap()]);
 	}
 

@@ -1,7 +1,8 @@
 import { dev } from '$app/environment';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { HOME_COOKIE, LAST_ROUTE_COOKIE, roleHome, roleHomeFor } from '$lib/guards';
+import { HOME_COOKIE, LAST_ROUTE_COOKIE, roleHome } from '$lib/guards';
+import { roleHomeFor } from '$lib/server/auth';
 
 const HOME_COOKIE_OPTS = {
 	path: '/' as const,

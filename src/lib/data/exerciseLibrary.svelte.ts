@@ -84,8 +84,13 @@ async function postExercise(action: string, data: Record<string, unknown>) {
 		});
 		if (res.ok) return { ok: true as const, data: (await res.json()).data };
 		const body = await res.json().catch(() => null);
-		return { ok: false as const, error: body?.message as string | undefined };
-	} catch {
+		console.error(`[api] POST /api/exercises ${action} → ${res.status}`, body);
+		// 4xx only ("An exercise with that name already exists"); a 5xx leaves
+		// `error` undefined for the caller's own fallback.
+		const error = res.status < 500 ? (body?.message as string | undefined) : undefined;
+		return { ok: false as const, error };
+	} catch (e) {
+		console.error(`[api] POST /api/exercises ${action} — network failure`, e);
 		return { ok: false as const, error: undefined };
 	}
 }

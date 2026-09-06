@@ -12,7 +12,6 @@
 		date,
 		revision = 0,
 		showLabel = true,
-		onResolved,
 		class: extraClass = ''
 	}: {
 		athleteId: string;
@@ -24,11 +23,6 @@
 		 * page, where WorkoutTimeline shows each visible day's own label
 		 * inline instead of one label for just the focused day. */
 		showLabel?: boolean;
-		/** Reports the resolved crumb (or null) back to the caller — lets a
-		 * parent like the athlete Train page distinguish "rest day within a
-		 * program" / "program complete" / "no program at all" for its own
-		 * heading text, without duplicating the fetch. */
-		onResolved?: (crumb: Breadcrumb | null) => void;
 	} = $props();
 
 	const dateKey = $derived(date.toLocaleDateString('fr-CA'));
@@ -51,17 +45,15 @@
 		// resolves. A bare `revision` bump (coach edited an exercise on the same
 		// day) keeps the current crumb — it almost never changes and blanking it
 		// would just flicker.
-		if (identity !== shownFor) {
-			crumb = null;
-			onResolved?.(null);
-		}
+		if (identity !== shownFor) crumb = null;
 
-		getBreadcrumb(id, key).then((result) => {
-			if (token !== loadToken) return;
-			shownFor = identity;
-			crumb = result;
-			onResolved?.(result);
-		});
+		getBreadcrumb(id, key)
+			.then((result) => {
+				if (token !== loadToken) return;
+				shownFor = identity;
+				crumb = result;
+			})
+			.catch((e) => console.warn('[breadcrumb] resolve failed', e));
 	});
 </script>
 

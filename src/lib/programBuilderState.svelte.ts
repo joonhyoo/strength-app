@@ -10,8 +10,9 @@ import type {
 import type { WeekDetail, SessionDetail, ProgramExerciseDetail } from '$lib/types';
 
 /** What every `service.*` call resolves to (see `postProgram`) — it never
- *  rejects, so a failed write, network included, is always `{ ok: false }`. */
-type OpResult = { ok: true; data: unknown } | { ok: false; error: string };
+ *  rejects, so a failed write, network included, is always `{ ok: false }`.
+ *  `error` is present only for a 4xx; otherwise the caller shows `failMessage`. */
+type OpResult = { ok: true; data: unknown } | { ok: false; error?: string };
 
 /** Rebuilds a week/session subtree with fresh temp- ids at every level, so it
  *  can be rendered immediately and later reconciled against (or removed in

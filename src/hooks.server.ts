@@ -1,6 +1,7 @@
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY } from '$env/static/public';
 import { createServerClient } from '@supabase/ssr';
-import { error, type Handle } from '@sveltejs/kit';
+import { error, type Handle, type HandleServerError } from '@sveltejs/kit';
+import { serverLog } from '$lib/server/log';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
@@ -32,7 +33,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// wouldn't silently reopen it.
 	if (event.url.pathname.startsWith('/api/')) {
 		const { data: claimsData } = await event.locals.supabase.auth.getClaims();
-		if (!claimsData?.claims?.sub) throw error(401, 'Unauthorized');
+		const sub = claimsData?.claims?.sub;
+		if (!sub) {
+			serverLog.warn('api.unauthorized', { path: event.url.pathname });
+			throw error(401, 'Unauthorized');
+		}
+		event.locals.userId = sub;
 	}
 
 	return resolve(event, {
@@ -40,4 +46,27 @@ export const handle: Handle = async ({ event, resolve }) => {
 			return name === 'content-range' || name === 'x-supabase-api-version';
 		}
 	});
+};
+
+/**
+ * Last line of defence for page/action/render errors. SvelteKit calls this for
+ * a genuine unhandled throw (always surfaced as 500) AND for a plain 404 on an
+ * unmatched route. A <500 is not a bug and Vercel's request log already records
+ * the path + status — nothing to add, so return quietly. A 500 gets a fresh
+ * `errorId`, logged with the stack and echoed to `+error.svelte` so a
+ * "Reference: …" screenshot leads straight to it. `apiHandler` already handles
+ * `/api/*`, and `streamList` / the auth timeout swallow the routine DB-error
+ * paths, so a 500 here is a real bug.
+ */
+export const handleError: HandleServerError = ({ error: err, event, status }) => {
+	if (status < 500) return { message: status === 404 ? 'Not found' : 'Request error' };
+
+	const errorId = crypto.randomUUID();
+	serverLog.error('unhandled', err, {
+		errorId,
+		path: event.url.pathname,
+		routeId: event.route.id,
+		status
+	});
+	return { message: 'Something went wrong.', errorId };
 };

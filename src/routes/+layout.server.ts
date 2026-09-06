@@ -2,6 +2,8 @@ import { building } from '$app/environment';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { LayoutServerLoad } from './$types';
 import type { Role } from '$lib/types';
+import { dbMaybe } from '$lib/server/db';
+import { serverLog } from '$lib/server/log';
 
 const AUTH_TIMEOUT_MS = 3000;
 const FALLBACK_TIMEOUT_MS = 2000;
@@ -42,11 +44,16 @@ async function buildUser(supabase: SupabaseClient, userId: string, expiresAt: nu
 	// `profile_private` is a 1:1 extension of `profiles` (shared PK,
 	// `profile_private_id_fkey`), so pull `username` in the same round-trip
 	// via an embedded select rather than paying for a second query.
-	const { data: profile } = await supabase
-		.from('profiles')
-		.select(PROFILE_SELECT)
-		.eq('id', userId)
-		.single();
+	//
+	// dbMaybe throws (and logs, with the PG code) on a real query error — that
+	// used to be swallowed into `EMPTY`, silently logging a valid user out and
+	// bouncing them to /auth/login. A genuinely-missing row (mid-signup) still
+	// returns null here.
+	const profile = await dbMaybe(
+		serverLog,
+		'layout.profile',
+		supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).maybeSingle()
+	);
 
 	if (!profile) return EMPTY;
 
@@ -105,6 +112,15 @@ export const load: LayoutServerLoad = async ({ depends, locals: { supabase } }) 
 	const result = await withTimeout(resolveUser(supabase), AUTH_TIMEOUT_MS);
 	if (result !== TIMED_OUT) return result;
 
+	// resolveUser timed out OR threw (withTimeout maps a rejection to TIMED_OUT
+	// too — buildUser's own dbMaybe already logged the reason if it was a query
+	// error). Fall back to the unverified cookie token.
+	serverLog.warn('auth.resolveTimeout', { fallbackMs: FALLBACK_TIMEOUT_MS });
+
 	const fallback = await withTimeout(resolveUserUnverified(supabase), FALLBACK_TIMEOUT_MS);
-	return fallback === TIMED_OUT ? EMPTY : fallback;
+	if (fallback === TIMED_OUT) {
+		serverLog.warn('auth.fallbackTimeout');
+		return EMPTY;
+	}
+	return fallback;
 };

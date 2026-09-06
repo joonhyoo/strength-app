@@ -1,14 +1,14 @@
-import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { error } from '@sveltejs/kit';
 import { getOrCreateExercise } from '$lib/server/exercises';
+import { postHandler, json, type ApiContext } from '$lib/server/apiHandler';
+import { dbList, dbMaybe, dbWrite, dbWriteReturning } from '$lib/server/db';
 import {
 	loadProgramDetail,
 	loadWeekDetail,
 	loadSessionDetail,
 	checkAssignConflicts as checkAssignConflictsImpl,
 	checkShiftConflicts as checkShiftConflictsImpl,
-	resolveBreadcrumb,
-	resolveScheduledBreadcrumb
+	resolveBreadcrumb
 } from '$lib/server/programSchedule';
 
 const RPC_ERROR_MESSAGE: Record<string, string> = {
@@ -19,25 +19,28 @@ const RPC_ERROR_MESSAGE: Record<string, string> = {
 	shift_weeks_must_not_be_zero: 'Enter a non-zero number of weeks to shift by.'
 };
 
-function rpcError(message: string | undefined) {
-	return error(
-		400,
-		message && RPC_ERROR_MESSAGE[message] ? RPC_ERROR_MESSAGE[message] : 'Request failed.'
-	);
+function rpcError(log: ApiContext['log'], name: string, message: string | undefined) {
+	if (message && RPC_ERROR_MESSAGE[message]) {
+		log.warn('rpc.rejected', { rpc: name, reason: message });
+		return error(400, RPC_ERROR_MESSAGE[message]);
+	}
+	log.error('rpc.failed', new Error(message ?? 'unknown'), { rpc: name });
+	return error(400, 'Request failed.');
 }
 
-export const POST: RequestHandler = async ({ request, locals: { supabase } }) => {
-	const body = await request.json();
-	const { action, data } = body;
-
+export const POST = postHandler('/api/program', async ({ action, data, supabase, log }) => {
 	switch (action) {
 		case 'listPrograms': {
-			const { data: programs } = await supabase
-				.from('programs')
-				.select('id, name, description, cycles(id, weeks(id))')
-				.order('name');
+			const programs = await dbList(
+				log,
+				'program.list',
+				supabase
+					.from('programs')
+					.select('id, name, description, cycles(id, weeks(id))')
+					.order('name')
+			);
 
-			const summaries = (programs ?? []).map((p) => ({
+			const summaries = programs.map((p) => ({
 				id: p.id,
 				name: p.name,
 				description: p.description,
@@ -50,7 +53,7 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 		case 'getProgram': {
 			const { programId } = data;
-			const detail = await loadProgramDetail(supabase, programId);
+			const detail = await loadProgramDetail(supabase, programId as string, log);
 			if (!detail) return error(404, 'Program not found.');
 			return json({ data: detail });
 		}
@@ -61,101 +64,111 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			const coachId = claimsData?.claims?.sub;
 			if (!coachId) return error(401, 'Unauthorized');
 
-			const { data: program, error: createErr } = await supabase
-				.from('programs')
-				.insert({ coach_id: coachId, name, description: description ?? '' })
-				.select('id')
-				.single();
-
-			if (createErr || !program) return error(500, 'Failed to create program');
+			const program = await dbWriteReturning(
+				log,
+				'program.create',
+				supabase
+					.from('programs')
+					.insert({ coach_id: coachId, name, description: description ?? '' })
+					.select('id')
+					.single()
+			);
 			return json({ data: program });
 		}
 
 		case 'updateProgram': {
 			const { programId, name, description } = data;
-			const { error: updateErr } = await supabase
-				.from('programs')
-				.update({ name, description })
-				.eq('id', programId);
-
-			if (updateErr) return error(500, 'Failed to update program');
+			await dbWrite(
+				log,
+				'program.update',
+				supabase.from('programs').update({ name, description }).eq('id', programId)
+			);
 			return json({ data: { success: true } });
 		}
 
 		case 'deleteProgram': {
 			const { programId } = data;
-			const { error: delErr } = await supabase.from('programs').delete().eq('id', programId);
-			if (delErr) return error(500, 'Failed to delete program');
+			await dbWrite(log, 'program.delete', supabase.from('programs').delete().eq('id', programId));
 			return json({ data: { success: true } });
 		}
 
 		case 'addCycle': {
 			const { programId, name, goal, colorKey } = data;
 
-			const { data: maxRow } = await supabase
-				.from('cycles')
-				.select('position')
-				.eq('program_id', programId)
-				.order('position', { ascending: false })
-				.limit(1)
-				.maybeSingle();
+			const maxRow = await dbMaybe(
+				log,
+				'cycle.maxPosition',
+				supabase
+					.from('cycles')
+					.select('position')
+					.eq('program_id', programId)
+					.order('position', { ascending: false })
+					.limit(1)
+					.maybeSingle()
+			);
 
 			const position = (maxRow?.position ?? -1) + 1;
 
-			const { data: cycle, error: createErr } = await supabase
-				.from('cycles')
-				.insert({
-					program_id: programId,
-					name,
-					goal: goal ?? '',
-					color_key: colorKey ?? 'sky',
-					position
-				})
-				.select('id')
-				.single();
-
-			if (createErr || !cycle) return error(500, 'Failed to add cycle');
+			const cycle = await dbWriteReturning(
+				log,
+				'cycle.create',
+				supabase
+					.from('cycles')
+					.insert({
+						program_id: programId,
+						name,
+						goal: goal ?? '',
+						color_key: colorKey ?? 'sky',
+						position
+					})
+					.select('id')
+					.single()
+			);
 			return json({ data: cycle });
 		}
 
 		case 'updateCycle': {
 			const { cycleId, name, goal, colorKey } = data;
-			const { error: updateErr } = await supabase
-				.from('cycles')
-				.update({ name, goal, color_key: colorKey })
-				.eq('id', cycleId);
-
-			if (updateErr) return error(500, 'Failed to update cycle');
+			await dbWrite(
+				log,
+				'cycle.update',
+				supabase.from('cycles').update({ name, goal, color_key: colorKey }).eq('id', cycleId)
+			);
 			return json({ data: { success: true } });
 		}
 
 		case 'removeCycle': {
 			const { cycleId } = data;
-			const { error: delErr } = await supabase.from('cycles').delete().eq('id', cycleId);
-			if (delErr) return error(500, 'Failed to remove cycle');
+			await dbWrite(log, 'cycle.remove', supabase.from('cycles').delete().eq('id', cycleId));
 			return json({ data: { success: true } });
 		}
 
 		case 'addWeek': {
 			const { cycleId } = data;
 
-			const { data: maxRow } = await supabase
-				.from('weeks')
-				.select('week_number')
-				.eq('cycle_id', cycleId)
-				.order('week_number', { ascending: false })
-				.limit(1)
-				.maybeSingle();
+			const maxRow = await dbMaybe(
+				log,
+				'week.maxNumber',
+				supabase
+					.from('weeks')
+					.select('week_number')
+					.eq('cycle_id', cycleId)
+					.order('week_number', { ascending: false })
+					.limit(1)
+					.maybeSingle()
+			);
 
 			const weekNumber = (maxRow?.week_number ?? 0) + 1;
 
-			const { data: week, error: createErr } = await supabase
-				.from('weeks')
-				.insert({ cycle_id: cycleId, week_number: weekNumber })
-				.select('id')
-				.single();
-
-			if (createErr || !week) return error(500, 'Failed to add week');
+			const week = await dbWriteReturning(
+				log,
+				'week.create',
+				supabase
+					.from('weeks')
+					.insert({ cycle_id: cycleId, week_number: weekNumber })
+					.select('id')
+					.single()
+			);
 			return json({ data: week });
 		}
 
@@ -169,55 +182,65 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			// week must never be left for the next getProgram to surface.
 			const { sourceWeekId } = data;
 
-			const { data: sourceWeek } = await supabase
-				.from('weeks')
-				.select('id, cycle_id')
-				.eq('id', sourceWeekId)
-				.single();
+			const sourceWeek = await dbMaybe(
+				log,
+				'week.duplicate.source',
+				supabase.from('weeks').select('id, cycle_id').eq('id', sourceWeekId).maybeSingle()
+			);
 
 			if (!sourceWeek) return error(404, 'Week not found');
 
-			const { data: maxRow } = await supabase
-				.from('weeks')
-				.select('week_number')
-				.eq('cycle_id', sourceWeek.cycle_id)
-				.order('week_number', { ascending: false })
-				.limit(1)
-				.maybeSingle();
+			const maxRow = await dbMaybe(
+				log,
+				'week.duplicate.maxNumber',
+				supabase
+					.from('weeks')
+					.select('week_number')
+					.eq('cycle_id', sourceWeek.cycle_id)
+					.order('week_number', { ascending: false })
+					.limit(1)
+					.maybeSingle()
+			);
 
 			const weekNumber = (maxRow?.week_number ?? 0) + 1;
 
-			const { data: newWeek, error: weekErr } = await supabase
-				.from('weeks')
-				.insert({ cycle_id: sourceWeek.cycle_id, week_number: weekNumber })
-				.select('id')
-				.single();
-
-			if (weekErr || !newWeek) return error(500, 'Failed to duplicate week');
+			const newWeek = await dbWriteReturning(
+				log,
+				'week.duplicate.create',
+				supabase
+					.from('weeks')
+					.insert({ cycle_id: sourceWeek.cycle_id, week_number: weekNumber })
+					.select('id')
+					.single()
+			);
 
 			try {
-				const { data: sessions } = await supabase
-					.from('sessions')
-					.select(
-						'day_number, name, program_exercises(position, note, exercise_id, program_sets(set_number, target_reps))'
-					)
-					.eq('week_id', sourceWeekId);
-
-				const sourceSessions = sessions ?? [];
+				const sourceSessions = await dbList(
+					log,
+					'week.duplicate.sourceSessions',
+					supabase
+						.from('sessions')
+						.select(
+							'day_number, name, program_exercises(position, note, exercise_id, program_sets(set_number, target_reps))'
+						)
+						.eq('week_id', sourceWeekId)
+				);
 
 				if (sourceSessions.length > 0) {
-					const { data: newSessions, error: sessErr } = await supabase
-						.from('sessions')
-						.insert(
-							sourceSessions.map((s) => ({
-								week_id: newWeek.id,
-								day_number: s.day_number,
-								name: s.name
-							}))
-						)
-						.select('id, day_number');
-
-					if (sessErr || !newSessions) throw new Error('session insert failed');
+					const newSessions = await dbList(
+						log,
+						'week.duplicate.insertSessions',
+						supabase
+							.from('sessions')
+							.insert(
+								sourceSessions.map((s) => ({
+									week_id: newWeek.id,
+									day_number: s.day_number,
+									name: s.name
+								}))
+							)
+							.select('id, day_number')
+					);
 
 					const sessionIdByDay = new Map(newSessions.map((s) => [s.day_number, s.id]));
 					const allSets: {
@@ -231,19 +254,21 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 						const pes = src.program_exercises ?? [];
 						if (!newSessionId || pes.length === 0) continue;
 
-						const { data: newPes, error: peErr } = await supabase
-							.from('program_exercises')
-							.insert(
-								pes.map((pe) => ({
-									session_id: newSessionId,
-									exercise_id: pe.exercise_id,
-									position: pe.position,
-									note: pe.note
-								}))
-							)
-							.select('id, position');
-
-						if (peErr || !newPes) throw new Error('exercise insert failed');
+						const newPes = await dbList(
+							log,
+							'week.duplicate.insertExercises',
+							supabase
+								.from('program_exercises')
+								.insert(
+									pes.map((pe) => ({
+										session_id: newSessionId,
+										exercise_id: pe.exercise_id,
+										position: pe.position,
+										note: pe.note
+									}))
+								)
+								.select('id, position')
+						);
 
 						const peIdByPosition = new Map(newPes.map((pe) => [pe.position, pe.id]));
 						for (const pe of pes) {
@@ -260,34 +285,42 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 					}
 
 					if (allSets.length > 0) {
-						const { error: setErr } = await supabase.from('program_sets').insert(allSets);
-						if (setErr) throw new Error('set insert failed');
+						await dbWrite(
+							log,
+							'week.duplicate.insertSets',
+							supabase.from('program_sets').insert(allSets)
+						);
 					}
 				}
-			} catch {
+			} catch (e) {
+				// A half-built week must never be left for the next getProgram to
+				// surface — delete it (cascading). The throw is already logged by
+				// the db helper; re-log with the rollback so the pair is obvious.
+				log.error('week.duplicate.rollback', e, { newWeekId: newWeek.id });
 				await supabase.from('weeks').delete().eq('id', newWeek.id);
 				return error(500, 'Failed to duplicate week');
 			}
 
-			return json({ data: await loadWeekDetail(supabase, newWeek.id) });
+			return json({ data: await loadWeekDetail(supabase, newWeek.id, log) });
 		}
 
 		case 'removeWeek': {
 			const { weekId } = data;
-			const { error: delErr } = await supabase.from('weeks').delete().eq('id', weekId);
-			if (delErr) return error(500, 'Failed to remove week');
+			await dbWrite(log, 'week.remove', supabase.from('weeks').delete().eq('id', weekId));
 			return json({ data: { success: true } });
 		}
 
 		case 'addSession': {
 			const { weekId, dayNumber, name } = data;
-			const { data: session, error: createErr } = await supabase
-				.from('sessions')
-				.insert({ week_id: weekId, day_number: dayNumber, name })
-				.select('id')
-				.single();
-
-			if (createErr || !session) return error(500, 'Failed to add session');
+			const session = await dbWriteReturning(
+				log,
+				'session.create',
+				supabase
+					.from('sessions')
+					.insert({ week_id: weekId, day_number: dayNumber, name })
+					.select('id')
+					.single()
+			);
 			return json({ data: session });
 		}
 
@@ -306,54 +339,69 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			// have already confirmed the overwrite with the coach.
 			const { sourceSessionId, destWeekId, destDayNumber, replace } = data;
 
-			const { data: sourceSession } = await supabase
-				.from('sessions')
-				.select(
-					'name, program_exercises(position, note, exercise_id, program_sets(set_number, target_reps))'
-				)
-				.eq('id', sourceSessionId)
-				.single();
+			const sourceSession = await dbMaybe(
+				log,
+				'session.duplicate.source',
+				supabase
+					.from('sessions')
+					.select(
+						'name, program_exercises(position, note, exercise_id, program_sets(set_number, target_reps))'
+					)
+					.eq('id', sourceSessionId)
+					.maybeSingle()
+			);
 
 			if (!sourceSession) return error(404, 'Session not found');
 
-			const { data: existing } = await supabase
-				.from('sessions')
-				.select('id')
-				.eq('week_id', destWeekId)
-				.eq('day_number', destDayNumber)
-				.maybeSingle();
+			const existing = await dbMaybe(
+				log,
+				'session.duplicate.destCheck',
+				supabase
+					.from('sessions')
+					.select('id')
+					.eq('week_id', destWeekId)
+					.eq('day_number', destDayNumber)
+					.maybeSingle()
+			);
 
 			if (existing) {
 				if (!replace) return error(409, 'That day already has a session.');
-				const { error: delErr } = await supabase.from('sessions').delete().eq('id', existing.id);
-				if (delErr) return error(500, 'Failed to replace the existing session');
+				await dbWrite(
+					log,
+					'session.duplicate.deleteExisting',
+					supabase.from('sessions').delete().eq('id', existing.id)
+				);
 			}
 
-			const { data: newSession, error: sessionErr } = await supabase
-				.from('sessions')
-				.insert({ week_id: destWeekId, day_number: destDayNumber, name: sourceSession.name })
-				.select('id')
-				.single();
-
-			if (sessionErr || !newSession) return error(500, 'Failed to copy session');
+			const newSession = await dbWriteReturning(
+				log,
+				'session.duplicate.create',
+				supabase
+					.from('sessions')
+					.insert({ week_id: destWeekId, day_number: destDayNumber, name: sourceSession.name })
+					.select('id')
+					.single()
+			);
 
 			try {
 				const pes = sourceSession.program_exercises ?? [];
 
 				if (pes.length > 0) {
-					const { data: newPes, error: peErr } = await supabase
-						.from('program_exercises')
-						.insert(
-							pes.map((pe) => ({
-								session_id: newSession.id,
-								exercise_id: pe.exercise_id,
-								position: pe.position,
-								note: pe.note
-							}))
-						)
-						.select('id, position');
-
-					if (peErr || !newPes) throw new Error('exercise insert failed');
+					const newPes = await dbList(
+						log,
+						'session.duplicate.insertExercises',
+						supabase
+							.from('program_exercises')
+							.insert(
+								pes.map((pe) => ({
+									session_id: newSession.id,
+									exercise_id: pe.exercise_id,
+									position: pe.position,
+									note: pe.note
+								}))
+							)
+							.select('id, position')
+					);
 
 					const peIdByPosition = new Map(newPes.map((pe) => [pe.position, pe.id]));
 					const allSets: {
@@ -375,32 +423,35 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 					}
 
 					if (allSets.length > 0) {
-						const { error: setErr } = await supabase.from('program_sets').insert(allSets);
-						if (setErr) throw new Error('set insert failed');
+						await dbWrite(
+							log,
+							'session.duplicate.insertSets',
+							supabase.from('program_sets').insert(allSets)
+						);
 					}
 				}
-			} catch {
+			} catch (e) {
+				log.error('session.duplicate.rollback', e, { newSessionId: newSession.id });
 				await supabase.from('sessions').delete().eq('id', newSession.id);
 				return error(500, 'Failed to copy session');
 			}
 
-			return json({ data: await loadSessionDetail(supabase, newSession.id) });
+			return json({ data: await loadSessionDetail(supabase, newSession.id, log) });
 		}
 
 		case 'updateSession': {
 			const { sessionId, name } = data;
-			const { error: updateErr } = await supabase
-				.from('sessions')
-				.update({ name })
-				.eq('id', sessionId);
-			if (updateErr) return error(500, 'Failed to update session');
+			await dbWrite(
+				log,
+				'session.update',
+				supabase.from('sessions').update({ name }).eq('id', sessionId)
+			);
 			return json({ data: { success: true } });
 		}
 
 		case 'removeSession': {
 			const { sessionId } = data;
-			const { error: delErr } = await supabase.from('sessions').delete().eq('id', sessionId);
-			if (delErr) return error(500, 'Failed to remove session');
+			await dbWrite(log, 'session.remove', supabase.from('sessions').delete().eq('id', sessionId));
 			return json({ data: { success: true } });
 		}
 
@@ -410,32 +461,39 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			const exerciseRecord = await getOrCreateExercise(
 				supabase,
 				exercise.activity,
-				exercise.category
+				exercise.category,
+				undefined,
+				log
 			);
-			if (!exerciseRecord) return error(500, 'Failed to create exercise');
 
-			const { data: maxRow } = await supabase
-				.from('program_exercises')
-				.select('position')
-				.eq('session_id', sessionId)
-				.order('position', { ascending: false })
-				.limit(1)
-				.maybeSingle();
+			const maxRow = await dbMaybe(
+				log,
+				'programExercise.maxPosition',
+				supabase
+					.from('program_exercises')
+					.select('position')
+					.eq('session_id', sessionId)
+					.order('position', { ascending: false })
+					.limit(1)
+					.maybeSingle()
+			);
 
 			const position = (maxRow?.position ?? -1) + 1;
 
-			const { data: programExercise, error: createErr } = await supabase
-				.from('program_exercises')
-				.insert({
-					session_id: sessionId,
-					exercise_id: exerciseRecord.id,
-					position,
-					note: exercise.note ?? ''
-				})
-				.select('id')
-				.single();
-
-			if (createErr || !programExercise) return error(500, 'Failed to add exercise');
+			const programExercise = await dbWriteReturning(
+				log,
+				'programExercise.create',
+				supabase
+					.from('program_exercises')
+					.insert({
+						session_id: sessionId,
+						exercise_id: exerciseRecord.id,
+						position,
+						note: exercise.note ?? ''
+					})
+					.select('id')
+					.single()
+			);
 
 			if (exercise.category === 'weight' && exercise.plan?.length > 0) {
 				const sets = exercise.plan.map((targetReps: number, i: number) => ({
@@ -443,7 +501,11 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 					set_number: i + 1,
 					target_reps: targetReps
 				}));
-				await supabase.from('program_sets').insert(sets);
+				await dbWrite(
+					log,
+					'programExercise.createSets',
+					supabase.from('program_sets').insert(sets)
+				);
 			}
 
 			return json({ data: programExercise });
@@ -455,18 +517,25 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			const exerciseRecord = await getOrCreateExercise(
 				supabase,
 				exercise.activity,
-				exercise.category
+				exercise.category,
+				undefined,
+				log
 			);
-			if (!exerciseRecord) return error(500, 'Failed to create exercise');
 
-			await supabase.from('program_sets').delete().eq('program_exercise_id', programExerciseId);
+			await dbWrite(
+				log,
+				'programExercise.update.clearSets',
+				supabase.from('program_sets').delete().eq('program_exercise_id', programExerciseId)
+			);
 
-			const { error: updateErr } = await supabase
-				.from('program_exercises')
-				.update({ exercise_id: exerciseRecord.id, note: exercise.note ?? '' })
-				.eq('id', programExerciseId);
-
-			if (updateErr) return error(500, 'Failed to update exercise');
+			await dbWrite(
+				log,
+				'programExercise.update',
+				supabase
+					.from('program_exercises')
+					.update({ exercise_id: exerciseRecord.id, note: exercise.note ?? '' })
+					.eq('id', programExerciseId)
+			);
 
 			if (exercise.category === 'weight' && exercise.plan?.length > 0) {
 				const sets = exercise.plan.map((targetReps: number, i: number) => ({
@@ -474,7 +543,11 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 					set_number: i + 1,
 					target_reps: targetReps
 				}));
-				await supabase.from('program_sets').insert(sets);
+				await dbWrite(
+					log,
+					'programExercise.update.insertSets',
+					supabase.from('program_sets').insert(sets)
+				);
 			}
 
 			return json({ data: { success: true } });
@@ -482,12 +555,11 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 		case 'removeProgramExercise': {
 			const { programExerciseId } = data;
-			const { error: delErr } = await supabase
-				.from('program_exercises')
-				.delete()
-				.eq('id', programExerciseId);
-
-			if (delErr) return error(500, 'Failed to remove exercise');
+			await dbWrite(
+				log,
+				'programExercise.remove',
+				supabase.from('program_exercises').delete().eq('id', programExerciseId)
+			);
 			return json({ data: { success: true } });
 		}
 
@@ -496,21 +568,27 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 			// within a sorted sibling list), against program_exercises.
 			const { programExerciseId, toIndex } = data;
 
-			const { data: exercise } = await supabase
-				.from('program_exercises')
-				.select('id, session_id')
-				.eq('id', programExerciseId)
-				.single();
+			const exercise = await dbMaybe(
+				log,
+				'programExercise.reorder.find',
+				supabase
+					.from('program_exercises')
+					.select('id, session_id')
+					.eq('id', programExerciseId)
+					.maybeSingle()
+			);
 
 			if (!exercise) return error(404, 'Exercise not found');
 
-			const { data: rows } = await supabase
-				.from('program_exercises')
-				.select('id')
-				.eq('session_id', exercise.session_id)
-				.order('position');
-
-			if (!rows) return error(500, 'Failed to fetch exercises');
+			const rows = await dbList(
+				log,
+				'programExercise.reorder.siblings',
+				supabase
+					.from('program_exercises')
+					.select('id')
+					.eq('session_id', exercise.session_id)
+					.order('position')
+			);
 
 			const ids = rows.map((r) => r.id).filter((id) => id !== programExerciseId);
 			const dest = Math.max(0, Math.min(toIndex, ids.length));
@@ -518,7 +596,11 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 			for (let k = 0; k < ids.length; k++) {
 				if (rows[k]?.id === ids[k]) continue;
-				await supabase.from('program_exercises').update({ position: k }).eq('id', ids[k]);
+				await dbWrite(
+					log,
+					'programExercise.reorder.write',
+					supabase.from('program_exercises').update({ position: k }).eq('id', ids[k])
+				);
 			}
 
 			return json({ data: { success: true } });
@@ -526,7 +608,13 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 
 		case 'checkAssignConflicts': {
 			const { programId, athleteId, startDate } = data;
-			const result = await checkAssignConflictsImpl(supabase, programId, athleteId, startDate);
+			const result = await checkAssignConflictsImpl(
+				supabase,
+				programId as string,
+				athleteId as string,
+				startDate as string,
+				log
+			);
 			return json({ data: result });
 		}
 
@@ -538,13 +626,20 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 				p_start_date: startDate
 			});
 
-			if (rpcErr) return rpcError(rpcErr.message);
+			if (rpcErr) return rpcError(log, 'assign_program', rpcErr.message);
+			log.info('assignProgram.ok', { athleteId, programId, assignmentId });
 			return json({ data: { assignmentId } });
 		}
 
 		case 'checkShiftConflicts': {
 			const { athleteId, fromDate, shiftWeeks } = data;
-			const result = await checkShiftConflictsImpl(supabase, athleteId, fromDate, shiftWeeks);
+			const result = await checkShiftConflictsImpl(
+				supabase,
+				athleteId as string,
+				fromDate as string,
+				shiftWeeks as number,
+				log
+			);
 			return json({ data: result });
 		}
 
@@ -556,23 +651,23 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 				p_shift_weeks: shiftWeeks
 			});
 
-			if (rpcErr) return rpcError(rpcErr.message);
+			if (rpcErr) return rpcError(log, 'shift_program_schedule', rpcErr.message);
+			log.info('shiftSchedule.ok', { athleteId, fromDate, shiftWeeks, movedCount });
 			return json({ data: { movedCount } });
 		}
 
 		case 'getBreadcrumb': {
 			const { athleteId, dateKey } = data;
-			const breadcrumb = await resolveBreadcrumb(supabase, athleteId, dateKey);
-			return json({ data: breadcrumb });
-		}
-
-		case 'getScheduledBreadcrumb': {
-			const { athleteId, dateKey } = data;
-			const breadcrumb = await resolveScheduledBreadcrumb(supabase, athleteId, dateKey);
+			const breadcrumb = await resolveBreadcrumb(
+				supabase,
+				athleteId as string,
+				dateKey as string,
+				log
+			);
 			return json({ data: breadcrumb });
 		}
 
 		default:
 			return error(400, `Unknown action: ${action}`);
 	}
-};
+});
