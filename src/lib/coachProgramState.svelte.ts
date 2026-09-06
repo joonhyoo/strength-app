@@ -381,6 +381,20 @@ class CoachProgramState {
 					day.exercises = list;
 					day.loading = false;
 					this.setDayStatus(dateKey, list);
+					// An empty day has no workout type to show. The program
+					// assignment still "covers" this date on paper, so
+					// getBreadcrumb would happily resolve it to "Upper A" etc. —
+					// but a day that was never scheduled, or was just cleared,
+					// should read as empty, not still tagged with a session name.
+					if (list.length === 0) {
+						day.crumb = null;
+						return;
+					}
+					getBreadcrumb(athleteId, dateKey).then((result) => {
+						if (token !== this.weekLoadToken) return;
+						const d = this.dayFor(dateKey);
+						if (d) d.crumb = result;
+					});
 				})
 				.catch(() => {
 					if (token !== this.weekLoadToken) return;
@@ -389,12 +403,6 @@ class CoachProgramState {
 					day.loading = false;
 					if (getCachedWorkoutDay(athleteId, dateKey) === null) day.loadError = true;
 				});
-
-			getBreadcrumb(athleteId, dateKey).then((result) => {
-				if (token !== this.weekLoadToken) return;
-				const day = this.dayFor(dateKey);
-				if (day) day.crumb = result;
-			});
 		}
 	}
 
@@ -527,9 +535,14 @@ class CoachProgramState {
 		// Empty the week's days locally (and in the cache) straight away. Bump the
 		// load token first so a still-in-flight day fetch can't repopulate one.
 		this.weekLoadToken++;
-		const snapshots = this.weekDays.map((d) => ({ dateKey: d.dateKey, exercises: d.exercises }));
+		const snapshots = this.weekDays.map((d) => ({
+			dateKey: d.dateKey,
+			exercises: d.exercises,
+			crumb: d.crumb
+		}));
 		for (const d of this.weekDays) {
 			d.exercises = [];
+			d.crumb = null;
 			updateCachedWorkoutDay(athleteId, d.dateKey, []);
 			this.setDayStatus(d.dateKey, []);
 		}
@@ -541,6 +554,7 @@ class CoachProgramState {
 				const d = this.dayFor(s.dateKey);
 				if (d) {
 					d.exercises = s.exercises;
+					d.crumb = s.crumb;
 					updateCachedWorkoutDay(athleteId, s.dateKey, s.exercises);
 					this.setDayStatus(s.dateKey, s.exercises);
 				}
@@ -549,7 +563,8 @@ class CoachProgramState {
 			this.opError = res.error || 'Could not clear the week — restored.';
 			return;
 		}
-		// Reconcile per-day breadcrumbs (clearing can drop a program label) and dots.
+		// Reconcile per-day breadcrumbs (loadWeek clears the crumb on every
+		// now-empty day) and calendar dots.
 		await Promise.all([this.loadWeek(athleteId, weekStart), this.loadStatusMap()]);
 	}
 

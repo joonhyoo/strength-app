@@ -237,13 +237,18 @@
 		</div>
 	{:else if athlete}
 		<div>
-			<ProgramBreadcrumb
-				athleteId={athlete.id}
-				date={program.selectedDate}
-				revision={program.revision}
-				showLabel={false}
-				class="px-6"
-			/>
+			<!-- Only while the visible week actually has something scheduled. An
+			     empty week (nothing planned yet, or just cleared) shouldn't still
+			     read as "Week 3 of 8" of a program. -->
+			{#if program.selectedWeekCount > 0}
+				<ProgramBreadcrumb
+					athleteId={athlete.id}
+					date={program.selectedDate}
+					revision={program.revision}
+					showLabel={false}
+					class="px-6"
+				/>
+			{/if}
 			<WorkoutTimeline
 				athleteId={athlete.id}
 				athleteName={athlete.name}
