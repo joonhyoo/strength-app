@@ -49,17 +49,19 @@ export const actions: Actions = {
 		}
 
 		// Best-effort — the coach_invites row above is what actually gates
-		// account creation, so a failure here (e.g. re-inviting an email whose
-		// auth.users row already exists from a prior, still-unconfirmed invite)
-		// doesn't need to fail the whole action: the athlete can still self-serve
-		// via /auth/login's existing send_code flow even without this email.
+		// account creation, so the athlete can always self-serve via
+		// /auth/login's send_code flow even if no email goes out here.
 		const admin = adminClient();
 		const { error: emailError } = await admin.auth.admin.inviteUserByEmail(email);
 
-		if (emailError) {
+		// 422 = the auth.users row already exists (a prior, still-unconfirmed
+		// invite). Harmless: send_code sends a fresh OTP to that user anyway.
+		// Anything else (401 bad key, 429 rate limit, SMTP failure) means the
+		// email genuinely didn't send — surface why, so it's diagnosable.
+		if (emailError && emailError.status !== 422) {
 			console.error('inviteUserByEmail failed:', emailError);
 			return {
-				message: 'Invite created, but the confirmation email may not have sent.',
+				message: `Invite saved, but the email didn't send (${emailError.status ?? 'error'}: ${emailError.message}). The athlete can still sign in from the login page.`,
 				action: 'invite_athlete'
 			};
 		}

@@ -11,11 +11,19 @@
 		athleteId,
 		date,
 		revision = 0,
-		onResolved
+		showLabel = true,
+		onResolved,
+		class: extraClass = ''
 	}: {
 		athleteId: string;
 		date: Date;
 		revision?: number;
+		class?: string;
+		/** Set false to render only the Program › Cycle › Week X of Y line,
+		 * without the trailing day-label chip — used on the coach Training
+		 * page, where WorkoutTimeline shows each visible day's own label
+		 * inline instead of one label for just the focused day. */
+		showLabel?: boolean;
 		/** Reports the resolved crumb (or null) back to the caller — lets a
 		 * parent like the athlete Train page distinguish "rest day within a
 		 * program" / "program complete" / "no program at all" for its own
@@ -58,15 +66,17 @@
 </script>
 
 {#if crumb}
-	<nav class="mb-4 flex flex-wrap items-center gap-1 text-sm">
+	<nav class="mb-4 flex flex-wrap items-center gap-1 text-sm {extraClass}">
 		<span class="text-base-content/60">{crumb.programName}</span>
 		<span class="text-base-content/40">›</span>
 		<span class="text-base-content/60">{crumb.cycleName}</span>
 		<span class="text-base-content/40">›</span>
 		<span class="text-base-content/60">Week {crumb.weekOfTotal} of {crumb.totalWeeks}</span>
-		<span class="text-base-content/40">·</span>
-		<span class="rounded-lg bg-primary/10 px-2 py-0.5 font-semibold text-primary"
-			>{crumb.label}</span
-		>
+		{#if showLabel}
+			<span class="text-base-content/40">·</span>
+			<span class="rounded-lg bg-primary/10 px-2 py-0.5 font-semibold text-primary"
+				>{crumb.label}</span
+			>
+		{/if}
 	</nav>
 {/if}

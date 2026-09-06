@@ -7,6 +7,10 @@ import type { Exercise } from '$lib/types';
 class WorkoutState {
 	exercises = $state<Exercise[]>([]);
 	selectedIndex = $state<number | null>(null);
+	// Set when a background set-log / completion-toggle write failed. A failed
+	// completion toggle also reverts; a failed set edit can't (the inputs are
+	// one-way), so this line is the only signal the athlete gets.
+	saveError = $state<string | null>(null);
 	// Reactive so `location` (read by the open exercise modal) stays correct if
 	// the day changes underneath it.
 	private athleteId = $state('');
@@ -61,20 +65,24 @@ class WorkoutState {
 	}
 
 	open(i: number) {
+		this.saveError = null;
 		this.selectedIndex = i;
 	}
 
 	close() {
+		this.saveError = null;
 		this.selectedIndex = null;
 	}
 
 	prev() {
 		if (this.selectedIndex === null || !this.hasPrev) return;
+		this.saveError = null;
 		this.selectedIndex--;
 	}
 
 	next() {
 		if (this.selectedIndex === null || !this.hasNext) return;
+		this.saveError = null;
 		this.selectedIndex++;
 	}
 
@@ -96,15 +104,36 @@ class WorkoutState {
 			set.weight = value || undefined;
 		}
 		this.syncCache();
-		if (set.id) updateSet(set.id, field, value);
+		// The set inputs are one-way (value=, not bind:), so a failed write can't
+		// be un-typed — just tell the athlete it didn't save.
+		if (set.id) {
+			void updateSet(set.id, field, value).then((res) => {
+				this.saveError = res.ok ? null : 'Couldn’t save — check your connection.';
+			});
+		}
 	}
 
 	toggleComplete() {
 		if (this.selectedIndex === null) return;
 		const exercise = this.exercises[this.selectedIndex];
-		exercise.complete = !exercise.complete;
+		const id = exercise.id;
+		const next = !exercise.complete;
+		exercise.complete = next;
 		this.syncCache();
-		if (exercise.id) setExerciseComplete(exercise.id, exercise.complete);
+		if (!id) return;
+		void setExerciseComplete(id, next).then((res) => {
+			if (res.ok) {
+				this.saveError = null;
+				return;
+			}
+			// Put it back — the complete button reads this via exerciseComplete().
+			const ex = this.exercises.find((e) => e.id === id);
+			if (ex) {
+				ex.complete = !next;
+				this.syncCache();
+			}
+			this.saveError = 'Couldn’t save — check your connection.';
+		});
 	}
 
 	isComplete(exercise: Exercise) {

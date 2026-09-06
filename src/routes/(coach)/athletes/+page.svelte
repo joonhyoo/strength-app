@@ -45,11 +45,11 @@
 </svelte:head>
 
 <div class="my-4">
-	<h1 class="mb-4 font-display text-xl font-bold uppercase">Athletes</h1>
-
 	<div class="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-		<aside class="card h-fit bg-base-100 shadow-sm">
+		<aside class="card h-fit bg-base-100 shadow-sm lg:sticky lg:top-4 lg:z-10 lg:self-start">
 			<div class="card-body">
+				<h1 class="mb-2 font-display text-xl font-bold uppercase">Athletes</h1>
+
 				<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase">
 					Invite athlete
 				</span>

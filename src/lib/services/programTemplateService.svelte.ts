@@ -24,11 +24,18 @@ export interface ProgramExerciseInput {
 }
 
 async function postProgram(action: string, data: Record<string, unknown>) {
-	const res = await fetch('/api/program', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ action, data })
-	});
+	let res: Response;
+	try {
+		res = await fetch('/api/program', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ action, data })
+		});
+	} catch {
+		// Offline / dropped connection — never rejects, so optimistic callers can
+		// treat it like any other failed write and roll back.
+		return { ok: false as const, error: 'Request failed.' };
+	}
 
 	if (!res.ok) {
 		const body = await res.json().catch(() => null);
@@ -149,5 +156,13 @@ export async function shiftSchedule(athleteId: string, fromDate: string, shiftWe
 
 export async function getBreadcrumb(athleteId: string, dateKey: string) {
 	const res = await postProgram('getBreadcrumb', { athleteId, dateKey });
+	return res.ok ? (res.data as Breadcrumb | null) : null;
+}
+
+/** Coach Training page only: resolves a crumb solely from the day's own
+ * session link, with no assignment date-math fallback — a cleared week (and
+ * any exercises later added to it) stays breadcrumb-free. */
+export async function getScheduledBreadcrumb(athleteId: string, dateKey: string) {
+	const res = await postProgram('getScheduledBreadcrumb', { athleteId, dateKey });
 	return res.ok ? (res.data as Breadcrumb | null) : null;
 }

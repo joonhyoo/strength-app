@@ -123,11 +123,11 @@
 					{@const todayCell = isToday(date)}
 					{@const inWeek = isInHighlightedWeek(date)}
 					<button
-						class="relative flex aspect-square items-center justify-center rounded-lg pb-2 text-sm transition-colors hover:bg-primary/20 {selected
-							? 'bg-primary/40'
-							: inWeek
-								? 'bg-base-200'
-								: ''} {todayCell ? 'border border-primary' : ''}"
+						class="relative flex aspect-square items-center justify-center rounded-lg border-2 pb-2 text-sm transition-colors hover:bg-primary/20 {inWeek
+							? 'bg-primary/10'
+							: ''} {selected ? 'border-primary' : 'border-transparent'} {todayCell
+							? 'font-bold'
+							: ''}"
 						onclick={() => select(date)}
 					>
 						{date.getDate()}

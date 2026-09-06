@@ -12,7 +12,6 @@
 
 	let name = $state('');
 	let description = $state('');
-	let saving = $state(false);
 
 	$effect(() => {
 		if (!builder.modal) return;
@@ -29,16 +28,15 @@
 		};
 	});
 
-	async function submit() {
+	function submit() {
 		const trimmed = name.trim();
 		if (!trimmed) return;
-		saving = true;
+		// Both apply optimistically and close this modal themselves.
 		if (editingId) {
-			await builder.updateProgram(editingId, trimmed, description.trim());
+			builder.updateProgram(editingId, trimmed, description.trim());
 		} else {
-			await builder.createProgram(trimmed, description.trim());
+			builder.createProgram(trimmed, description.trim());
 		}
-		saving = false;
 	}
 </script>
 
@@ -77,7 +75,7 @@
 
 			<div class="modal-action">
 				<Button variant="destructive" onclick={() => builder.closeModal()}>Cancel</Button>
-				<Button variant="primary" type="submit" disabled={saving || !name.trim()}>
+				<Button variant="primary" type="submit" disabled={!name.trim()}>
 					{editingProgram ? 'Save' : 'Create'}
 				</Button>
 			</div>

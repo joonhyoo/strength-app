@@ -165,15 +165,16 @@
 		const existing = !isNote && !creatingNew ? findExercise(selectedName) : null;
 		const trimmedVideoUrl = videoUrl.trim();
 		const videoUrlChanged = !!existing && (existing.videoUrl ?? '') !== trimmedVideoUrl;
+		// Add targets the focused day; edit finds its exercise by id, wherever it sits.
+		const dateKey = program.selectedDateKey;
+		const editingId = program.editingExercise?.id;
 
-		if (creating) {
-			await addExerciseDefinition({
-				name: exercise.activity,
-				category: exercise.category,
-				videoUrl: trimmedVideoUrl || undefined
-			});
-		} else if (existing && videoUrlChanged) {
-			await updateExerciseDefinition({
+		// Close now — the day list updates optimistically and reconciles in the
+		// background (same as the library's ProgramExerciseModal).
+		program.closeModal();
+
+		if (existing && videoUrlChanged) {
+			void updateExerciseDefinition({
 				id: existing.id,
 				name: existing.name,
 				category: existing.category,
@@ -181,8 +182,21 @@
 			});
 		}
 
-		await program.saveExercise(exercise);
-		program.closeModal();
+		if (editingId) {
+			program.updateExercise(editingId, exercise);
+		} else if (creating) {
+			// A brand-new catalog row must exist before the day references it — the
+			// day-add's getOrCreateExercise would otherwise race this create on the
+			// unique exercise name.
+			await addExerciseDefinition({
+				name: exercise.activity,
+				category: exercise.category,
+				videoUrl: trimmedVideoUrl || undefined
+			});
+			program.addExercise(dateKey, exercise);
+		} else {
+			program.addExercise(dateKey, exercise);
+		}
 	}
 </script>
 

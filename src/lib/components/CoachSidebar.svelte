@@ -5,12 +5,12 @@
 	import { enhanceReplace } from '$lib/forms';
 	import { clearClientCaches } from '$lib/clientCache';
 	import Button from '$lib/components/Button.svelte';
-	import DashboardLineIcon from '@iconify-svelte/mingcute/dashboard-line';
-	import DashboardFillIcon from '@iconify-svelte/mingcute/dashboard-fill';
+	import DashboardLineIcon from '@iconify-svelte/mingcute/chart-horizontal-2-line';
+	import DashboardFillIcon from '@iconify-svelte/mingcute/chart-horizontal-2-fill';
 	import GroupLineIcon from '@iconify-svelte/mingcute/group-line';
 	import GroupFillIcon from '@iconify-svelte/mingcute/group-fill';
-	import BookLineIcon from '@iconify-svelte/mingcute/book-line';
-	import BookFillIcon from '@iconify-svelte/mingcute/book-fill';
+	import BookLineIcon from '@iconify-svelte/mingcute/book-2-line';
+	import BookFillIcon from '@iconify-svelte/mingcute/book-2-fill';
 	import CalendarLineIcon from '@iconify-svelte/mingcute/calendar-line';
 	import CalendarFillIcon from '@iconify-svelte/mingcute/calendar-fill';
 
