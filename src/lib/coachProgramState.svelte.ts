@@ -50,7 +50,6 @@ class CoachProgramState {
 	modalMode = $state<'exercise' | 'note'>('exercise');
 	editingExercise = $state<Exercise | null>(null);
 	statusMap = $state<SvelteMap<string, DayStatus>>(new SvelteMap());
-	revision = $state(0);
 	clipboard = $state<Clipboard | null>(null);
 	assignModalOpen = $state(false);
 	shiftModalOpen = $state(false);
@@ -93,11 +92,13 @@ class CoachProgramState {
 		return n;
 	}
 
-	/** Whether any day of the loaded week belongs to an assigned program (has a
-	 * session link). Drives the Program › Cycle › Week breadcrumb — a cleared
-	 * week reads as off-program even once exercises are added back to it. */
-	get selectedWeekOnProgram(): boolean {
-		return this.weekDays.some((d) => d.crumb !== null);
+	/** The loaded week's Program › Cycle › Week crumb, taken from whichever day
+	 * carries a session link — every on-program day of a week shares the same
+	 * program/cycle/week, so the line stays put as the coach clicks between
+	 * workout and rest days. Null for an off-program or freshly-cleared week
+	 * (clearWeek nulls every day's crumb), even once exercises are added back. */
+	get selectedWeekCrumb(): Breadcrumb | null {
+		return this.weekDays.find((d) => d.crumb !== null)?.crumb ?? null;
 	}
 
 	selectAthlete(id: string | null) {
@@ -128,8 +129,8 @@ class CoachProgramState {
 	// ---------------------------------------------------------------------
 	// Per-exercise edits — each applies to weekDays + the day cache + the
 	// calendar dot immediately, fires the server call in the background, and
-	// reconciles (real id) or rolls back on failure. No `revision` bump: none
-	// of these change the Program › Cycle › Week breadcrumb.
+	// reconciles (real id) or rolls back on failure. None touch weekDays[].crumb,
+	// so the Program › Cycle › Week breadcrumb holds steady.
 	// ---------------------------------------------------------------------
 
 	private dayFor(dateKey: string): DayEntry | undefined {
@@ -483,7 +484,6 @@ class CoachProgramState {
 		// One paste per copy — clearing here resets every day's button back to
 		// "Copy" and dismisses the toast.
 		this.clipboard = null;
-		this.revision++;
 		await Promise.all([this.loadWeek(athleteId, weekStart), this.loadStatusMap()]);
 	}
 
@@ -500,7 +500,6 @@ class CoachProgramState {
 			return;
 		}
 		this.clipboard = null;
-		this.revision++;
 		await Promise.all([this.loadWeek(athleteId, weekStart), this.loadStatusMap()]);
 
 		// The paste itself succeeded, but individual days can still fail. A failed
@@ -533,7 +532,6 @@ class CoachProgramState {
 			updateCachedWorkoutDay(athleteId, d.dateKey, []);
 			this.setDayStatus(d.dateKey, []);
 		}
-		this.revision++;
 
 		const res = await clearWeekRequest(athleteId, weekStart);
 		if (!res.ok) {
@@ -546,7 +544,6 @@ class CoachProgramState {
 					this.setDayStatus(s.dateKey, s.exercises);
 				}
 			}
-			this.revision++;
 			this.opError = res.error || 'Could not clear the week — restored.';
 			return;
 		}
@@ -582,7 +579,6 @@ class CoachProgramState {
 	async onScheduleChanged() {
 		this.assignModalOpen = false;
 		this.shiftModalOpen = false;
-		this.revision++;
 		if (this.selectedAthleteId === null) return;
 		await Promise.all([
 			this.loadWeek(this.selectedAthleteId, this.selectedWeekStart),
