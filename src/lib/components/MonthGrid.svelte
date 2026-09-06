@@ -98,8 +98,8 @@
 	}
 </script>
 
-<div class="card w-full bg-base-100 shadow-sm">
-	<div class="card-body">
+<div class="card w-full border border-base-300 bg-base-100 shadow-sm">
+	<div class="card-body px-4 py-4">
 		<div class="flex items-center justify-between">
 			<button class="btn btn-ghost btn-sm" onclick={() => changeMonth(-1)}>
 				<LeftFillIcon class="size-5" />
