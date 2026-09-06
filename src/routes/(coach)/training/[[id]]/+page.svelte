@@ -230,18 +230,11 @@
 		</div>
 	{:else if athlete}
 		<div>
-			<!-- Only while some day of the visible week belongs to an assigned
-			     program. An empty week, or one that was cleared and hand-filled
-			     since, shouldn't read as "Week 3 of 8" of a program. -->
-			{#if program.selectedWeekOnProgram}
-				<ProgramBreadcrumb
-					athleteId={athlete.id}
-					date={program.selectedDate}
-					revision={program.revision}
-					showLabel={false}
-					class="px-6"
-				/>
-			{/if}
+			<!-- Week-level Program › Cycle › Week line, from whichever day of the
+			     visible week sits on a program — so it holds steady as the coach
+			     clicks between workout and rest days. Absent for an off-program
+			     week, or one that was cleared and hand-filled since. -->
+			<ProgramBreadcrumb crumb={program.selectedWeekCrumb} showLabel={false} class="px-6" />
 			<WorkoutTimeline
 				athleteId={athlete.id}
 				athleteName={athlete.name}
