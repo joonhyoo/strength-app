@@ -57,11 +57,11 @@
 </script>
 
 {#if crumb}
-	<nav class="mb-4 flex flex-wrap items-center gap-1 text-sm {extraClass}">
-		<span class="text-base-content/60">{crumb.programName}</span>
-		<span class="text-base-content/40">›</span>
+	<nav class="flex flex-wrap items-center gap-1 text-sm {extraClass}">
+		<span class="font-semibold">{crumb.programName}</span>
+		<span class="text-base-content/40">·</span>
 		<span class="text-base-content/60">{crumb.cycleName}</span>
-		<span class="text-base-content/40">›</span>
+		<span class="text-base-content/40">·</span>
 		<span class="text-base-content/60">Week {crumb.weekOfTotal} of {crumb.totalWeeks}</span>
 		{#if showLabel}
 			<span class="text-base-content/40">·</span>

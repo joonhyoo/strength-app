@@ -13,6 +13,8 @@
 		mode,
 		noun,
 		canCopy = true,
+		size = 'sm',
+		class: extraClass = 'min-w-32',
 		oncopy,
 		onpaste,
 		oncancel
@@ -25,6 +27,11 @@
 		noun: string;
 		/** Only consulted in the 'copy' state. */
 		canCopy?: boolean;
+		size?: 'xs' | 'sm' | 'md';
+		/** Defaults to a min-width so the button doesn't resize as its label
+		 * changes between Copy/Paste/Cancel; pass a class (e.g. `w-full`) to
+		 * take over sizing entirely. */
+		class?: string;
 		oncopy: () => void;
 		onpaste: () => void;
 		oncancel: () => void;
@@ -32,11 +39,11 @@
 </script>
 
 {#if mode === 'cancel'}
-	<Button variant="outline" size="sm" class="min-w-32" onclick={oncancel}>Cancel</Button>
+	<Button variant="outline" {size} class={extraClass} onclick={oncancel}>Cancel</Button>
 {:else if mode === 'paste'}
-	<Button variant="secondary" size="sm" class="min-w-32" onclick={onpaste}>Paste {noun}</Button>
+	<Button variant="secondary" {size} class={extraClass} onclick={onpaste}>Paste {noun}</Button>
 {:else}
-	<Button variant="secondary" size="sm" class="min-w-32" disabled={!canCopy} onclick={oncopy}>
+	<Button variant="secondary" {size} class={extraClass} disabled={!canCopy} onclick={oncopy}>
 		Copy {noun}
 	</Button>
 {/if}

@@ -156,7 +156,7 @@
 <div class="my-4 grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
 	<aside class="card h-fit bg-base-100 shadow-sm lg:sticky lg:top-4 lg:z-10 lg:self-start">
 		<div class="card-body">
-			<h1 class="mb-2 font-display text-xl font-bold uppercase">Training</h1>
+			<h1 class="mb-3 font-display text-xl font-bold uppercase">Training</h1>
 
 			<label class="form-control w-full">
 				<span class="label">Athlete</span>
@@ -176,44 +176,61 @@
 				{/if}
 			</label>
 
-			<h2 class="mt-2 font-semibold text-base-content/70">Calendar</h2>
+			<h2 class="mt-3 font-semibold text-base-content/70">Calendar</h2>
 
-			<MonthGrid
-				selectedDate={program.selectedDate}
-				dayStatus={(dateKey) => program.statusMap.get(dateKey) ?? 'none'}
-				onselect={(date) => program.selectDate(date)}
-				highlightWeekOf={program.selectedDate}
-			/>
+			<div class="mt-3">
+				<MonthGrid
+					selectedDate={program.selectedDate}
+					dayStatus={(dateKey) => program.statusMap.get(dateKey) ?? 'none'}
+					onselect={(date) => program.selectDate(date)}
+					highlightWeekOf={program.selectedDate}
+				/>
+			</div>
 
 			{#if athlete}
-				<div
-					class="mt-3 flex flex-wrap items-center gap-2 border-t border-dashed border-base-300 pt-3"
-				>
-					<span class="w-full text-xs text-base-content/50"
-						>Week of {formatDayMonth(program.selectedWeekStart)}</span
-					>
-					<Button variant="secondary" size="sm" onclick={() => program.openAssignModal()}>
-						Assign program
-					</Button>
-					<CopyPasteButton
-						mode={program.weekClipboardMode}
-						noun="week"
-						canCopy={program.selectedWeekCount > 0}
-						oncopy={() => handleCopyWeek(athlete.name)}
-						onpaste={() => handlePasteWeek(athlete.name)}
-						oncancel={() => program.clearClipboard()}
-					/>
-					<Button
-						variant="destructive"
-						size="sm"
-						disabled={program.selectedWeekCount === 0}
-						onclick={() => handleClearWeek(athlete.name)}
-					>
-						Clear week
-					</Button>
-					<Button variant="secondary" size="sm" onclick={() => program.openShiftModal()}>
-						Shift schedule
-					</Button>
+				<div class="mt-3 border-t border-dashed border-base-300 pt-3">
+					{#if program.selectedWeekCrumb}
+						<ProgramBreadcrumb crumb={program.selectedWeekCrumb} showLabel={false} />
+					{:else}
+						<p class="text-sm text-base-content/50 italic">No program assigned this week</p>
+					{/if}
+
+					<div class="mt-3 flex flex-col gap-2 border-t border-dashed border-base-300 pt-3">
+						<Button
+							variant="secondary"
+							size="sm"
+							class="w-full"
+							onclick={() => program.openAssignModal()}
+						>
+							Assign program
+						</Button>
+						<CopyPasteButton
+							mode={program.weekClipboardMode}
+							noun="week"
+							canCopy={program.selectedWeekCount > 0}
+							class="w-full"
+							oncopy={() => handleCopyWeek(athlete.name)}
+							onpaste={() => handlePasteWeek(athlete.name)}
+							oncancel={() => program.clearClipboard()}
+						/>
+						<Button
+							variant="secondary"
+							size="sm"
+							class="w-full"
+							onclick={() => program.openShiftModal()}
+						>
+							Shift schedule
+						</Button>
+						<Button
+							variant="destructive"
+							size="sm"
+							class="w-full"
+							disabled={program.selectedWeekCount === 0}
+							onclick={() => handleClearWeek(athlete.name)}
+						>
+							Clear week
+						</Button>
+					</div>
 				</div>
 			{/if}
 		</div>
@@ -230,11 +247,6 @@
 		</div>
 	{:else if athlete}
 		<div>
-			<!-- Week-level Program › Cycle › Week line, from whichever day of the
-			     visible week sits on a program — so it holds steady as the coach
-			     clicks between workout and rest days. Absent for an off-program
-			     week, or one that was cleared and hand-filled since. -->
-			<ProgramBreadcrumb crumb={program.selectedWeekCrumb} showLabel={false} class="px-6" />
 			<WorkoutTimeline
 				athleteId={athlete.id}
 				athleteName={athlete.name}

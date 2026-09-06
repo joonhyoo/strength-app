@@ -303,7 +303,7 @@
 				style="transform: translateX({swipeX}px)"
 			>
 				{#if athleteId}
-					<ProgramBreadcrumb {athleteId} {date} />
+					<ProgramBreadcrumb {athleteId} {date} class="mb-4" />
 				{/if}
 
 				{#if dayLoading}
