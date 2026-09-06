@@ -1,42 +1,59 @@
-# sv
+<p align="center">
+  <img src="static/favicon.svg" width="64" height="64" alt="Strength App logo">
+</p>
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+<h1 align="center">Strength App</h1>
 
-## Creating a project
+Strength App is a coaching platform designed to streamline exercise program delivery
+so that coaches and athletes can spend more time focusing on getting stronger, faster,
+and more athletic.
 
-If you're seeing this, you've probably already done this step. Congrats!
+I built this because I wanted to help my friends hit their fitness goals, but everyone
+tracked their training their own way: a notes app, spreadsheet, vibes. It was
+difficult to help them since all the information was scattered around. Unifying the
+data and service into one workflow streamlines this process for both sides:
+they get to follow a clear plan, and I get to monitor, write, and assess their progress.
 
-```sh
-# create a new project
-npx sv create my-app
-```
+Strength App was initially built from scratch with manual wireframing inspired by
+TeamBuildr, and then building the core ui myself. I then leaned on agentic coding
+workflows to iterate out an MVP quickly. Now I'm fixing bugs, tidying up the UI/UX,
+and optimising with a mix of AI and actually reading the documentation.
 
-To recreate this project with the same configuration:
+I've learned a lot along the way about where AI genuinely helps in development versus
+where it gets in the way, particularly around ownership of the code it writes. If I have
+time I might write a blog on the things I've learnt from this project!
 
-```sh
-# recreate this project
-npx sv@0.15.4 create --template minimal --types ts --add prettier eslint vitest="usages:unit,component" tailwindcss="plugins:none" sveltekit-adapter="adapter:auto" --install npm ./
-```
+## Features
 
-## Developing
+**Coaches**
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+- Build a reusable exercise/program library (cycles → sessions → exercises)
+- Schedule programs onto a training calendar and shift/assign them per athlete
+- Invite athletes by email and manage their roster
 
-```sh
-npm run dev
+**Athletes**
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+- View today's (or any day's) workout and log sets, reps, and weight while training
+- Pull up an exercise's history to see past sessions right from the workout
+- Calendar and personal-records views are in progress
 
-## Building
+## Screenshots
 
-To create a production version of your app:
+| Program library                                              | Training timeline                                               |
+| :----------------------------------------------------------- | :-------------------------------------------------------------- |
+| ![Coach program library](docs/screenshots/coach-library.png) | ![Coach training timeline](docs/screenshots/coach-training.png) |
 
-```sh
-npm run build
-```
+| Athlete roster                                               | Athlete workout view                                        |
+| :----------------------------------------------------------- | :---------------------------------------------------------- |
+| ![Coach athlete roster](docs/screenshots/coach-athletes.png) | ![Athlete workout view](docs/screenshots/athlete-train.png) |
 
-You can preview the production build with `npm run preview`.
+## Tech Stack
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+| Technology          | Use case                       |
+| :------------------ | :----------------------------- |
+| SvelteKit           | Fullstack framework (Svelte 5) |
+| TypeScript          | Type checking                  |
+| Tailwind + DaisyUI  | Styling                        |
+| Supabase            | Auth + Postgres database       |
+| Vercel              | Hosting (adapter-vercel)       |
+| Vitest + Playwright | Testing                        |
