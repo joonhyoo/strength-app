@@ -17,7 +17,7 @@ import {
 	getCachedStatusMap,
 	dayStatusFromExercises
 } from '$lib/services/workoutService.svelte';
-import { getBreadcrumb } from '$lib/services/programTemplateService.svelte';
+import { getScheduledBreadcrumb } from '$lib/services/programTemplateService.svelte';
 import type { DayStatus } from '$lib/complete';
 import type { Exercise, Breadcrumb } from '$lib/types';
 
@@ -120,6 +120,13 @@ class CoachProgramState {
 			if (status && status !== 'none') n++;
 		}
 		return n;
+	}
+
+	/** Whether any day of the loaded week belongs to an assigned program (has a
+	 * session link). Drives the Program › Cycle › Week breadcrumb — a cleared
+	 * week reads as off-program even once exercises are added back to it. */
+	get selectedWeekOnProgram(): boolean {
+		return this.weekDays.some((d) => d.crumb !== null);
 	}
 
 	selectAthlete(id: string | null) {
@@ -381,16 +388,16 @@ class CoachProgramState {
 					day.exercises = list;
 					day.loading = false;
 					this.setDayStatus(dateKey, list);
-					// An empty day has no workout type to show. The program
-					// assignment still "covers" this date on paper, so
-					// getBreadcrumb would happily resolve it to "Upper A" etc. —
-					// but a day that was never scheduled, or was just cleared,
-					// should read as empty, not still tagged with a session name.
+					// getScheduledBreadcrumb only resolves a crumb for a day that
+					// carries its own program session link — a rest day, an
+					// ad-hoc day, or a day in a cleared week all come back null,
+					// so the timeline shows no "Upper A" tag and the page hides
+					// the Program › Cycle › Week line for the whole week.
 					if (list.length === 0) {
 						day.crumb = null;
 						return;
 					}
-					getBreadcrumb(athleteId, dateKey).then((result) => {
+					getScheduledBreadcrumb(athleteId, dateKey).then((result) => {
 						if (token !== this.weekLoadToken) return;
 						const d = this.dayFor(dateKey);
 						if (d) d.crumb = result;
@@ -563,8 +570,8 @@ class CoachProgramState {
 			this.opError = res.error || 'Could not clear the week — restored.';
 			return;
 		}
-		// Reconcile per-day breadcrumbs (loadWeek clears the crumb on every
-		// now-empty day) and calendar dots.
+		// Reconcile per-day breadcrumbs (getScheduledBreadcrumb returns null for
+		// every day whose program link this just deleted) and calendar dots.
 		await Promise.all([this.loadWeek(athleteId, weekStart), this.loadStatusMap()]);
 	}
 

@@ -536,3 +536,27 @@ export async function resolveBreadcrumb(
 
 	return resolveAssignmentBreadcrumb(supabase, athleteId, dateKey);
 }
+
+/**
+ * Like resolveBreadcrumb but WITHOUT the assignment date-math fallback: a day
+ * only reads as part of a program when it carries its own session link. Used
+ * by the coach Training page so that "Clear week" (which deletes the
+ * session-linked rows) actually detaches that week — adding exercises back to
+ * it afterwards creates plain, unlinked rows, so the week stays breadcrumb-
+ * free until a program is (re)assigned or a program day is pasted onto it.
+ */
+export async function resolveScheduledBreadcrumb(
+	supabase: SupabaseClient,
+	athleteId: string,
+	dateKey: string
+): Promise<Breadcrumb | null> {
+	const { data: workout } = await supabase
+		.from('athlete_workouts')
+		.select('session_id')
+		.eq('athlete_id', athleteId)
+		.eq('scheduled_date', dateKey)
+		.maybeSingle();
+
+	if (!workout?.session_id) return null;
+	return resolveSessionBreadcrumb(supabase, workout.session_id);
+}

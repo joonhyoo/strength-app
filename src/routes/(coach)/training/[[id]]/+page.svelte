@@ -237,10 +237,10 @@
 		</div>
 	{:else if athlete}
 		<div>
-			<!-- Only while the visible week actually has something scheduled. An
-			     empty week (nothing planned yet, or just cleared) shouldn't still
-			     read as "Week 3 of 8" of a program. -->
-			{#if program.selectedWeekCount > 0}
+			<!-- Only while some day of the visible week belongs to an assigned
+			     program. An empty week, or one that was cleared and hand-filled
+			     since, shouldn't read as "Week 3 of 8" of a program. -->
+			{#if program.selectedWeekOnProgram}
 				<ProgramBreadcrumb
 					athleteId={athlete.id}
 					date={program.selectedDate}
