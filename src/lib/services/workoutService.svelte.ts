@@ -280,7 +280,12 @@ export async function getAthleteStatusMap(
 
 	// A failed request is not an answer — leave any cached map standing
 	// rather than caching an empty one over it (same reasoning as getWorkoutDay).
-	if (!res.ok) return getCachedStatusMap(athleteId) ?? new SvelteMap();
+	// The 500 is already logged server-side; note it here too so a stale calendar
+	// is traceable from the browser console.
+	if (!res.ok) {
+		console.warn(`[api] getStatusMap → ${res.status}; keeping cached calendar dots`);
+		return getCachedStatusMap(athleteId) ?? new SvelteMap();
+	}
 
 	const { data: workouts } = await res.json();
 	// A ranged fetch only covers part of the athlete's history — start from

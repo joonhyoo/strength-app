@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { canAccess, needsUsername, roleHome } from '$lib/guards';
+import { streamList } from '$lib/server/db';
 
 export const load: LayoutServerLoad = async ({ parent, locals: { supabase } }) => {
 	const { user } = await parent();
@@ -13,12 +14,14 @@ export const load: LayoutServerLoad = async ({ parent, locals: { supabase } }) =
 	// url/params. Streamed (not awaited) so the guards above still gate
 	// the section, but this page's own shell doesn't wait on the query.
 	return {
-		athletes: supabase
-			.from('profiles')
-			.select('id, name, email, coach_id')
-			.eq('coach_id', user!.id)
-			.eq('role', 'athlete')
-			.order('name')
-			.then(({ data }) => data ?? [])
+		athletes: streamList(
+			'coach.athletes',
+			supabase
+				.from('profiles')
+				.select('id, name, email, coach_id')
+				.eq('coach_id', user!.id)
+				.eq('role', 'athlete')
+				.order('name')
+		)
 	};
 };

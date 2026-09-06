@@ -21,10 +21,6 @@
 	// The whole Monday-Sunday week containing it renders below (from
 	// program.weekDays, loaded by the page); picking a new date scrolls to that
 	// day's section rather than replacing what's shown.
-	// `athleteId` isn't read here yet — it's part of the day-level copy/paste
-	// affordance (dayClipboardMode) that lands in a separate change; kept in the
-	// prop signature since the parent already passes it.
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let { athleteId, athleteName, date }: { athleteId: string; athleteName: string; date: Date } =
 		$props();
 

@@ -79,10 +79,10 @@ export interface ProgramTree {
 
 /**
  * Same shape as ProgramTree, one level deeper — down to each exercise and
- * its sets. ProgramTree stays lean (structure only) because
- * resolveBreadcrumb's history-scanning fallback can load several programs'
- * trees per call; ProgramDetail is only ever loaded once, for the Library
- * editor's own program view.
+ * its sets. ProgramTree stays lean (structure only) because it can be loaded
+ * on hot paths (breadcrumb resolution, assignment-conflict previews);
+ * ProgramDetail is only ever loaded once, for the Library editor's own
+ * program view.
  */
 export interface ProgramExerciseDetail {
 	id: string;
@@ -135,6 +135,6 @@ export interface Breadcrumb {
 	colorKey: ColorKey;
 	weekOfTotal: number;
 	totalWeeks: number;
+	/** The session name for this day, e.g. "Upper A". */
 	label: string;
-	isComplete: boolean;
 }

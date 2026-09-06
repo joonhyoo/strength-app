@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { needsUsername, roleHome, roleHomeFor } from '$lib/guards';
+import { needsUsername, roleHome } from '$lib/guards';
+import { roleHomeFor } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { user } = await parent();

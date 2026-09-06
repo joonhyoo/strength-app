@@ -10,26 +10,33 @@ import type {
 	AssignmentDate as AssignmentDateType,
 	Breadcrumb
 } from '$lib/types';
+import { dbList, dbMaybe } from './db';
+import { serverLog, type Logger } from './log';
 
 export type { ColorKey, ProgramTree, ProgramDetail, WeekDetail, SessionDetail, Breadcrumb };
 
 /** Loads a program's full tree, ordered by each level's rank (position/week_number). */
 export async function loadProgramTree(
 	supabase: SupabaseClient,
-	programId: string
+	programId: string,
+	log: Logger = serverLog
 ): Promise<ProgramTree | null> {
-	const { data } = await supabase
-		.from('programs')
-		.select(
-			`id, name, description,
-			 cycles(id, name, goal, color_key, position,
-			   weeks(id, week_number,
-			     sessions(id, day_number, name)
-			   )
-			 )`
-		)
-		.eq('id', programId)
-		.maybeSingle();
+	const data = await dbMaybe(
+		log,
+		'program.loadTree',
+		supabase
+			.from('programs')
+			.select(
+				`id, name, description,
+				 cycles(id, name, goal, color_key, position,
+				   weeks(id, week_number,
+				     sessions(id, day_number, name)
+				   )
+				 )`
+			)
+			.eq('id', programId)
+			.maybeSingle()
+	);
 
 	if (!data) return null;
 
@@ -144,18 +151,23 @@ function mapWeekRow(w: RawWeekRow): WeekDetail {
 /** Full tree including exercises/sets — see ProgramDetail's own doc comment for why this is separate from loadProgramTree. */
 export async function loadProgramDetail(
 	supabase: SupabaseClient,
-	programId: string
+	programId: string,
+	log: Logger = serverLog
 ): Promise<ProgramDetail | null> {
-	const { data } = await supabase
-		.from('programs')
-		.select(
-			`id, name, description,
+	const data = await dbMaybe(
+		log,
+		'program.loadDetail',
+		supabase
+			.from('programs')
+			.select(
+				`id, name, description,
 			 cycles(id, name, goal, color_key, position,
 			   weeks(${WEEK_DETAIL_SELECT})
 			 )`
-		)
-		.eq('id', programId)
-		.maybeSingle();
+			)
+			.eq('id', programId)
+			.maybeSingle()
+	);
 
 	if (!data) return null;
 
@@ -186,13 +198,14 @@ export async function loadProgramDetail(
  *  loadProgramDetail. Used to reconcile an optimistically-inserted copied week. */
 export async function loadWeekDetail(
 	supabase: SupabaseClient,
-	weekId: string
+	weekId: string,
+	log: Logger = serverLog
 ): Promise<WeekDetail | null> {
-	const { data } = await supabase
-		.from('weeks')
-		.select(WEEK_DETAIL_SELECT)
-		.eq('id', weekId)
-		.maybeSingle();
+	const data = await dbMaybe(
+		log,
+		'program.loadWeekDetail',
+		supabase.from('weeks').select(WEEK_DETAIL_SELECT).eq('id', weekId).maybeSingle()
+	);
 
 	return data ? mapWeekRow(data as unknown as RawWeekRow) : null;
 }
@@ -201,13 +214,14 @@ export async function loadWeekDetail(
  *  loadProgramDetail. Used to reconcile an optimistically-pasted session. */
 export async function loadSessionDetail(
 	supabase: SupabaseClient,
-	sessionId: string
+	sessionId: string,
+	log: Logger = serverLog
 ): Promise<SessionDetail | null> {
-	const { data } = await supabase
-		.from('sessions')
-		.select(SESSION_DETAIL_SELECT)
-		.eq('id', sessionId)
-		.maybeSingle();
+	const data = await dbMaybe(
+		log,
+		'program.loadSessionDetail',
+		supabase.from('sessions').select(SESSION_DETAIL_SELECT).eq('id', sessionId).maybeSingle()
+	);
 
 	return data ? mapSessionRow(data as unknown as RawSessionRow) : null;
 }
@@ -310,24 +324,29 @@ export async function checkAssignConflicts(
 	supabase: SupabaseClient,
 	programId: string,
 	athleteId: string,
-	startDate: string
+	startDate: string,
+	log: Logger = serverLog
 ): Promise<{ dates: AssignmentDate[]; conflicts: string[] }> {
-	const tree = await loadProgramTree(supabase, programId);
+	const tree = await loadProgramTree(supabase, programId, log);
 	if (!tree) return { dates: [], conflicts: [] };
 
 	const dates = computeAssignmentDates(flattenProgram(tree), startDate);
 	if (dates.length === 0) return { dates, conflicts: [] };
 
-	const { data: existing } = await supabase
-		.from('athlete_workouts')
-		.select('scheduled_date')
-		.eq('athlete_id', athleteId)
-		.in(
-			'scheduled_date',
-			dates.map((d) => d.dateKey)
-		);
+	const existing = await dbList(
+		log,
+		'assign.conflictCheck',
+		supabase
+			.from('athlete_workouts')
+			.select('scheduled_date')
+			.eq('athlete_id', athleteId)
+			.in(
+				'scheduled_date',
+				dates.map((d) => d.dateKey)
+			)
+	);
 
-	const existingSet = new Set((existing ?? []).map((r) => r.scheduled_date as string));
+	const existingSet = new Set(existing.map((r) => r.scheduled_date as string));
 	const conflicts = dates.filter((d) => existingSet.has(d.dateKey)).map((d) => d.dateKey);
 	return { dates, conflicts };
 }
@@ -350,48 +369,66 @@ export async function checkShiftConflicts(
 	supabase: SupabaseClient,
 	athleteId: string,
 	fromDate: string,
-	shiftWeeks: number
+	shiftWeeks: number,
+	log: Logger = serverLog
 ): Promise<{ moving: string[]; conflicts: string[] }> {
-	const { data: moving } = await supabase
-		.from('athlete_workouts')
-		.select('scheduled_date')
-		.eq('athlete_id', athleteId)
-		.gte('scheduled_date', fromDate);
+	const moving = await dbList(
+		log,
+		'shift.movingSet',
+		supabase
+			.from('athlete_workouts')
+			.select('scheduled_date')
+			.eq('athlete_id', athleteId)
+			.gte('scheduled_date', fromDate)
+	);
 
-	const movingDates = (moving ?? []).map((r) => r.scheduled_date as string);
+	const movingDates = moving.map((r) => r.scheduled_date as string);
 	if (movingDates.length === 0) return { moving: movingDates, conflicts: [] };
 
 	const shiftDays = shiftWeeks * 7;
 	const destDates = movingDates.map((d) => addDays(d, shiftDays));
 	const movingSet = new Set(movingDates);
 
-	const { data: existing } = await supabase
-		.from('athlete_workouts')
-		.select('scheduled_date')
-		.eq('athlete_id', athleteId)
-		.in('scheduled_date', destDates);
+	const existing = await dbList(
+		log,
+		'shift.conflictCheck',
+		supabase
+			.from('athlete_workouts')
+			.select('scheduled_date')
+			.eq('athlete_id', athleteId)
+			.in('scheduled_date', destDates)
+	);
 
-	const existingSet = new Set((existing ?? []).map((r) => r.scheduled_date as string));
+	const existingSet = new Set(existing.map((r) => r.scheduled_date as string));
 	const conflicts = destDates.filter((d) => existingSet.has(d) && !movingSet.has(d));
 	return { moving: movingDates, conflicts };
 }
 
 /**
- * Resolves "what program/cycle/week is this day" for one specific scheduled
- * day, from its OWN stored `session_id` link — never recomputed from the
- * date. This is what makes a shifted or copied day keep reading correctly no
- * matter where it lands on the calendar: the link travels with the row, not
- * with an assignment's start_date.
+ * Resolves "what program/cycle/week is this day" from the day's OWN stored
+ * `session_id` link — never recomputed from a date. The link travels with the
+ * row, so a shifted or copied day keeps reading correctly wherever it lands on
+ * the calendar.
+ *
+ * There is deliberately no date-math fallback: a day with no `session_id`
+ * (a rest day, an ad-hoc day, a day in a cleared week) has no program context
+ * to show. Guessing one from an assignment's on-paper range was how a cleared
+ * week kept showing "Week 3 of 8" — see testing-notes 2026-09-06.
  */
 async function resolveSessionBreadcrumb(
 	supabase: SupabaseClient,
-	sessionId: string
+	sessionId: string,
+	log: Logger
 ): Promise<Breadcrumb | null> {
-	const { data: rawSession } = await supabase
-		.from('sessions')
-		.select('id, name, weeks(id, cycles(program_id))')
-		.eq('id', sessionId)
-		.maybeSingle();
+	const rawSession = await dbMaybe(
+		log,
+		'breadcrumb.session',
+		supabase
+			.from('sessions')
+			.select('id, name, weeks(id, cycles(program_id))')
+			.eq('id', sessionId)
+			.maybeSingle()
+	);
 
 	// A forward FK embed (sessions -> weeks -> cycles) is a single row at
 	// runtime, same as getWorkoutDay's `row.exercises` — the generated type
@@ -406,7 +443,7 @@ async function resolveSessionBreadcrumb(
 	const programId = session?.weeks?.cycles?.program_id;
 	if (!session || !session.weeks || !programId) return null; // orphaned: the template session was since deleted
 
-	const tree = await loadProgramTree(supabase, programId);
+	const tree = await loadProgramTree(supabase, programId, log);
 	if (!tree) return null;
 
 	const flat = flattenProgram(tree);
@@ -419,144 +456,33 @@ async function resolveSessionBreadcrumb(
 		colorKey: week.colorKey,
 		weekOfTotal: week.weekRank + 1,
 		totalWeeks: flat.totalWeeks,
-		label: session.name,
-		isComplete: false
+		label: session.name
 	};
 }
 
 /**
- * Fallback for a day with no direct session link (a rest day, an ad-hoc day,
- * or nothing scheduled at all): resolves from whichever program assignment's
- * on-paper range covers — or has passed — dateKey. Scans every assignment
- * the athlete has ever had (not just the current active one) because a
- * coach can reassign a new program after a prior one completes, and a date
- * being viewed might fall under an earlier one. Returns null only when
- * dateKey is outside every assignment's range on both ends (before the
- * first ever started) or the athlete has none at all.
- */
-async function resolveAssignmentBreadcrumb(
-	supabase: SupabaseClient,
-	athleteId: string,
-	dateKey: string
-): Promise<Breadcrumb | null> {
-	const { data: assignments } = await supabase
-		.from('program_assignments')
-		.select('id, program_id, start_date')
-		.eq('athlete_id', athleteId)
-		.order('start_date', { ascending: false });
-
-	if (!assignments || assignments.length === 0) return null;
-
-	const candidates: { startDate: string; flat: FlatProgram; endDate: string }[] = [];
-	for (const a of assignments) {
-		const tree = await loadProgramTree(supabase, a.program_id);
-		if (!tree) continue;
-		const flat = flattenProgram(tree);
-		if (flat.totalWeeks === 0) continue;
-		candidates.push({
-			startDate: a.start_date,
-			flat,
-			endDate: addDays(a.start_date, flat.totalWeeks * 7 - 1)
-		});
-	}
-	if (candidates.length === 0) return null;
-
-	// `candidates` is in start_date-desc order (newest first). A coach can
-	// reassign a new program before an older one's on-paper range would have
-	// naturally ended — once that happens the older one is superseded, not
-	// still "covering" those later dates just because its own template was
-	// long enough to reach them. Clip each candidate's effective end to just
-	// before the next-newer one's start, so ranges never overlap and the
-	// newest assignment always wins on any date it actually reaches.
-	for (let i = 1; i < candidates.length; i++) {
-		const newerStart = candidates[i - 1].startDate;
-		if (newerStart <= candidates[i].endDate) candidates[i].endDate = addDays(newerStart, -1);
-	}
-
-	const covering = candidates.find((c) => dateKey >= c.startDate && dateKey <= c.endDate);
-	const latest = candidates.reduce((a, b) => (b.endDate > a.endDate ? b : a));
-	const chosen = covering ?? latest;
-	const isComplete = !covering && dateKey > chosen.endDate;
-
-	if (!covering && !isComplete) return null; // dateKey predates every assignment
-
-	if (isComplete) {
-		const week = chosen.flat.weeks[chosen.flat.weeks.length - 1];
-		return {
-			programName: chosen.flat.programName,
-			cycleName: week.cycleName,
-			colorKey: week.colorKey,
-			weekOfTotal: week.weekRank + 1,
-			totalWeeks: chosen.flat.totalWeeks,
-			label: 'Program complete',
-			isComplete: true
-		};
-	}
-
-	const offset = diffDays(chosen.startDate, dateKey);
-	const week = chosen.flat.weeks[Math.floor(offset / 7)];
-	if (!week) return null;
-	const session = week.sessionsByDay.get((offset % 7) + 1);
-
-	return {
-		programName: chosen.flat.programName,
-		cycleName: week.cycleName,
-		colorKey: week.colorKey,
-		weekOfTotal: week.weekRank + 1,
-		totalWeeks: chosen.flat.totalWeeks,
-		label: session ? session.name : 'Rest day',
-		isComplete: false
-	};
-}
-
-/**
- * Resolves "what program/cycle/week is this athlete in, as of dateKey" —
- * feeds the breadcrumb, the athlete roster tag, and the Library pin. Tries
- * the day's own direct link first (correct for a scheduled session, and for
- * a session copied/pasted onto an athlete who was never formally assigned
- * anything), then falls back to assignment-based date math for a rest day
- * or a day with nothing scheduled at all.
+ * "What program/cycle/week is this athlete's day" — for the breadcrumb on both
+ * the coach Training page and the athlete Train page. Resolves purely from the
+ * day's own session link (see resolveSessionBreadcrumb); `null` when the day
+ * carries none.
  */
 export async function resolveBreadcrumb(
 	supabase: SupabaseClient,
 	athleteId: string,
-	dateKey: string
+	dateKey: string,
+	log: Logger = serverLog
 ): Promise<Breadcrumb | null> {
-	const { data: workout } = await supabase
-		.from('athlete_workouts')
-		.select('session_id')
-		.eq('athlete_id', athleteId)
-		.eq('scheduled_date', dateKey)
-		.maybeSingle();
-
-	if (workout?.session_id) {
-		const direct = await resolveSessionBreadcrumb(supabase, workout.session_id);
-		if (direct) return direct;
-	}
-
-	return resolveAssignmentBreadcrumb(supabase, athleteId, dateKey);
-}
-
-/**
- * Like resolveBreadcrumb but WITHOUT the assignment date-math fallback: a day
- * only reads as part of a program when it carries its own session link. Used
- * by the coach Training page so that "Clear week" (which deletes the
- * session-linked rows) actually detaches that week — adding exercises back to
- * it afterwards creates plain, unlinked rows, so the week stays breadcrumb-
- * free until a program is (re)assigned or a program day is pasted onto it.
- */
-export async function resolveScheduledBreadcrumb(
-	supabase: SupabaseClient,
-	athleteId: string,
-	dateKey: string
-): Promise<Breadcrumb | null> {
-	const { data: workout } = await supabase
-		.from('athlete_workouts')
-		.select('session_id')
-		.eq('athlete_id', athleteId)
-		.eq('scheduled_date', dateKey)
-		.maybeSingle();
+	const workout = await dbMaybe(
+		log,
+		'breadcrumb.workout',
+		supabase
+			.from('athlete_workouts')
+			.select('session_id')
+			.eq('athlete_id', athleteId)
+			.eq('scheduled_date', dateKey)
+			.maybeSingle()
+	);
 
 	if (!workout?.session_id) return null;
-	return resolveSessionBreadcrumb(supabase, workout.session_id);
+	return resolveSessionBreadcrumb(supabase, workout.session_id, log);
 }
