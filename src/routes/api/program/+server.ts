@@ -7,7 +7,8 @@ import {
 	loadSessionDetail,
 	checkAssignConflicts as checkAssignConflictsImpl,
 	checkShiftConflicts as checkShiftConflictsImpl,
-	resolveBreadcrumb
+	resolveBreadcrumb,
+	resolveScheduledBreadcrumb
 } from '$lib/server/programSchedule';
 
 const RPC_ERROR_MESSAGE: Record<string, string> = {
@@ -562,6 +563,12 @@ export const POST: RequestHandler = async ({ request, locals: { supabase } }) =>
 		case 'getBreadcrumb': {
 			const { athleteId, dateKey } = data;
 			const breadcrumb = await resolveBreadcrumb(supabase, athleteId, dateKey);
+			return json({ data: breadcrumb });
+		}
+
+		case 'getScheduledBreadcrumb': {
+			const { athleteId, dateKey } = data;
+			const breadcrumb = await resolveScheduledBreadcrumb(supabase, athleteId, dateKey);
 			return json({ data: breadcrumb });
 		}
 

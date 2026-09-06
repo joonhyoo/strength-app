@@ -158,3 +158,11 @@ export async function getBreadcrumb(athleteId: string, dateKey: string) {
 	const res = await postProgram('getBreadcrumb', { athleteId, dateKey });
 	return res.ok ? (res.data as Breadcrumb | null) : null;
 }
+
+/** Coach Training page only: resolves a crumb solely from the day's own
+ * session link, with no assignment date-math fallback — a cleared week (and
+ * any exercises later added to it) stays breadcrumb-free. */
+export async function getScheduledBreadcrumb(athleteId: string, dateKey: string) {
+	const res = await postProgram('getScheduledBreadcrumb', { athleteId, dateKey });
+	return res.ok ? (res.data as Breadcrumb | null) : null;
+}
