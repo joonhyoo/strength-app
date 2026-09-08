@@ -3,25 +3,17 @@
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import CopyLineIcon from '@iconify-svelte/mingcute/copy-line';
-	import PasteLineIcon from '@iconify-svelte/mingcute/paste-line';
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
-	import DotGridLineIcon from '@iconify-svelte/mingcute/dot-grid-line';
 	import Button from '$lib/components/Button.svelte';
-	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
-	import { CATEGORY_LABEL } from '$lib/data/categories';
 	import { cycleColorCss } from '$lib/data/cycleColors';
-	import { formatPlan } from '$lib/formatPlan';
-	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-	import { flip } from 'svelte/animate';
-	import type { ProgramDetail, ProgramExerciseDetail } from '$lib/types';
+	import ExerciseDragList from './ExerciseDragList.svelte';
+	import WeekDayGrid from './WeekDayGrid.svelte';
+	import type { ProgramDetail } from '$lib/types';
 
 	let { cycle }: { cycle: ProgramDetail['cycles'][number] } = $props();
 
 	const builder = getProgramBuilderState();
-	const FLIP_MS = 200;
-
-	const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 	const expandedWeek = $derived(cycle.weeks.find((w) => w.id === builder.expandedWeekId) ?? null);
 	const expandedWeekIndex = $derived(
@@ -38,29 +30,6 @@
 	// True while the expanded week is an optimistic copy still reconciling with
 	// the server — the grid is frozen (inert) so an edit can't hit a temp id.
 	const weekPending = $derived(!!expandedWeek && builder.pendingWeekIds.has(expandedWeek.id));
-
-	// Drag-and-drop reorder of the expanded session's exercise list. svelte-dnd-
-	// action reorders its own `items` array, so we mirror the session's exercises
-	// into local state, let `consider` stream the live shuffle into it, and push
-	// the result into the builder tree on `finalize`. The mirror re-syncs from
-	// the tree whenever the session (or its exercises) change out from under it.
-	// Writable $derived: mirrors the session's exercises, but `consider` can
-	// write the live drag order into it; it snaps back to the tree whenever the
-	// session's exercises actually change.
-	let dragItems = $derived<ProgramExerciseDetail[]>(
-		expandedSession ? expandedSession.exercises.slice() : []
-	);
-	const dragDisabled = $derived(dragItems.length < 2 || builder.pendingExerciseIds.size > 0);
-
-	function handleDndConsider(e: CustomEvent<DndEvent<ProgramExerciseDetail>>) {
-		dragItems = e.detail.items;
-	}
-	function handleDndFinalize(e: CustomEvent<DndEvent<ProgramExerciseDetail>>) {
-		dragItems = e.detail.items;
-		const id = e.detail.info.id;
-		const toIndex = dragItems.findIndex((x) => x.id === id);
-		if (id && toIndex >= 0) builder.moveExerciseTo(id, toIndex);
-	}
 
 	let copyBusy = $state(false);
 	let copyError = $state('');
@@ -245,85 +214,23 @@
 						</Button>
 					</div>
 
-					<div class="grid min-w-[640px] grid-cols-7 gap-2">
-						{#each DOW as dowLabel, i (dowLabel)}
-							{@const dayNumber = i + 1}
-							{@const session = expandedWeek.sessions.find((s) => s.dayNumber === dayNumber)}
-							{#if clipboard}
-								{@const isSource =
-									clipboard.sourceWeekId === expandedWeek.id &&
-									clipboard.sourceDayNumber === dayNumber}
-								<button
-									type="button"
-									class="flex min-h-[4.6rem] flex-col gap-1 rounded-lg border p-2 text-left transition-colors disabled:opacity-60 {isSource
-										? 'border-base-300 bg-base-200 opacity-60'
-										: 'border-dashed border-primary/60 bg-primary/5 hover:bg-primary/15'}"
-									disabled={isSource || pasteBusy}
-									onclick={() => handlePasteInto(dayNumber, dowLabel, session)}
-								>
-									<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase"
-										>{dowLabel}</span
-									>
-									{#if isSource}
-										<span class="mt-1 text-xs text-base-content/50">Copied from here</span>
-									{:else if session}
-										<span class="mt-1 flex items-center gap-1 text-sm font-semibold text-primary">
-											<PasteLineIcon class="size-4" /> Replace
-										</span>
-										<span class="truncate text-[0.66rem] text-base-content/50">{session.name}</span>
-									{:else}
-										<span class="mt-1 flex items-center gap-1 text-sm font-semibold text-primary">
-											<PasteLineIcon class="size-4" /> Paste here
-										</span>
-									{/if}
-								</button>
-							{:else if session}
-								{@const isOpen = builder.expandedSessionId === session.id}
-								{@const sessionPending = builder.pendingSessionIds.has(session.id)}
-								<button
-									type="button"
-									class="min-h-[4.6rem] rounded-lg border p-2 text-left {isOpen
-										? 'border-primary shadow-[inset_0_0_0_1px_var(--color-primary)]'
-										: 'border-base-300 bg-base-100 hover:border-primary'}"
-									class:animate-pulse={sessionPending}
-									inert={sessionPending}
-									onclick={() => builder.toggleSession(session.id)}
-								>
-									<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase"
-										>{dowLabel}</span
-									>
-									<span class="mt-1 block text-sm font-semibold">{session.name}</span>
-									<span class="text-[0.66rem] text-base-content/50"
-										>{session.exercises.length} exercise{session.exercises.length === 1
-											? ''
-											: 's'}</span
-									>
-								</button>
-							{:else}
-								<div
-									class="flex min-h-[4.6rem] flex-col gap-1 rounded-lg border border-base-300 bg-base-200 p-2"
-								>
-									<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase"
-										>{dowLabel}</span
-									>
-									<span class="text-xs text-base-content/40">Rest</span>
-									<button
-										type="button"
-										class="mt-auto rounded border border-dashed border-base-300 py-1 text-[0.7rem] tracking-wider text-base-content/50 uppercase hover:border-primary hover:text-primary"
-										onclick={() =>
-											builder.openModal({
-												type: 'session',
-												weekId: expandedWeek.id,
-												dayNumber,
-												sessionId: null
-											})}
-									>
-										<PlusFillIcon class="inline size-4" /> Add session
-									</button>
-								</div>
-							{/if}
-						{/each}
-					</div>
+					<WeekDayGrid
+						weekId={expandedWeek.id}
+						sessions={expandedWeek.sessions}
+						{clipboard}
+						expandedSessionId={builder.expandedSessionId}
+						pendingSessionIds={builder.pendingSessionIds}
+						{pasteBusy}
+						onToggleSession={(sessionId) => builder.toggleSession(sessionId)}
+						onAddSession={(dayNumber) =>
+							builder.openModal({
+								type: 'session',
+								weekId: expandedWeek.id,
+								dayNumber,
+								sessionId: null
+							})}
+						onPasteInto={handlePasteInto}
+					/>
 				</div>
 
 				{#if expandedSession}
@@ -370,82 +277,18 @@
 							<p class="mt-2 text-xs text-error">{builder.opError}</p>
 						{/if}
 
-						{#if dragItems.length === 0}
-							<p class="py-4 text-center text-sm text-base-content/60">No exercises yet.</p>
-						{:else}
-							<div
-								class="flex flex-col"
-								use:dndzone={{
-									items: dragItems,
-									flipDurationMs: FLIP_MS,
-									dragDisabled,
-									dropTargetStyle: {}
-								}}
-								onconsider={handleDndConsider}
-								onfinalize={handleDndFinalize}
-							>
-								{#each dragItems as exercise (exercise.id)}
-									<div
-										class="flex min-w-0 items-center gap-3 border-b border-base-300 py-2 last:border-none"
-										class:opacity-60={builder.pendingExerciseIds.has(exercise.id)}
-										inert={builder.pendingExerciseIds.has(exercise.id)}
-										animate:flip={{ duration: FLIP_MS }}
-									>
-										<CategoryIcon category={exercise.category} />
-										<div class="min-w-0 flex-1">
-											{#if exercise.category === 'note'}
-												<p class="text-sm break-words text-base-content/80">{exercise.note}</p>
-											{:else}
-												<div class="flex items-baseline gap-2">
-													<span class="font-medium">{exercise.activity}</span>
-													<span class="text-xs text-base-content/50"
-														>{CATEGORY_LABEL[exercise.category]}</span
-													>
-												</div>
-												{#if formatPlan(exercise.plan) || exercise.note}
-													<p class="text-sm break-words text-base-content/60">
-														{formatPlan(exercise.plan)}{exercise.plan.length && exercise.note.length
-															? ' · '
-															: ''}{exercise.note}
-													</p>
-												{/if}
-											{/if}
-										</div>
-										<div class="flex shrink-0 items-center gap-1">
-											{#if dragItems.length > 1}
-												<span
-													class="cursor-grab text-base-content/40 active:cursor-grabbing"
-													aria-hidden="true"
-												>
-													<DotGridLineIcon class="size-5" />
-												</span>
-											{/if}
-											<button
-												type="button"
-												class="btn text-secondary btn-ghost btn-xs"
-												aria-label={`Edit ${exercise.activity}`}
-												onclick={() =>
-													builder.openModal({
-														type: 'exercise',
-														sessionId: expandedSession.id,
-														programExerciseId: exercise.id
-													})}
-											>
-												<EditBoxLineIcon class="size-5" />
-											</button>
-											<button
-												type="button"
-												class="btn text-error btn-ghost btn-xs"
-												aria-label={`Remove ${exercise.activity}`}
-												onclick={() => handleDeleteExercise(exercise.id)}
-											>
-												<Delete3LineIcon class="size-5" />
-											</button>
-										</div>
-									</div>
-								{/each}
-							</div>
-						{/if}
+						<ExerciseDragList
+							exercises={expandedSession.exercises}
+							pendingExerciseIds={builder.pendingExerciseIds}
+							onReorder={(id, toIndex) => builder.moveExerciseTo(id, toIndex)}
+							onEdit={(programExerciseId) =>
+								builder.openModal({
+									type: 'exercise',
+									sessionId: expandedSession.id,
+									programExerciseId
+								})}
+							onRemove={handleDeleteExercise}
+						/>
 
 						<div class="mt-2 flex gap-2">
 							<Button

@@ -19,16 +19,16 @@ import {
 } from '$lib/services/workoutService.svelte';
 import { getBreadcrumb } from '$lib/services/programTemplateService.svelte';
 import { toKey, parseKey, addDays, mondayOf } from '$lib/dateKey';
+import { tempId, trackOptimistic } from '$lib/optimisticTree';
+import {
+	type Clipboard,
+	dayClipboardMode as computeDayClipboardMode,
+	weekClipboardMode as computeWeekClipboardMode
+} from '$lib/coachClipboard';
 import type { DayStatus } from '$lib/complete';
 import type { Exercise, Breadcrumb } from '$lib/types';
 
-// Session-monotonic id for an optimistically-inserted exercise, swapped for the
-// server's real id on success. Only ever matched with `===`, never parsed.
-let tempSeq = 0;
-
-export type Clipboard =
-	| { type: 'day'; athleteId: string; athleteName: string; dateKey: string }
-	| { type: 'week'; athleteId: string; athleteName: string; weekStart: string };
+export type { Clipboard };
 
 /** One day of the focused week in the training timeline. Each carries its own
  *  load state so one slow or failed day never blocks the rest. */
@@ -153,12 +153,6 @@ class CoachProgramState {
 		}
 	}
 
-	private trackOptimistic<T>(op: Promise<T>): Promise<T> {
-		this.pendingOps.add(op);
-		void op.finally(() => this.pendingOps.delete(op));
-		return op;
-	}
-
 	/** Background refetch of one day (server truth) — used to recover after a
 	 *  reorder the server rejected, where the pre-drag order isn't recoverable
 	 *  locally. */
@@ -186,7 +180,8 @@ class CoachProgramState {
 		const day = this.dayFor(dateKey);
 
 		if (!day) {
-			return this.trackOptimistic(
+			return trackOptimistic(
+				this.pendingOps,
 				(async () => {
 					const res = await addExerciseToDay(athleteId, dateKey, exercise);
 					if (!res.ok) this.opError = res.error || 'Could not add the exercise.';
@@ -195,13 +190,14 @@ class CoachProgramState {
 			);
 		}
 
-		const temp = `temp-${++tempSeq}`;
+		const temp = tempId();
 		day.exercises = [...day.exercises, { ...exercise, id: temp }];
 		this.pendingExerciseIds.add(temp);
 		this.syncDayCache(dateKey);
 		this.setDayStatus(dateKey, day.exercises);
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			(async () => {
 				const res = await addExerciseToDay(athleteId, dateKey, exercise);
 				const d = this.dayFor(dateKey);
@@ -231,7 +227,8 @@ class CoachProgramState {
 		const index = day?.exercises.findIndex((e) => e.id === id) ?? -1;
 
 		if (!day || index === -1) {
-			return this.trackOptimistic(
+			return trackOptimistic(
+				this.pendingOps,
 				(async () => {
 					const res = await updateScheduledExercise(id, exercise);
 					if (!res.ok) this.opError = res.error || 'Could not save the exercise.';
@@ -248,7 +245,8 @@ class CoachProgramState {
 		this.syncDayCache(dateKey);
 		this.setDayStatus(dateKey, day.exercises);
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			(async () => {
 				const res = await updateScheduledExercise(id, exercise);
 				if (!res.ok) {
@@ -273,7 +271,8 @@ class CoachProgramState {
 		const index = day?.exercises.findIndex((e) => e.id === id) ?? -1;
 
 		if (!day || index === -1) {
-			return this.trackOptimistic(
+			return trackOptimistic(
+				this.pendingOps,
 				(async () => {
 					const res = await removeScheduledExercise(id);
 					if (!res.ok) this.opError = res.error || 'Could not remove the exercise.';
@@ -287,7 +286,8 @@ class CoachProgramState {
 		this.syncDayCache(dateKey);
 		this.setDayStatus(dateKey, day.exercises);
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			(async () => {
 				const res = await removeScheduledExercise(id);
 				if (!res.ok) {
@@ -311,7 +311,8 @@ class CoachProgramState {
 		// weekDays; just persist it and let the server confirm.
 		this.syncDayCache(dateKey);
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			(async () => {
 				const res = await reorderScheduledExercise(id, toIndex);
 				if (!res.ok) {
@@ -441,23 +442,12 @@ class CoachProgramState {
 		this.clipboard = null;
 	}
 
-	/** Which of the merged copy/paste affordances a day cell should show:
-	 * 'cancel' on the day that's currently copied, 'paste' on every other day
-	 * once something's on the clipboard, 'copy' otherwise. */
 	dayClipboardMode(athleteId: string, dateKey: string): 'copy' | 'paste' | 'cancel' {
-		const cb = this.clipboard;
-		if (cb?.type !== 'day') return 'copy';
-		if (cb.athleteId === athleteId && cb.dateKey === dateKey) return 'cancel';
-		return 'paste';
+		return computeDayClipboardMode(this.clipboard, athleteId, dateKey);
 	}
 
-	/** Same three-way state for the selected week's toolbar button. */
 	get weekClipboardMode(): 'copy' | 'paste' | 'cancel' {
-		const cb = this.clipboard;
-		if (cb?.type !== 'week') return 'copy';
-		if (cb.athleteId === this.selectedAthleteId && cb.weekStart === this.selectedWeekStart)
-			return 'cancel';
-		return 'paste';
+		return computeWeekClipboardMode(this.clipboard, this.selectedAthleteId, this.selectedWeekStart);
 	}
 
 	// Paste / assign / shift are server-orchestrated (deep copy with fresh ids,
