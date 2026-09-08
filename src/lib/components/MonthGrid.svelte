@@ -2,7 +2,7 @@
 	import LeftFillIcon from '@iconify-svelte/mingcute/left-fill';
 	import RightFillIcon from '@iconify-svelte/mingcute/right-fill';
 	import type { DayStatus } from '$lib/complete';
-	import { toKey } from '$lib/dateKey';
+	import { parseKey, toKey, mondayOf } from '$lib/dateKey';
 
 	let {
 		selectedDate,
@@ -79,15 +79,9 @@
 		return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 	}
 
-	function mondayOf(date: Date) {
-		const d = startOfDay(date);
-		d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-		return d;
-	}
-
 	function isInHighlightedWeek(date: Date) {
 		if (!highlightWeekOf) return false;
-		const start = mondayOf(highlightWeekOf);
+		const start = parseKey(mondayOf(toKey(highlightWeekOf)));
 		// Plain Date: function-local scratch value for a one-off calculation,
 		// never read reactively by the template.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity

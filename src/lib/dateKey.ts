@@ -32,10 +32,6 @@ export function mondayOf(key: string): string {
 	return toKey(d);
 }
 
-export function isMonday(key: string): boolean {
-	return parseKey(key).getDay() === 1;
-}
-
 /** Whole-day difference (b − a). Both operands are local midnight, so DST-safe. */
 export function diffDays(a: string, b: string): number {
 	return Math.round((parseKey(b).getTime() - parseKey(a).getTime()) / 86_400_000);
