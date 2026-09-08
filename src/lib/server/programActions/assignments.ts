@@ -4,7 +4,7 @@ import {
 	checkAssignConflicts as checkAssignConflictsImpl,
 	checkShiftConflicts as checkShiftConflictsImpl,
 	resolveBreadcrumb
-} from '$lib/server/programSchedule';
+} from '$lib/server/scheduling';
 
 const RPC_ERROR_MESSAGE: Record<string, string> = {
 	not_found: 'Program not found.',

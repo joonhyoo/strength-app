@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { json, type ApiContext } from '$lib/server/apiHandler';
 import { dbList, dbWrite, dbWriteReturning } from '$lib/server/db';
-import { loadProgramDetail } from '$lib/server/programSchedule';
+import { loadProgramDetail } from '$lib/server/programTree';
 
 export async function listPrograms({ supabase, log }: ApiContext) {
 	const programs = await dbList(

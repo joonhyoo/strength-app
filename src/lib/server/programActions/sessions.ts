@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { json, type ApiContext } from '$lib/server/apiHandler';
 import { dbList, dbMaybe, dbWrite, dbWriteReturning } from '$lib/server/db';
-import { loadSessionDetail } from '$lib/server/programSchedule';
+import { loadSessionDetail } from '$lib/server/programTree';
 
 export async function addSession({ data, supabase, log }: ApiContext) {
 	const { weekId, dayNumber, name } = data;

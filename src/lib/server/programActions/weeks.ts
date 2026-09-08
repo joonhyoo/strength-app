@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { json, type ApiContext } from '$lib/server/apiHandler';
 import { dbList, dbMaybe, dbWrite, dbWriteReturning } from '$lib/server/db';
-import { loadWeekDetail } from '$lib/server/programSchedule';
+import { loadWeekDetail } from '$lib/server/programTree';
 
 export async function addWeek({ data, supabase, log }: ApiContext) {
 	const { cycleId } = data;
