@@ -20,12 +20,15 @@ import {
 import { getBreadcrumb } from '$lib/services/programTemplateService.svelte';
 import { toKey, parseKey, addDays, mondayOf } from '$lib/dateKey';
 import { tempId, trackOptimistic } from '$lib/optimisticTree';
+import {
+	type Clipboard,
+	dayClipboardMode as computeDayClipboardMode,
+	weekClipboardMode as computeWeekClipboardMode
+} from '$lib/coachClipboard';
 import type { DayStatus } from '$lib/complete';
 import type { Exercise, Breadcrumb } from '$lib/types';
 
-export type Clipboard =
-	| { type: 'day'; athleteId: string; athleteName: string; dateKey: string }
-	| { type: 'week'; athleteId: string; athleteName: string; weekStart: string };
+export type { Clipboard };
 
 /** One day of the focused week in the training timeline. Each carries its own
  *  load state so one slow or failed day never blocks the rest. */
@@ -439,23 +442,12 @@ class CoachProgramState {
 		this.clipboard = null;
 	}
 
-	/** Which of the merged copy/paste affordances a day cell should show:
-	 * 'cancel' on the day that's currently copied, 'paste' on every other day
-	 * once something's on the clipboard, 'copy' otherwise. */
 	dayClipboardMode(athleteId: string, dateKey: string): 'copy' | 'paste' | 'cancel' {
-		const cb = this.clipboard;
-		if (cb?.type !== 'day') return 'copy';
-		if (cb.athleteId === athleteId && cb.dateKey === dateKey) return 'cancel';
-		return 'paste';
+		return computeDayClipboardMode(this.clipboard, athleteId, dateKey);
 	}
 
-	/** Same three-way state for the selected week's toolbar button. */
 	get weekClipboardMode(): 'copy' | 'paste' | 'cancel' {
-		const cb = this.clipboard;
-		if (cb?.type !== 'week') return 'copy';
-		if (cb.athleteId === this.selectedAthleteId && cb.weekStart === this.selectedWeekStart)
-			return 'cancel';
-		return 'paste';
+		return computeWeekClipboardMode(this.clipboard, this.selectedAthleteId, this.selectedWeekStart);
 	}
 
 	// Paste / assign / shift are server-orchestrated (deep copy with fresh ids,
