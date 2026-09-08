@@ -7,13 +7,20 @@ import type {
 	ColorKey,
 	ProgramExerciseInput
 } from '$lib/services/programTemplateService.svelte';
-import type { WeekDetail, SessionDetail, ProgramExerciseDetail } from '$lib/types';
+import type { WeekDetail, SessionDetail } from '$lib/types';
 import {
 	tempId,
 	trackOptimistic,
 	cloneSessionForOptimism,
 	cloneWeekForOptimism
 } from '$lib/optimisticTree';
+import {
+	locateWeek,
+	locateSession,
+	locateExercise,
+	findWeek,
+	findSession
+} from '$lib/programBuilderTree';
 
 /** What every `service.*` call resolves to (see `postProgram`) — it never
  *  rejects, so a failed write, network included, is always `{ ok: false }`.
@@ -88,38 +95,6 @@ class ProgramBuilderState {
 		this.selectedProgram = await service.getProgram(id);
 	}
 
-	private locateWeek(weekId: string): { weeks: WeekDetail[]; index: number } | null {
-		for (const cycle of this.selectedProgram?.cycles ?? []) {
-			const index = cycle.weeks.findIndex((w) => w.id === weekId);
-			if (index !== -1) return { weeks: cycle.weeks, index };
-		}
-		return null;
-	}
-
-	private locateSession(sessionId: string): { sessions: SessionDetail[]; index: number } | null {
-		for (const cycle of this.selectedProgram?.cycles ?? []) {
-			for (const week of cycle.weeks) {
-				const index = week.sessions.findIndex((s) => s.id === sessionId);
-				if (index !== -1) return { sessions: week.sessions, index };
-			}
-		}
-		return null;
-	}
-
-	private locateExercise(
-		programExerciseId: string
-	): { exercises: ProgramExerciseDetail[]; index: number; sessionId: string } | null {
-		for (const cycle of this.selectedProgram?.cycles ?? []) {
-			for (const week of cycle.weeks) {
-				for (const session of week.sessions) {
-					const index = session.exercises.findIndex((e) => e.id === programExerciseId);
-					if (index !== -1) return { exercises: session.exercises, index, sessionId: session.id };
-				}
-			}
-		}
-		return null;
-	}
-
 	/**
 	 * Server call for a program/cycle/week/session change that's ALREADY been
 	 * applied to the local tree. On failure runs `rollback` and shows
@@ -146,28 +121,10 @@ class ProgramBuilderState {
 		);
 	}
 
-	private findWeek(weekId: string) {
-		for (const cycle of this.selectedProgram?.cycles ?? []) {
-			const week = cycle.weeks.find((w) => w.id === weekId);
-			if (week) return week;
-		}
-		return null;
-	}
-
-	private findSession(sessionId: string) {
-		for (const cycle of this.selectedProgram?.cycles ?? []) {
-			for (const week of cycle.weeks) {
-				const session = week.sessions.find((s) => s.id === sessionId);
-				if (session) return { session, weekId: week.id };
-			}
-		}
-		return null;
-	}
-
 	/** The day_number of whichever session is currently expanded, if any. */
 	private get expandedDayNumber(): number | null {
 		if (!this.expandedSessionId || !this.expandedWeekId) return null;
-		const session = this.findWeek(this.expandedWeekId)?.sessions.find(
+		const session = findWeek(this.selectedProgram, this.expandedWeekId)?.sessions.find(
 			(s) => s.id === this.expandedSessionId
 		);
 		return session?.dayNumber ?? null;
@@ -188,7 +145,8 @@ class ProgramBuilderState {
 		this.expandedWeekId = weekId;
 		this.expandedSessionId =
 			dayNumber !== null
-				? (this.findWeek(weekId)?.sessions.find((s) => s.dayNumber === dayNumber)?.id ?? null)
+				? (findWeek(this.selectedProgram, weekId)?.sessions.find((s) => s.dayNumber === dayNumber)
+						?.id ?? null)
 				: null;
 	}
 
@@ -376,7 +334,7 @@ class ProgramBuilderState {
 		const index = cycles?.findIndex((c) => c.id === cycleId) ?? -1;
 		const removed = index !== -1 ? cycles![index] : null;
 		if (cycles && index !== -1) cycles.splice(index, 1);
-		if (this.expandedWeekId && !this.findWeek(this.expandedWeekId)) {
+		if (this.expandedWeekId && !findWeek(this.selectedProgram, this.expandedWeekId)) {
 			this.expandedWeekId = null;
 			this.expandedSessionId = null;
 		}
@@ -409,7 +367,7 @@ class ProgramBuilderState {
 		return this.confirmTreeOp(
 			service.addWeek(cycleId),
 			() => {
-				const loc = this.locateWeek(temp);
+				const loc = locateWeek(this.selectedProgram, temp);
 				if (loc) loc.weeks.splice(loc.index, 1);
 				if (this.expandedWeekId === temp) {
 					this.expandedWeekId = null;
@@ -419,7 +377,7 @@ class ProgramBuilderState {
 			},
 			'Could not add the week.',
 			({ id }) => {
-				const loc = this.locateWeek(temp);
+				const loc = locateWeek(this.selectedProgram, temp);
 				if (loc) loc.weeks[loc.index].id = id;
 				if (this.expandedWeekId === temp) this.expandedWeekId = id;
 				this.pendingWeekIds.delete(temp);
@@ -454,7 +412,7 @@ class ProgramBuilderState {
 		const res = await service.duplicateWeek(sourceWeekId);
 
 		const sameProgram = this.selectedProgramId === programId;
-		const loc = sameProgram ? this.locateWeek(tempWeekId) : null;
+		const loc = sameProgram ? locateWeek(this.selectedProgram, tempWeekId) : null;
 
 		if (res.ok) {
 			const serverWeek = res.data as WeekDetail;
@@ -481,7 +439,7 @@ class ProgramBuilderState {
 	removeWeek(weekId: string) {
 		this.opError = null;
 
-		const loc = this.locateWeek(weekId);
+		const loc = locateWeek(this.selectedProgram, weekId);
 		if (!loc) {
 			return this.confirmTreeOp(service.removeWeek(weekId), () => {}, 'Could not delete the week.');
 		}
@@ -507,20 +465,20 @@ class ProgramBuilderState {
 		this.closeModal();
 
 		if (sessionId) {
-			const found = this.findSession(sessionId);
+			const found = findSession(this.selectedProgram, sessionId);
 			const prevName = found?.session.name;
 			if (found) found.session.name = name;
 			return this.confirmTreeOp(
 				service.updateSession(sessionId, name),
 				() => {
-					const f = this.findSession(sessionId);
+					const f = findSession(this.selectedProgram, sessionId);
 					if (f && prevName !== undefined) f.session.name = prevName;
 				},
 				'Could not rename the session — reverted.'
 			);
 		}
 
-		const week = this.findWeek(weekId);
+		const week = findWeek(this.selectedProgram, weekId);
 		if (!week) {
 			return this.confirmTreeOp(
 				service.addSession(weekId, dayNumber, name),
@@ -538,14 +496,14 @@ class ProgramBuilderState {
 		return this.confirmTreeOp(
 			service.addSession(weekId, dayNumber, name),
 			() => {
-				const loc = this.locateSession(temp);
+				const loc = locateSession(this.selectedProgram, temp);
 				if (loc) loc.sessions.splice(loc.index, 1);
 				if (this.expandedSessionId === temp) this.expandedSessionId = null;
 				this.pendingSessionIds.delete(temp);
 			},
 			'Could not add the session.',
 			({ id }) => {
-				const loc = this.locateSession(temp);
+				const loc = locateSession(this.selectedProgram, temp);
 				if (loc) loc.sessions[loc.index].id = id;
 				if (this.expandedSessionId === temp) this.expandedSessionId = id;
 				this.pendingSessionIds.delete(temp);
@@ -556,7 +514,7 @@ class ProgramBuilderState {
 	removeSession(sessionId: string) {
 		this.opError = null;
 
-		const loc = this.locateSession(sessionId);
+		const loc = locateSession(this.selectedProgram, sessionId);
 		if (!loc) {
 			return this.confirmTreeOp(
 				service.removeSession(sessionId),
@@ -580,7 +538,7 @@ class ProgramBuilderState {
 
 	/** Picks up a session for pasting onto another day. No-op if the id isn't in the loaded program. */
 	copySession(sessionId: string) {
-		const found = this.findSession(sessionId);
+		const found = findSession(this.selectedProgram, sessionId);
 		if (!found) return;
 		this.sessionClipboard = {
 			sessionId,
@@ -604,8 +562,8 @@ class ProgramBuilderState {
 	pasteSession(destWeekId: string, destDayNumber: number, replace: boolean) {
 		const clip = this.sessionClipboard;
 		if (!clip) return;
-		const source = this.findSession(clip.sessionId)?.session;
-		const targetWeek = this.findWeek(destWeekId);
+		const source = findSession(this.selectedProgram, clip.sessionId)?.session;
+		const targetWeek = findWeek(this.selectedProgram, destWeekId);
 		if (!source || source.id.startsWith('temp-') || !targetWeek) return;
 
 		const optimistic = cloneSessionForOptimism(source, destDayNumber);
@@ -645,7 +603,7 @@ class ProgramBuilderState {
 
 		if (res.ok) {
 			const serverSession = res.data as SessionDetail;
-			const loc = sameProgram ? this.locateSession(tempSessionId) : null;
+			const loc = sameProgram ? locateSession(this.selectedProgram, tempSessionId) : null;
 			if (loc) {
 				loc.sessions[loc.index] = serverSession;
 				if (this.expandedSessionId === tempSessionId) this.expandedSessionId = serverSession.id;
@@ -658,7 +616,7 @@ class ProgramBuilderState {
 				// before failing — it can't be safely restored locally, so reload.
 				this.selectedProgram = await service.getProgram(programId);
 			} else {
-				const loc = this.locateSession(tempSessionId);
+				const loc = locateSession(this.selectedProgram, tempSessionId);
 				if (loc) loc.sessions.splice(loc.index, 1);
 				if (this.expandedSessionId === tempSessionId) this.expandedSessionId = null;
 			}
@@ -680,7 +638,7 @@ class ProgramBuilderState {
 		exercise: ProgramExerciseInput
 	) {
 		this.opError = null;
-		const session = this.findSession(sessionId)?.session;
+		const session = findSession(this.selectedProgram, sessionId)?.session;
 		const plan = exercise.category === 'weight' ? [...exercise.plan] : [];
 		const programId = this.selectedProgramId;
 		const isEdit = !!programExerciseId && !programExerciseId.startsWith('temp-');
@@ -732,7 +690,7 @@ class ProgramBuilderState {
 			(async () => {
 				const res = await service.addProgramExercise(sessionId, exercise);
 				if (this.selectedProgramId === programId) {
-					const loc = this.locateExercise(tempExId);
+					const loc = locateExercise(this.selectedProgram, tempExId);
 					if (res.ok && loc) {
 						loc.exercises[loc.index].id = (res.data as { id: string }).id;
 					} else if (!res.ok) {
@@ -748,7 +706,7 @@ class ProgramBuilderState {
 
 	removeExercise(programExerciseId: string) {
 		this.opError = null;
-		const loc = this.locateExercise(programExerciseId);
+		const loc = locateExercise(this.selectedProgram, programExerciseId);
 		const appliedLocally = !!loc && !programExerciseId.startsWith('temp-');
 		if (appliedLocally) loc.exercises.splice(loc.index, 1);
 		return trackOptimistic(
@@ -766,7 +724,7 @@ class ProgramBuilderState {
 	 *  sibling list (matches the array index the drag ends on). */
 	moveExerciseTo(programExerciseId: string, toIndex: number) {
 		this.opError = null;
-		const loc = this.locateExercise(programExerciseId);
+		const loc = locateExercise(this.selectedProgram, programExerciseId);
 		if (loc && !programExerciseId.startsWith('temp-')) {
 			const { exercises, index } = loc;
 			if (toIndex === index) return;
