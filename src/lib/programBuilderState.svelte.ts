@@ -8,48 +8,17 @@ import type {
 	ProgramExerciseInput
 } from '$lib/services/programTemplateService.svelte';
 import type { WeekDetail, SessionDetail, ProgramExerciseDetail } from '$lib/types';
+import {
+	tempId,
+	trackOptimistic,
+	cloneSessionForOptimism,
+	cloneWeekForOptimism
+} from '$lib/optimisticTree';
 
 /** What every `service.*` call resolves to (see `postProgram`) — it never
  *  rejects, so a failed write, network included, is always `{ ok: false }`.
  *  `error` is present only for a 4xx; otherwise the caller shows `failMessage`. */
 type OpResult = { ok: true; data: unknown } | { ok: false; error?: string };
-
-/** Rebuilds a week/session subtree with fresh temp- ids at every level, so it
- *  can be rendered immediately and later reconciled against (or removed in
- *  favour of) the server's real copy. */
-// A session-monotonic counter, not crypto.randomUUID(): these ids are only ever
-// matched with `.startsWith('temp-')` and never parsed, they only need to be
-// unique within one page load, and — unlike crypto.randomUUID() — this works
-// outside a secure context (e.g. running the dev server over a LAN IP).
-let tempSeq = 0;
-function tempId() {
-	return `temp-${++tempSeq}`;
-}
-
-function cloneSessionForOptimism(src: SessionDetail, dayNumber = src.dayNumber): SessionDetail {
-	return {
-		id: tempId(),
-		dayNumber,
-		name: src.name,
-		exercises: src.exercises.map((e) => ({
-			id: tempId(),
-			activity: e.activity,
-			category: e.category,
-			note: e.note,
-			plan: [...e.plan]
-		}))
-	};
-}
-
-function cloneWeekForOptimism(src: WeekDetail): WeekDetail {
-	return {
-		id: tempId(),
-		// Cosmetic on the client (CycleBand renders positional "week i + 1"); the
-		// server assigns the real week_number and it comes back on reconcile.
-		weekNumber: src.weekNumber + 1,
-		sessions: src.sessions.map((s) => cloneSessionForOptimism(s))
-	};
-}
 
 type ModalState =
 	| { type: 'program'; programId: string | null }
@@ -151,12 +120,6 @@ class ProgramBuilderState {
 		return null;
 	}
 
-	private trackOptimistic<T>(op: Promise<T>): Promise<T> {
-		this.pendingOps.add(op);
-		void op.finally(() => this.pendingOps.delete(op));
-		return op;
-	}
-
 	/**
 	 * Server call for a program/cycle/week/session change that's ALREADY been
 	 * applied to the local tree. On failure runs `rollback` and shows
@@ -169,7 +132,8 @@ class ProgramBuilderState {
 		failMessage: string,
 		onSuccess?: (data: { id: string }) => void
 	) {
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			(async () => {
 				const res = await call;
 				if (res.ok) onSuccess?.(res.data as { id: string });
@@ -480,7 +444,8 @@ class ProgramBuilderState {
 		this.expandedWeekId = optimistic.id;
 		this.expandedSessionId = null;
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			this.runWeekCopy(lastWeek.id, optimistic.id, this.selectedProgramId)
 		);
 	}
@@ -653,7 +618,8 @@ class ProgramBuilderState {
 		this.expandedWeekId = destWeekId;
 		this.expandedSessionId = optimistic.id;
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			this.runSessionPaste(
 				clip.sessionId,
 				destWeekId,
@@ -728,7 +694,8 @@ class ProgramBuilderState {
 				target.note = exercise.note;
 				target.plan = plan;
 			}
-			return this.trackOptimistic(
+			return trackOptimistic(
+				this.pendingOps,
 				this.confirmExerciseOp(
 					service.updateProgramExercise(programExerciseId!, exercise),
 					programId,
@@ -740,7 +707,8 @@ class ProgramBuilderState {
 
 		// Add — append an optimistic row, swap in the real id on success.
 		if (!session) {
-			return this.trackOptimistic(
+			return trackOptimistic(
+				this.pendingOps,
 				this.confirmExerciseOp(
 					service.addProgramExercise(sessionId, exercise),
 					programId,
@@ -759,7 +727,8 @@ class ProgramBuilderState {
 		});
 		this.pendingExerciseIds.add(tempExId);
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			(async () => {
 				const res = await service.addProgramExercise(sessionId, exercise);
 				if (this.selectedProgramId === programId) {
@@ -782,7 +751,8 @@ class ProgramBuilderState {
 		const loc = this.locateExercise(programExerciseId);
 		const appliedLocally = !!loc && !programExerciseId.startsWith('temp-');
 		if (appliedLocally) loc.exercises.splice(loc.index, 1);
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			this.confirmExerciseOp(
 				service.removeProgramExercise(programExerciseId),
 				this.selectedProgramId,
@@ -803,7 +773,8 @@ class ProgramBuilderState {
 			const [item] = exercises.splice(index, 1);
 			const dest = Math.max(0, Math.min(toIndex, exercises.length));
 			exercises.splice(dest, 0, item);
-			return this.trackOptimistic(
+			return trackOptimistic(
+				this.pendingOps,
 				this.confirmExerciseOp(
 					service.reorderProgramExercise(programExerciseId, toIndex),
 					this.selectedProgramId,
@@ -812,7 +783,8 @@ class ProgramBuilderState {
 				)
 			);
 		}
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			this.confirmExerciseOp(
 				service.reorderProgramExercise(programExerciseId, toIndex),
 				this.selectedProgramId,

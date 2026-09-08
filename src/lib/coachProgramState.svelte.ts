@@ -19,12 +19,9 @@ import {
 } from '$lib/services/workoutService.svelte';
 import { getBreadcrumb } from '$lib/services/programTemplateService.svelte';
 import { toKey, parseKey, addDays, mondayOf } from '$lib/dateKey';
+import { tempId, trackOptimistic } from '$lib/optimisticTree';
 import type { DayStatus } from '$lib/complete';
 import type { Exercise, Breadcrumb } from '$lib/types';
-
-// Session-monotonic id for an optimistically-inserted exercise, swapped for the
-// server's real id on success. Only ever matched with `===`, never parsed.
-let tempSeq = 0;
 
 export type Clipboard =
 	| { type: 'day'; athleteId: string; athleteName: string; dateKey: string }
@@ -153,12 +150,6 @@ class CoachProgramState {
 		}
 	}
 
-	private trackOptimistic<T>(op: Promise<T>): Promise<T> {
-		this.pendingOps.add(op);
-		void op.finally(() => this.pendingOps.delete(op));
-		return op;
-	}
-
 	/** Background refetch of one day (server truth) — used to recover after a
 	 *  reorder the server rejected, where the pre-drag order isn't recoverable
 	 *  locally. */
@@ -186,7 +177,8 @@ class CoachProgramState {
 		const day = this.dayFor(dateKey);
 
 		if (!day) {
-			return this.trackOptimistic(
+			return trackOptimistic(
+				this.pendingOps,
 				(async () => {
 					const res = await addExerciseToDay(athleteId, dateKey, exercise);
 					if (!res.ok) this.opError = res.error || 'Could not add the exercise.';
@@ -195,13 +187,14 @@ class CoachProgramState {
 			);
 		}
 
-		const temp = `temp-${++tempSeq}`;
+		const temp = tempId();
 		day.exercises = [...day.exercises, { ...exercise, id: temp }];
 		this.pendingExerciseIds.add(temp);
 		this.syncDayCache(dateKey);
 		this.setDayStatus(dateKey, day.exercises);
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			(async () => {
 				const res = await addExerciseToDay(athleteId, dateKey, exercise);
 				const d = this.dayFor(dateKey);
@@ -231,7 +224,8 @@ class CoachProgramState {
 		const index = day?.exercises.findIndex((e) => e.id === id) ?? -1;
 
 		if (!day || index === -1) {
-			return this.trackOptimistic(
+			return trackOptimistic(
+				this.pendingOps,
 				(async () => {
 					const res = await updateScheduledExercise(id, exercise);
 					if (!res.ok) this.opError = res.error || 'Could not save the exercise.';
@@ -248,7 +242,8 @@ class CoachProgramState {
 		this.syncDayCache(dateKey);
 		this.setDayStatus(dateKey, day.exercises);
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			(async () => {
 				const res = await updateScheduledExercise(id, exercise);
 				if (!res.ok) {
@@ -273,7 +268,8 @@ class CoachProgramState {
 		const index = day?.exercises.findIndex((e) => e.id === id) ?? -1;
 
 		if (!day || index === -1) {
-			return this.trackOptimistic(
+			return trackOptimistic(
+				this.pendingOps,
 				(async () => {
 					const res = await removeScheduledExercise(id);
 					if (!res.ok) this.opError = res.error || 'Could not remove the exercise.';
@@ -287,7 +283,8 @@ class CoachProgramState {
 		this.syncDayCache(dateKey);
 		this.setDayStatus(dateKey, day.exercises);
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			(async () => {
 				const res = await removeScheduledExercise(id);
 				if (!res.ok) {
@@ -311,7 +308,8 @@ class CoachProgramState {
 		// weekDays; just persist it and let the server confirm.
 		this.syncDayCache(dateKey);
 
-		return this.trackOptimistic(
+		return trackOptimistic(
+			this.pendingOps,
 			(async () => {
 				const res = await reorderScheduledExercise(id, toIndex);
 				if (!res.ok) {
