@@ -37,8 +37,8 @@
 				use:enhance={handleSubmit}
 				class="mt-2 flex flex-col gap-3"
 			>
-				<label class="form-control w-full">
-					<span class="label text-xs">Name (visible to your coach)</span>
+			<label class="flex w-full flex-col gap-1.5">
+				<span class="label">Name (visible to your coach)</span>
 					<input
 						name="name"
 						type="text"
@@ -48,8 +48,8 @@
 						required
 					/>
 				</label>
-				<label class="form-control w-full">
-					<span class="label text-xs">Username (private, only visible to you)</span>
+			<label class="flex w-full flex-col gap-1.5">
+				<span class="label">Username (private, only visible to you)</span>
 					<input
 						name="username"
 						type="text"

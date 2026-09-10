@@ -1,6 +1,4 @@
 <script lang="ts">
-	import Button from './Button.svelte';
-
 	// One button that cycles through the copy → paste → cancel states of a
 	// clipboard-style copy/paste, replacing a separate Copy and Paste pair. The
 	// caller derives `mode` from the shared clipboard (see CoachProgramState's
@@ -39,11 +37,24 @@
 </script>
 
 {#if mode === 'cancel'}
-	<Button variant="outline" {size} class={extraClass} onclick={oncancel}>Cancel</Button>
+	<button
+		type="button"
+		class="btn {extraClass} btn-outline btn-primary btn-{size}"
+		onclick={oncancel}
+	>
+		Cancel
+	</button>
 {:else if mode === 'paste'}
-	<Button variant="secondary" {size} class={extraClass} onclick={onpaste}>Paste {noun}</Button>
+	<button type="button" class="btn {extraClass} btn-neutral btn-{size}" onclick={onpaste}>
+		Paste {noun}
+	</button>
 {:else}
-	<Button variant="secondary" {size} class={extraClass} disabled={!canCopy} onclick={oncopy}>
+	<button
+		type="button"
+		class="btn {extraClass} btn-neutral btn-{size}"
+		disabled={!canCopy}
+		onclick={oncopy}
+	>
 		Copy {noun}
-	</Button>
+	</button>
 {/if}

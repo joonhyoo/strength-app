@@ -1,6 +1,5 @@
 <script lang="ts">
-	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
-	import Button from '$lib/components/Button.svelte';
+	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import { checkShiftConflicts, shiftSchedule } from '$lib/services/programTemplateService.svelte';
 	import { formatDayMonth } from '$lib/dateKey';
@@ -90,69 +89,83 @@
 	<div class="modal-box">
 		<h3 class="mb-4 font-display text-lg font-bold uppercase">Shift schedule</h3>
 
-		<p class="mb-4 text-sm text-base-content/60">
-			Moves <strong class="text-base-content">{athleteName}</strong>'s schedule from the week of
-			<strong class="text-base-content">{formatDayMonth(fromDate)}</strong> onward{directionNote}
-		</p>
+		<div class="flex flex-col gap-4 text-sm">
+			<p class="text-base-content/60">
+				Moves <strong class="text-base-content">{athleteName}</strong>'s schedule from the week of
+				<strong class="text-base-content">{formatDayMonth(fromDate)}</strong> onward{directionNote}
+			</p>
 
-		<label class="form-control mb-4 w-full">
-			<span class="label text-sm">Shift by (weeks — negative moves it earlier)</span>
-			<div class="my-2 flex items-center justify-center gap-4">
-				<button type="button" class={stepBtn} aria-label="Decrease weeks" onclick={decrementWeeks}>
-					<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
+			<label class="flex w-full flex-col gap-1.5">
+				<span class="label">Shift by (weeks — negative moves it earlier)</span>
+				<div class="flex items-center justify-center gap-4">
+					<button
+						type="button"
+						class={stepBtn}
+						aria-label="Decrease weeks"
+						onclick={decrementWeeks}
+					>
+						<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
+					</button>
+					<input class="input w-20 text-center" type="number" step="1" bind:value={shiftWeeks} />
+					<button
+						type="button"
+						class={stepBtn}
+						aria-label="Increase weeks"
+						onclick={incrementWeeks}
+					>
+						<AddFillIcon class="size-4" />
+					</button>
+				</div>
+			</label>
+
+			{#if shiftWeeks !== 0}
+				{#if moving === null}
+					<div class="h-14 w-full skeleton"></div>
+				{:else if moving.length === 0}
+					<div class="rounded-lg bg-warning/15 p-3">
+						Nothing scheduled from this week onward for {athleteName} — nothing to shift.
+					</div>
+				{:else if conflicts.length === 0}
+					<div class="rounded-lg bg-success/10 p-3">
+						Ready — <strong>{moving.length}</strong> session{moving.length === 1 ? '' : 's'} will move
+						{shiftWeeks >= 0 ? 'later' : 'earlier'} by {Math.abs(shiftWeeks)} week{Math.abs(
+							shiftWeeks
+						) === 1
+							? ''
+							: 's'}.
+					</div>
+				{:else}
+					<div class="rounded-lg bg-warning/15 p-3">
+						<strong>{conflicts.length}</strong> date{conflicts.length === 1 ? '' : 's'} already {conflicts.length ===
+						1
+							? 'has'
+							: 'have'} a workout that will be <strong>replaced</strong>:
+						<ul class="mt-1 list-disc pl-5">
+							{#each conflicts as dateKey (dateKey)}
+								<li>{formatDayMonth(dateKey)}</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			{/if}
+
+			<div class="modal-action">
+				<button
+					type="button"
+					class="btn btn-outline btn-error"
+					onclick={() => program.closeShiftModal()}
+				>
+					Cancel
 				</button>
-				<input
-					class="input w-20 text-center text-sm"
-					type="number"
-					step="1"
-					bind:value={shiftWeeks}
-				/>
-				<button type="button" class={stepBtn} aria-label="Increase weeks" onclick={incrementWeeks}>
-					<PlusFillIcon class="size-4" />
+				<button
+					type="button"
+					class="btn btn-primary"
+					disabled={shiftWeeks === 0 || moving === null || moving.length === 0}
+					onclick={confirmShift}
+				>
+					Confirm shift
 				</button>
 			</div>
-		</label>
-
-		{#if shiftWeeks !== 0}
-			{#if moving === null}
-				<div class="h-14 w-full skeleton"></div>
-			{:else if moving.length === 0}
-				<div class="rounded-lg bg-warning/15 p-3 text-sm">
-					Nothing scheduled from this week onward for {athleteName} — nothing to shift.
-				</div>
-			{:else if conflicts.length === 0}
-				<div class="rounded-lg bg-success/10 p-3 text-sm">
-					Ready — <strong>{moving.length}</strong> session{moving.length === 1 ? '' : 's'} will move
-					{shiftWeeks >= 0 ? 'later' : 'earlier'} by {Math.abs(shiftWeeks)} week{Math.abs(
-						shiftWeeks
-					) === 1
-						? ''
-						: 's'}.
-				</div>
-			{:else}
-				<div class="rounded-lg bg-warning/15 p-3 text-sm">
-					<strong>{conflicts.length}</strong> date{conflicts.length === 1 ? '' : 's'} already {conflicts.length ===
-					1
-						? 'has'
-						: 'have'} a workout that will be <strong>replaced</strong>:
-					<ul class="mt-1 list-disc pl-5">
-						{#each conflicts as dateKey (dateKey)}
-							<li>{formatDayMonth(dateKey)}</li>
-						{/each}
-					</ul>
-				</div>
-			{/if}
-		{/if}
-
-		<div class="modal-action">
-			<Button variant="destructive" onclick={() => program.closeShiftModal()}>Cancel</Button>
-			<Button
-				variant="primary"
-				disabled={shiftWeeks === 0 || moving === null || moving.length === 0}
-				onclick={confirmShift}
-			>
-				Confirm shift
-			</Button>
 		</div>
 	</div>
 </dialog>

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import { CYCLE_COLORS, DEFAULT_CYCLE_COLOR } from '$lib/data/cycleColors';
 	import type { ColorKey } from '$lib/types';
@@ -50,29 +49,34 @@
 		</h3>
 
 		<form
-			class="flex flex-col gap-4"
+			class="flex flex-col gap-4 text-sm"
 			onsubmit={(e) => {
 				e.preventDefault();
 				submit();
 			}}
 		>
-			<label class="form-control w-full">
+			<label class="flex w-full flex-col gap-1.5">
 				<span class="label">Cycle name</span>
-				<input class="input" type="text" placeholder="e.g. Strength Cycle" bind:value={name} />
+				<input
+					class="input w-full"
+					type="text"
+					placeholder="e.g. Strength Cycle"
+					bind:value={name}
+				/>
 			</label>
 
-			<label class="form-control w-full">
+			<label class="flex w-full flex-col gap-1.5">
 				<span class="label">Goal</span>
 				<input
-					class="input"
+					class="input w-full"
 					type="text"
 					placeholder="What is this cycle building toward?"
 					bind:value={goal}
 				/>
 			</label>
 
-			<div class="flex flex-col gap-2">
-				<span class="label px-0">Color</span>
+			<div class="flex w-full flex-col gap-1.5">
+				<span class="label">Color</span>
 				<div class="flex flex-wrap gap-2">
 					{#each CYCLE_COLORS as option (option.key)}
 						<button
@@ -90,16 +94,22 @@
 			</div>
 
 			{#if !editingCycle}
-				<p class="text-xs text-base-content/50">
+				<p class="text-xs text-base-content/60">
 					A new cycle starts with no weeks — use the + chip on its week row to add some.
 				</p>
 			{/if}
 
 			<div class="modal-action">
-				<Button variant="destructive" onclick={() => builder.closeModal()}>Cancel</Button>
-				<Button variant="primary" type="submit" disabled={!name.trim()}>
+				<button
+					type="button"
+					class="btn btn-outline btn-error"
+					onclick={() => builder.closeModal()}
+				>
+					Cancel
+				</button>
+				<button type="submit" class="btn btn-primary" disabled={!name.trim()}>
 					{editingCycle ? 'Save' : 'Add cycle'}
-				</Button>
+				</button>
 			</div>
 		</form>
 	</div>

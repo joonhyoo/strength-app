@@ -6,7 +6,6 @@
 	import { seedExerciseLibrary } from '$lib/data/exerciseLibrary.svelte';
 	import { checkPasteWeekConflicts } from '$lib/services/programService.svelte';
 	import { formatDayMonth } from '$lib/dateKey';
-	import Button from '$lib/components/Button.svelte';
 	import CopyPasteButton from '$lib/components/CopyPasteButton.svelte';
 	import MonthGrid from '$lib/components/MonthGrid.svelte';
 	import ProgramBreadcrumb from '$lib/components/ProgramBreadcrumb.svelte';
@@ -141,14 +140,14 @@
 					: `the week of ${formatDayMonth(cb.weekStart)}`}
 				from <strong>{cb.athleteName}</strong>
 			</span>
-			<Button
-				variant="outline"
-				size="sm"
+			<button
+				type="button"
+				class="btn btn-outline btn-sm btn-primary"
 				aria-label="Cancel copy"
 				onclick={() => program.clearClipboard()}
 			>
 				Cancel
-			</Button>
+			</button>
 		</div>
 	{/if}
 </div>
@@ -158,13 +157,13 @@
 		<div class="card-body">
 			<h1 class="mb-3 font-display text-xl font-bold uppercase">Training</h1>
 
-			<label class="form-control w-full">
+			<label class="flex w-full flex-col gap-1.5">
 				<span class="label">Athlete</span>
 				{#if athletes === null}
 					<div class="h-10 w-full skeleton"></div>
 				{:else}
 					<select
-						class="select"
+						class="select w-full"
 						value={athlete?.id ?? ''}
 						onchange={(e) => onAthleteChange(e.currentTarget.value)}
 					>
@@ -196,14 +195,13 @@
 					{/if}
 
 					<div class="mt-3 flex flex-col gap-2 border-t border-dashed border-base-300 pt-3">
-						<Button
-							variant="secondary"
-							size="sm"
-							class="w-full"
+						<button
+							type="button"
+							class="btn w-full btn-sm btn-neutral"
 							onclick={() => program.openAssignModal()}
 						>
 							Assign program
-						</Button>
+						</button>
 						<CopyPasteButton
 							mode={program.weekClipboardMode}
 							noun="week"
@@ -213,23 +211,21 @@
 							onpaste={() => handlePasteWeek(athlete.name)}
 							oncancel={() => program.clearClipboard()}
 						/>
-						<Button
-							variant="secondary"
-							size="sm"
-							class="w-full"
+						<button
+							type="button"
+							class="btn w-full btn-sm btn-neutral"
 							onclick={() => program.openShiftModal()}
 						>
 							Shift schedule
-						</Button>
-						<Button
-							variant="destructive"
-							size="sm"
-							class="w-full"
+						</button>
+						<button
+							type="button"
+							class="btn w-full btn-outline btn-sm btn-error"
 							disabled={program.selectedWeekCount === 0}
 							onclick={() => handleClearWeek(athlete.name)}
 						>
 							Clear week
-						</Button>
+						</button>
 					</div>
 				</div>
 			{/if}

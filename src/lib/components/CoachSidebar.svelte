@@ -4,7 +4,6 @@
 	import { enhance } from '$app/forms';
 	import { enhanceReplace } from '$lib/forms';
 	import { clearClientCaches } from '$lib/clientCache';
-	import Button from '$lib/components/Button.svelte';
 	import DashboardLineIcon from '@iconify-svelte/mingcute/chart-horizontal-2-line';
 	import DashboardFillIcon from '@iconify-svelte/mingcute/chart-horizontal-2-fill';
 	import GroupLineIcon from '@iconify-svelte/mingcute/group-line';
@@ -87,7 +86,7 @@
 				action="/auth/login?/logout"
 				use:enhance={enhanceReplace({ onDone: () => void clearClientCaches() })}
 			>
-				<Button variant="ghost" size="sm" type="submit">Log out</Button>
+				<button type="submit" class="btn btn-ghost btn-sm">Log out</button>
 			</form>
 		</div>
 	</div>

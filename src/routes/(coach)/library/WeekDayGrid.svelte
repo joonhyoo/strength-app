@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
+	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
 	import PasteLineIcon from '@iconify-svelte/mingcute/paste-line';
 	import type { SvelteSet } from 'svelte/reactivity';
 	import type { SessionDetail } from '$lib/types';
@@ -104,7 +104,7 @@
 					class="mt-auto rounded border border-dashed border-base-300 py-1 text-[0.7rem] tracking-wider text-base-content/50 uppercase hover:border-primary hover:text-primary"
 					onclick={() => onAddSession(dayNumber)}
 				>
-					<PlusFillIcon class="inline size-4" /> Add session
+					<AddFillIcon class="inline size-4" /> Add session
 				</button>
 			</div>
 		{/if}

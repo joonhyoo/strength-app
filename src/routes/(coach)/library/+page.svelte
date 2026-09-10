@@ -12,8 +12,8 @@
 	} from '$lib/data/exerciseLibrary.svelte';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import PlayCircleFillIcon from '@iconify-svelte/mingcute/play-circle-fill';
+	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import CloseLineIcon from '@iconify-svelte/mingcute/close-line';
-	import Button from '$lib/components/Button.svelte';
 	import type { ExerciseCategory } from '$lib/types';
 	import { CATEGORY_LABEL, CATEGORY_OPTIONS, CATEGORY_ICON } from '$lib/data/categories';
 	import { initProgramBuilderState } from '$lib/programBuilderState.svelte';
@@ -148,9 +148,9 @@
 	<title>Strength App — Library</title>
 </svelte:head>
 
-<div class="my-4 grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-	<div class="flex flex-col gap-4 lg:sticky lg:top-4 lg:z-10 lg:self-start">
-		<div class="px-6">
+<div class="my-4 flex flex-col lg:flex-row">
+	<div class="card-body flex max-w-xs flex-col gap-4 lg:sticky lg:z-10 lg:self-start">
+		<div class="">
 			<h1 class="mb-4 font-display text-xl font-bold uppercase">Library</h1>
 			<div class="flex divide-x divide-border overflow-hidden rounded-sm border border-border">
 				{#each TABS as t (t.id)}
@@ -171,42 +171,42 @@
 		{#if tab === 'programs'}
 			<ProgramList />
 		{:else}
-			<div class="card h-fit bg-base-100 shadow-sm">
-				<div class="card-body">
-					<h2 class="card-title font-display text-base uppercase">Add exercise</h2>
-					<form class="flex flex-col gap-3" onsubmit={handleAdd}>
-						<label class="form-control w-full">
-							<span class="label">Name</span>
-							<input
-								class="input"
-								type="text"
-								placeholder="e.g. Barbell Back Squat"
-								bind:value={newName}
-							/>
-						</label>
-						<label class="form-control w-full">
-							<span class="label">Category</span>
-							<select class="select" bind:value={newCategory}>
-								{#each CATEGORY_OPTIONS as cat (cat)}
-									<option value={cat}>{CATEGORY_LABEL[cat]}</option>
-								{/each}
-							</select>
-						</label>
-						<label class="form-control w-full">
-							<span class="label">Video link (optional)</span>
-							<input
-								class="input"
-								type="url"
-								placeholder="https://youtube.com/watch?v=..."
-								bind:value={newVideoUrl}
-							/>
-						</label>
-						{#if addError}
-							<p class="text-xs text-error">{addError}</p>
-						{/if}
-						<Button variant="primary" type="submit" disabled={!newName.trim()}>Add exercise</Button>
-					</form>
-				</div>
+			<div class="">
+				<h2 class="card-title font-display text-base uppercase">Add exercise</h2>
+				<form class="flex flex-col gap-4" onsubmit={handleAdd}>
+					<label class="flex w-full flex-col gap-1.5">
+						<span class="label">Name</span>
+						<input
+							class="input w-full"
+							type="text"
+							placeholder="e.g. Barbell Back Squat"
+							bind:value={newName}
+						/>
+					</label>
+					<label class="flex w-full flex-col gap-1.5">
+						<span class="label">Category</span>
+						<select class="select w-full" bind:value={newCategory}>
+							{#each CATEGORY_OPTIONS as cat (cat)}
+								<option value={cat}>{CATEGORY_LABEL[cat]}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="flex w-full flex-col gap-1.5">
+						<span class="label">Video link (optional)</span>
+						<input
+							class="input w-full"
+							type="url"
+							placeholder="https://youtube.com/watch?v=..."
+							bind:value={newVideoUrl}
+						/>
+					</label>
+					{#if addError}
+						<p class="text-xs text-error">{addError}</p>
+					{/if}
+					<button type="submit" class="btn btn-primary" disabled={!newName.trim()}
+						>Add exercise</button
+					>
+				</form>
 			</div>
 		{/if}
 	</div>
@@ -218,7 +218,7 @@
 	{:else}
 		<div class="card bg-base-100 shadow-sm">
 			<div class="card-body">
-				<h2 class="card-title font-display text-base uppercase">Exercise catalog</h2>
+				<h2 class="card-title font-display text-xl uppercase">Exercise catalog</h2>
 				{#if exercises === null}
 					<div class="mt-2 flex flex-col gap-2">
 						{#each [0, 1, 2, 3] as n (n)}
@@ -226,13 +226,13 @@
 						{/each}
 					</div>
 				{:else if exercises.length === 0}
-					<p class="py-6 text-base-content/60">No exercises yet.</p>
+					<p class="pt-3 text-base-content/60">No exercises yet.</p>
 				{:else}
-					<div class="relative mt-2 w-full max-w-xs">
+					<div class="relative mt-2 mb-5 w-full max-w-md">
 						<input
 							type="search"
 							placeholder="Search exercises…"
-							class="input input-sm w-full pr-8 [&::-webkit-search-cancel-button]:appearance-none"
+							class="input input-md w-full pr-8 [&::-webkit-search-cancel-button]:appearance-none"
 							bind:value={query}
 						/>
 						{#if query}
@@ -247,93 +247,101 @@
 						{/if}
 					</div>
 					{#if !filteredExercises || filteredExercises.length === 0}
-						<p class="py-6 text-center text-base-content/60">No exercises match your search.</p>
+						<p class="text-base-content/60">No exercises match your search.</p>
 					{:else}
-						{#each CATEGORY_OPTIONS as cat (cat)}
-							{@const { icon: CatIcon, color } = CATEGORY_ICON[cat]}
-							{@const items = filteredExercises.filter((ex) => ex.category === cat)}
-							{#if items.length > 0}
-								<div class="mt-3 first:mt-0">
-									<h3
-										class="mb-1 text-xs font-semibold tracking-wide text-base-content/60 uppercase"
-									>
-										{CATEGORY_LABEL[cat]} · {items.length}
-									</h3>
-									<ul class="flex flex-col divide-y divide-base-200">
-										{#each items as item (item.id)}
-											<li class="py-2">
-												{#if editingId === item.id}
-													<form class="flex flex-col gap-2" onsubmit={saveEdit}>
-														<div class="flex gap-2">
+						<div class="flex flex-wrap gap-8">
+							{#each CATEGORY_OPTIONS as cat (cat)}
+								{@const { icon: CatIcon, color } = CATEGORY_ICON[cat]}
+								{@const items = filteredExercises.filter((ex) => ex.category === cat)}
+								{#if items.length > 0}
+									<div class="w-full max-w-md rounded-md border-2 border-border p-3">
+										<h3 class="text-xs font-semibold tracking-wide text-base-content/60 uppercase">
+											{CATEGORY_LABEL[cat]} · {items.length}
+										</h3>
+										<ul class="flex flex-col divide-y divide-base-200">
+											{#each items as item (item.id)}
+												<li class="py-2">
+													{#if editingId === item.id}
+														<form class="flex flex-col gap-2" onsubmit={saveEdit}>
+															<div class="flex gap-2">
+																<input
+																	class="input input-sm w-full"
+																	type="text"
+																	bind:value={editName}
+																/>
+																<select class="select select-sm" bind:value={editCategory}>
+																	{#each CATEGORY_OPTIONS as c (c)}
+																		<option value={c}>{CATEGORY_LABEL[c]}</option>
+																	{/each}
+																</select>
+															</div>
 															<input
 																class="input input-sm w-full"
-																type="text"
-																bind:value={editName}
+																type="url"
+																placeholder="Video link (optional)"
+																bind:value={editVideoUrl}
 															/>
-															<select class="select select-sm" bind:value={editCategory}>
-																{#each CATEGORY_OPTIONS as c (c)}
-																	<option value={c}>{CATEGORY_LABEL[c]}</option>
-																{/each}
-															</select>
-														</div>
-														<input
-															class="input input-sm w-full"
-															type="url"
-															placeholder="Video link (optional)"
-															bind:value={editVideoUrl}
-														/>
-														{#if editError}
-															<p class="text-xs text-error">{editError}</p>
-														{/if}
-														<div class="flex gap-2">
-															<Button
-																variant="primary"
-																size="sm"
-																type="submit"
-																disabled={!editName.trim()}
-															>
-																Save
-															</Button>
-															<Button variant="ghost" size="sm" type="button" onclick={cancelEdit}>
-																Cancel
-															</Button>
-														</div>
-													</form>
-												{:else}
-													<div class="flex items-center justify-between gap-2 text-base">
-														<span class="flex min-w-0 flex-1 items-center gap-2">
-															<CatIcon class="size-5 {color} shrink-0" />
-															<span class="truncate">{item.name}</span>
-															{#if item.videoUrl}
-																<span title="Has video" class="shrink-0 text-base-content/40">
-																	<PlayCircleFillIcon class="size-5" />
-																</span>
+															{#if editError}
+																<p class="text-xs text-error">{editError}</p>
 															{/if}
-														</span>
-														<div class="flex shrink-0 items-center gap-1">
-															<Button variant="ghost" size="sm" onclick={() => startEdit(item)}>
-																Edit
-															</Button>
-															<button
-																type="button"
-																class="btn text-error btn-ghost btn-sm"
-																aria-label={`Delete ${item.name}`}
-																onclick={() => handleDelete(item)}
-															>
-																<Delete3LineIcon class="size-5" />
-															</button>
+															<div class="flex gap-2">
+																<button
+																	type="submit"
+																	class="btn btn-sm btn-primary"
+																	disabled={!editName.trim()}
+																>
+																	Save
+																</button>
+																<button
+																	type="button"
+																	class="btn btn-ghost btn-sm"
+																	onclick={cancelEdit}
+																>
+																	Cancel
+																</button>
+															</div>
+														</form>
+													{:else}
+														<div class="flex items-center justify-between gap-2 text-base">
+															<span class="flex min-w-0 flex-1 items-center gap-2">
+																<CatIcon class="size-5 {color} shrink-0" />
+																<span class="truncate">{item.name}</span>
+																{#if item.videoUrl}
+																	<span title="Has video" class="shrink-0 text-base-content/40">
+																		<PlayCircleFillIcon class="size-5" />
+																	</span>
+																{/if}
+															</span>
+															<div class="flex shrink-0 items-center gap-1">
+																<button
+																	type="button"
+																	class="btn btn-square btn-ghost btn-xs"
+																	aria-label={`Edit ${item.name}`}
+																	onclick={() => startEdit(item)}
+																>
+																	<EditBoxLineIcon class="size-4" />
+																</button>
+																<button
+																	type="button"
+																	class="btn btn-square text-error btn-ghost btn-xs"
+																	aria-label={`Delete ${item.name}`}
+																	onclick={() => handleDelete(item)}
+																>
+																	<Delete3LineIcon class="size-4" />
+																</button>
+															</div>
 														</div>
-													</div>
-													{#if rowError?.id === item.id}
-														<p class="mt-1 text-xs text-error">{rowError.message}</p>
+														{#if rowError?.id === item.id}
+															<p class="mt-1 text-xs text-error">{rowError.message}</p>
+														{/if}
 													{/if}
-												{/if}
-											</li>
-										{/each}
-									</ul>
-								</div>
-							{/if}
-						{/each}
+												</li>
+											{/each}
+										</ul>
+									</div>
+								{/if}
+							{/each}
+						</div>
 					{/if}
 				{/if}
 			</div>

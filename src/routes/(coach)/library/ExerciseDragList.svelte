@@ -96,19 +96,19 @@
 					{/if}
 					<button
 						type="button"
-						class="btn text-secondary btn-ghost btn-xs"
+						class="btn btn-square text-secondary btn-ghost btn-xs"
 						aria-label={`Edit ${exercise.activity}`}
 						onclick={() => onEdit(exercise.id)}
 					>
-						<EditBoxLineIcon class="size-5" />
+						<EditBoxLineIcon class="size-4" />
 					</button>
 					<button
 						type="button"
-						class="btn text-error btn-ghost btn-xs"
+						class="btn btn-square text-error btn-ghost btn-xs"
 						aria-label={`Remove ${exercise.activity}`}
 						onclick={() => onRemove(exercise.id)}
 					>
-						<Delete3LineIcon class="size-5" />
+						<Delete3LineIcon class="size-4" />
 					</button>
 				</div>
 			</div>
