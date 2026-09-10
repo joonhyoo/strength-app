@@ -226,7 +226,7 @@
 						{/each}
 					</div>
 				{:else if exercises.length === 0}
-					<p class="py-6 text-center text-base-content/60">No exercises yet.</p>
+					<p class="py-6 text-base-content/60">No exercises yet.</p>
 				{:else}
 					<div class="relative mt-2 w-full max-w-xs">
 						<input
