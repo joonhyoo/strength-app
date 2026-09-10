@@ -1,10 +1,9 @@
 <script lang="ts">
 	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
-	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
+	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
 	import CopyLineIcon from '@iconify-svelte/mingcute/copy-line';
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
-	import Button from '$lib/components/Button.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import { cycleColorCss } from '$lib/data/cycleColors';
 	import ExerciseDragList from './ExerciseDragList.svelte';
@@ -90,7 +89,7 @@
 	}
 </script>
 
-<section class="card max-w-full bg-base-100 shadow-sm">
+<section class="card w-full border-2 border-border bg-base-100">
 	<div class="card-body">
 		<div class="flex flex-wrap items-center gap-2">
 			<span
@@ -104,7 +103,7 @@
 			<span class="ml-auto flex gap-1">
 				<button
 					type="button"
-					class="btn btn-ghost btn-xs"
+					class="btn btn-square btn-ghost btn-xs"
 					aria-label={`Edit ${cycle.name}`}
 					onclick={() =>
 						builder.openModal({ type: 'cycle', programId: cycle.id, cycleId: cycle.id })}
@@ -113,7 +112,7 @@
 				</button>
 				<button
 					type="button"
-					class="btn text-error btn-ghost btn-xs"
+					class="btn btn-square text-error btn-ghost btn-xs"
 					aria-label={`Delete ${cycle.name}`}
 					onclick={handleDeleteCycle}
 				>
@@ -160,7 +159,7 @@
 				aria-label={`Add a blank week to ${cycle.name}`}
 				onclick={() => builder.addWeek(cycle.id)}
 			>
-				<PlusFillIcon class="size-4" />
+				<AddFillIcon class="size-4" />
 			</button>
 		</div>
 		{#if copyError}
@@ -188,14 +187,13 @@
 							Copied <span class="font-semibold">{clipboard.sessionName}</span> — pick a day below to
 							paste it in.
 						</span>
-						<Button
-							variant="ghost"
-							size="xs"
-							class="ml-auto"
+						<button
+							type="button"
+							class="btn ml-auto btn-ghost btn-xs"
 							onclick={() => builder.clearSessionClipboard()}
 						>
 							Done
-						</Button>
+						</button>
 					</div>
 					{#if pasteError}
 						<p class="mb-3 text-xs text-error">{pasteError}</p>
@@ -204,14 +202,14 @@
 				<div class="overflow-x-auto">
 					<div class="sticky left-0 z-10 mb-2 flex w-fit items-center gap-2 bg-base-100 pr-3">
 						<span class="font-mono text-xs text-base-content/50">Week {expandedWeekIndex + 1}</span>
-						<Button
-							variant="destructive"
-							size="xs"
+						<button
+							type="button"
+							class="btn btn-outline btn-xs btn-error"
 							onclick={() => handleDeleteWeek(expandedWeek.id)}
 						>
 							<Delete3LineIcon class="size-4" />
 							Delete week
-						</Button>
+						</button>
 					</div>
 
 					<WeekDayGrid
@@ -239,18 +237,18 @@
 						<div class="mb-2 flex items-center justify-between border-b border-base-300 pb-2">
 							<span class="font-semibold">{expandedSession.name}</span>
 							<span class="flex gap-1">
-								<Button
-									variant="ghost"
-									size="xs"
+								<button
+									type="button"
+									class="btn btn-ghost btn-xs"
 									aria-label={`Copy ${expandedSession.name} to another day`}
 									onclick={() => builder.copySession(expandedSession.id)}
 								>
 									<CopyLineIcon class="size-4" />
 									Copy
-								</Button>
+								</button>
 								<button
 									type="button"
-									class="btn btn-ghost btn-xs"
+									class="btn btn-square btn-ghost btn-xs"
 									aria-label="Rename session"
 									onclick={() =>
 										builder.openModal({
@@ -264,7 +262,7 @@
 								</button>
 								<button
 									type="button"
-									class="btn text-error btn-ghost btn-xs"
+									class="btn btn-square text-error btn-ghost btn-xs"
 									aria-label="Remove session"
 									onclick={() => handleDeleteSession(expandedSession.id)}
 								>
@@ -291,9 +289,9 @@
 						/>
 
 						<div class="mt-2 flex gap-2">
-							<Button
-								variant="dashed"
-								class="flex-1"
+							<button
+								type="button"
+								class="btn flex-1 btn-dash btn-primary"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',
@@ -301,11 +299,12 @@
 										programExerciseId: null
 									})}
 							>
-								<PlusFillIcon class="size-4" />
+								<AddFillIcon class="size-4" />
 								Add exercise
-							</Button>
-							<Button
-								variant="dashed-muted"
+							</button>
+							<button
+								type="button"
+								class="btn btn-dash"
 								onclick={() =>
 									builder.openModal({
 										type: 'exercise',
@@ -316,7 +315,7 @@
 							>
 								<Message3LineIcon class="size-5" />
 								Add note
-							</Button>
+							</button>
 						</div>
 					</div>
 				{/if}

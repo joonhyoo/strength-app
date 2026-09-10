@@ -1,8 +1,6 @@
 <script lang="ts">
-	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
 	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
-	import Button from '$lib/components/Button.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import CycleBand from './CycleBand.svelte';
 
@@ -25,54 +23,56 @@
 
 {#if builder.selectedProgram}
 	{@const program = builder.selectedProgram}
-	<div class="flex items-start justify-between gap-4">
-		<div class="min-w-0">
-			<div class="flex items-center gap-1">
-				<h2 class="font-display text-xl font-bold uppercase">{program.name}</h2>
-				<button
-					type="button"
-					class="btn btn-ghost btn-xs"
-					aria-label="Edit program name and description"
-					onclick={() => builder.openModal({ type: 'program', programId: program.id })}
-				>
-					<EditBoxLineIcon class="size-4" />
-				</button>
-				<button
-					type="button"
-					class="btn text-error btn-ghost btn-xs"
-					aria-label="Delete program"
-					onclick={() => handleDeleteProgram(program.id, program.name)}
-				>
-					<Delete3LineIcon class="size-4" />
-				</button>
+	<div class="card-body">
+		<div class=" flex items-start justify-between gap-4">
+			<div class="min-w-0">
+				<div class="flex items-center gap-1">
+					<h2 class="font-display text-xl font-bold uppercase">{program.name}</h2>
+					<button
+						type="button"
+						class="btn btn-square btn-ghost btn-xs"
+						aria-label="Edit program name and description"
+						onclick={() => builder.openModal({ type: 'program', programId: program.id })}
+					>
+						<EditBoxLineIcon class="size-4" />
+					</button>
+					<button
+						type="button"
+						class="btn btn-square text-error btn-ghost btn-xs"
+						aria-label="Delete program"
+						onclick={() => handleDeleteProgram(program.id, program.name)}
+					>
+						<Delete3LineIcon class="size-4" />
+					</button>
+				</div>
+				{#if program.description}
+					<p class="mt-1 max-w-prose text-sm text-base-content/60">{program.description}</p>
+				{/if}
 			</div>
-			{#if program.description}
-				<p class="mt-1 max-w-prose text-sm text-base-content/60">{program.description}</p>
-			{/if}
 		</div>
-	</div>
 
-	<div class="mt-4 flex flex-col gap-4">
-		{#if program.cycles.length === 0}
-			<p class="py-6 text-center text-base-content/60">
-				No cycles yet — a program needs at least one cycle to organize its weeks.
-			</p>
-		{:else}
-			{#each program.cycles as cycle (cycle.id)}
-				<CycleBand {cycle} />
-			{/each}
-		{/if}
-		<Button
-			variant="dashed"
-			onclick={() => builder.openModal({ type: 'cycle', programId: program.id, cycleId: null })}
-		>
-			<PlusFillIcon class="size-4" />
-			Add cycle
-		</Button>
+		<div class="flex flex-col gap-4">
+			{#if program.cycles.length === 0}
+				<p class="text-base-content/60">
+					No cycles yet — a program needs at least one cycle to organize its weeks.
+				</p>
+			{:else}
+				{#each program.cycles as cycle (cycle.id)}
+					<CycleBand {cycle} />
+				{/each}
+			{/if}
+			<button
+				type="button"
+				class="btn btn-dash btn-primary"
+				onclick={() => builder.openModal({ type: 'cycle', programId: program.id, cycleId: null })}
+			>
+				Add cycle
+			</button>
+		</div>
 	</div>
 {:else}
 	<div class="card bg-base-100 shadow-sm">
-		<div class="card-body items-center py-16 text-center">
+		<div class="card-body items-center py-16">
 			<p class="text-base-content/60">Select a program, or create a new one to get started.</p>
 		</div>
 	</div>

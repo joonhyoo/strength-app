@@ -4,7 +4,6 @@
 	import { resolve } from '$app/paths';
 	import { enhanceReplace } from '$lib/forms';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
-	import Button from '$lib/components/Button.svelte';
 	import type { Athlete } from '$lib/types';
 	import type { ActionData } from './$types';
 
@@ -69,9 +68,9 @@
 						class="input w-full"
 						required
 					/>
-					<Button variant="primary" type="submit" disabled={inviting}>
+					<button type="submit" class="btn btn-primary" disabled={inviting}>
 						{inviting ? 'Inviting...' : 'Invite'}
-					</Button>
+					</button>
 				</form>
 				{#if form?.message && form?.action !== 'remove_athlete'}
 					<p class="mt-1 text-xs text-error">{form.message}</p>
@@ -89,7 +88,7 @@
 								<span class="truncate">{invite.email}</span>
 								<form method="POST" action="?/revoke_invite" use:enhance={enhanceReplace({})}>
 									<input type="hidden" name="email" value={invite.email} />
-									<Button variant="ghost" size="sm" type="submit">Revoke</Button>
+									<button type="submit" class="btn btn-ghost btn-sm">Revoke</button>
 								</form>
 							</li>
 						{/each}
@@ -156,11 +155,11 @@
 									<input type="hidden" name="athlete_id" value={athlete.id} />
 									<button
 										type="submit"
-										class="btn text-error btn-ghost btn-sm"
+										class="btn btn-square text-error btn-ghost btn-xs"
 										aria-label={`Remove ${athlete.name}`}
 										disabled={removing}
 									>
-										<Delete3LineIcon class="size-5" />
+										<Delete3LineIcon class="size-4" />
 									</button>
 								</form>
 							</li>

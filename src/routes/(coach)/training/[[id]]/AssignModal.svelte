@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import {
 		listPrograms,
@@ -65,58 +64,69 @@
 	<div class="modal-box">
 		<h3 class="mb-4 font-display text-lg font-bold uppercase">Assign program</h3>
 
-		<p class="mb-4 text-sm text-base-content/60">
-			Assigning to <strong class="text-base-content">{athleteName}</strong>, starting the week of
-			<strong class="text-base-content">{formatDayMonth(startDate)}</strong> — programs always start on
-			a Monday, so this follows whichever week is selected on the calendar.
-		</p>
+		<div class="flex flex-col gap-4 text-sm">
+			<p class="text-base-content/60">
+				Assigning to <strong class="text-base-content">{athleteName}</strong>, starting the week of
+				<strong class="text-base-content">{formatDayMonth(startDate)}</strong> — programs always start
+				on a Monday, so this follows whichever week is selected on the calendar.
+			</p>
 
-		{#if programs === null}
-			<div class="h-10 w-full skeleton"></div>
-		{:else if programs.length === 0}
-			<p class="text-sm text-base-content/60">No programs yet — build one in the Library first.</p>
-		{:else}
-			<label class="form-control mb-4 w-full">
-				<span class="label">Program</span>
-				<select class="select" bind:value={selectedProgramId}>
-					{#each programs as p (p.id)}
-						<option value={p.id}>{p.name}</option>
-					{/each}
-				</select>
-			</label>
-
-			{#if conflicts === null}
-				<div class="h-14 w-full skeleton"></div>
-			{:else if conflicts.length === 0}
-				<div class="rounded-lg bg-success/10 p-3 text-sm">
-					Ready to assign — <strong>{totalSessions}</strong> session{totalSessions === 1 ? '' : 's'} will
-					be scheduled starting {formatDayMonth(startDate)}.
-				</div>
+			{#if programs === null}
+				<div class="h-10 w-full skeleton"></div>
+			{:else if programs.length === 0}
+				<p class="text-base-content/60">No programs yet — build one in the Library first.</p>
 			{:else}
-				<div class="rounded-lg bg-warning/15 p-3 text-sm">
-					<strong>{conflicts.length}</strong> date{conflicts.length === 1 ? '' : 's'} already {conflicts.length ===
-					1
-						? 'has'
-						: 'have'} a workout for {athleteName} — assigning will <strong>replace</strong>
-					{conflicts.length === 1 ? 'it' : 'them'}:
-					<ul class="mt-1 list-disc pl-5">
-						{#each conflicts as dateKey (dateKey)}
-							<li>{formatDayMonth(dateKey)}</li>
+				<label class="flex w-full flex-col gap-1.5">
+					<span class="label">Program</span>
+					<select class="select w-full" bind:value={selectedProgramId}>
+						{#each programs as p (p.id)}
+							<option value={p.id}>{p.name}</option>
 						{/each}
-					</ul>
-				</div>
-			{/if}
-		{/if}
+					</select>
+				</label>
 
-		<div class="modal-action">
-			<Button variant="destructive" onclick={() => program.closeAssignModal()}>Cancel</Button>
-			<Button
-				variant="primary"
-				disabled={!selectedProgramId || conflicts === null}
-				onclick={confirmAssign}
-			>
-				Confirm assign
-			</Button>
+				{#if conflicts === null}
+					<div class="h-14 w-full skeleton"></div>
+				{:else if conflicts.length === 0}
+					<div class="rounded-lg bg-success/10 p-3">
+						Ready to assign — <strong>{totalSessions}</strong> session{totalSessions === 1
+							? ''
+							: 's'}
+						will be scheduled starting {formatDayMonth(startDate)}.
+					</div>
+				{:else}
+					<div class="rounded-lg bg-warning/15 p-3">
+						<strong>{conflicts.length}</strong> date{conflicts.length === 1 ? '' : 's'} already {conflicts.length ===
+						1
+							? 'has'
+							: 'have'} a workout for {athleteName} — assigning will <strong>replace</strong>
+						{conflicts.length === 1 ? 'it' : 'them'}:
+						<ul class="mt-1 list-disc pl-5">
+							{#each conflicts as dateKey (dateKey)}
+								<li>{formatDayMonth(dateKey)}</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			{/if}
+
+			<div class="modal-action">
+				<button
+					type="button"
+					class="btn btn-outline btn-error"
+					onclick={() => program.closeAssignModal()}
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="btn btn-primary"
+					disabled={!selectedProgramId || conflicts === null}
+					onclick={confirmAssign}
+				>
+					Confirm assign
+				</button>
+			</div>
 		</div>
 	</div>
 </dialog>

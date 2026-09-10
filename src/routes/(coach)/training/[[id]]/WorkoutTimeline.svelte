@@ -1,10 +1,9 @@
 <script lang="ts">
 	import EditBoxLineIcon from '@iconify-svelte/mingcute/edit-2-line';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
-	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
+	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
 	import Message3LineIcon from '@iconify-svelte/mingcute/message-3-line';
 	import DotGridLineIcon from '@iconify-svelte/mingcute/dot-grid-line';
-	import Button from '$lib/components/Button.svelte';
 	import CopyPasteButton from '$lib/components/CopyPasteButton.svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getCoachProgramState, type DayEntry } from '$lib/coachProgramState.svelte';
@@ -182,18 +181,18 @@
 											</span>
 										{/if}
 										<button
-											class="btn text-secondary btn-ghost btn-sm"
+											class="btn btn-square text-secondary btn-ghost btn-xs"
 											aria-label={`Edit ${exercise.activity}`}
 											onclick={() => exercise.id && program.openEdit(exercise)}
 										>
-											<EditBoxLineIcon class="size-5" />
+											<EditBoxLineIcon class="size-4" />
 										</button>
 										<button
-											class="btn text-error btn-ghost btn-sm"
+											class="btn btn-square text-error btn-ghost btn-xs"
 											aria-label={`Remove ${exercise.activity}`}
 											onclick={() => exercise.id && program.removeExercise(exercise.id)}
 										>
-											<Delete3LineIcon class="size-5" />
+											<Delete3LineIcon class="size-4" />
 										</button>
 									</div>
 								</div>
@@ -203,14 +202,18 @@
 				{/if}
 
 				<div class="mt-2 flex justify-center gap-2">
-					<Button variant="dashed" onclick={() => openAddExercise(day)}>
-						<PlusFillIcon class="size-4" />
+					<button
+						type="button"
+						class="btn btn-dash btn-primary"
+						onclick={() => openAddExercise(day)}
+					>
+						<AddFillIcon class="size-4" />
 						Add exercise
-					</Button>
-					<Button variant="dashed-muted" onclick={() => openAddNote(day)}>
+					</button>
+					<button type="button" class="btn btn-dash" onclick={() => openAddNote(day)}>
 						<Message3LineIcon class="size-5" />
 						Add note
-					</Button>
+					</button>
 				</div>
 			</div>
 		</div>

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 
 	const builder = getProgramBuilderState();
@@ -53,24 +52,35 @@
 		</h3>
 
 		<form
-			class="flex flex-col gap-4"
+			class="flex flex-col gap-4 text-sm"
 			onsubmit={(e) => {
 				e.preventDefault();
 				submit();
 			}}
 		>
-			<p class="text-sm text-base-content/60">{DOW[dayNumber - 1]} · this week</p>
+			<p class="text-base-content/60">{DOW[dayNumber - 1]} · this week</p>
 
-			<label class="form-control w-full">
+			<label class="flex w-full flex-col gap-1.5">
 				<span class="label">Session name</span>
-				<input class="input" type="text" placeholder="e.g. Lower Body Strength" bind:value={name} />
+				<input
+					class="input w-full"
+					type="text"
+					placeholder="e.g. Lower Body Strength"
+					bind:value={name}
+				/>
 			</label>
 
 			<div class="modal-action">
-				<Button variant="destructive" onclick={() => builder.closeModal()}>Cancel</Button>
-				<Button variant="primary" type="submit" disabled={!name.trim()}>
+				<button
+					type="button"
+					class="btn btn-outline btn-error"
+					onclick={() => builder.closeModal()}
+				>
+					Cancel
+				</button>
+				<button type="submit" class="btn btn-primary" disabled={!name.trim()}>
 					{editingSession ? 'Save' : 'Add session'}
-				</Button>
+				</button>
 			</div>
 		</form>
 	</div>

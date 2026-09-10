@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import PlusFillIcon from '@iconify-svelte/mingcute/plus-fill';
-	import Button from '$lib/components/Button.svelte';
+	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import {
 		getExerciseLibrary,
@@ -213,16 +212,16 @@
 		</h3>
 
 		<form
-			class="flex flex-col gap-4"
+			class="flex flex-col gap-4 text-sm"
 			onsubmit={(e) => {
 				e.preventDefault();
 				submit();
 			}}
 		>
 			{#if !isNote && !creatingNew}
-				<label class="form-control w-full">
+				<label class="flex w-full flex-col gap-1.5">
 					<span class="label">Exercise</span>
-					<select class="select" bind:value={selectedName}>
+					<select class="select w-full" bind:value={selectedName}>
 						{#each CATEGORY_OPTIONS as cat (cat)}
 							{@const items = library.filter((item) => item.category === cat)}
 							{#if items.length > 0}
@@ -234,61 +233,61 @@
 							{/if}
 						{/each}
 					</select>
-					<span class="label -mt-1 text-base-content/60">
+					<span class="text-xs text-base-content/60">
 						Category: {CATEGORY_LABEL[category]}
 					</span>
 				</label>
 
-				<label class="form-control w-full">
+				<label class="flex w-full flex-col gap-1.5">
 					<span class="label">Video link (optional)</span>
 					<input
-						class="input"
+						class="input w-full"
 						type="url"
 						placeholder="https://youtube.com/watch?v=..."
 						bind:value={videoUrl}
 					/>
-					<span class="label -mt-1 text-base-content/60">
+					<span class="text-xs text-base-content/60">
 						Shown to the athlete under this exercise. Plays inside the app.
 					</span>
 				</label>
 			{/if}
 
 			{#if !isNote && creatingNew}
-				<label class="form-control w-full">
+				<label class="flex w-full flex-col gap-1.5">
 					<span class="label">Exercise name</span>
 					<input
-						class="input"
+						class="input w-full"
 						type="text"
 						placeholder="e.g. Barbell Back Squat"
 						bind:value={newName}
 					/>
 				</label>
 
-				<label class="form-control w-full">
+				<label class="flex w-full flex-col gap-1.5">
 					<span class="label">Category</span>
-					<select class="select" bind:value={newCategory}>
+					<select class="select w-full" bind:value={newCategory}>
 						{#each CATEGORY_OPTIONS as cat (cat)}
 							<option value={cat}>{CATEGORY_LABEL[cat]}</option>
 						{/each}
 					</select>
 				</label>
 
-				<label class="form-control w-full">
+				<label class="flex w-full flex-col gap-1.5">
 					<span class="label">Video link (optional)</span>
 					<input
-						class="input"
+						class="input w-full"
 						type="url"
 						placeholder="https://youtube.com/watch?v=..."
 						bind:value={videoUrl}
 					/>
-					<span class="label -mt-1 text-base-content/60">
+					<span class="text-xs text-base-content/60">
 						Shown to the athlete under this exercise. Plays inside the app.
 					</span>
 				</label>
 			{/if}
 
 			{#if !isNote && !isEditing}
-				<label class="flex items-center gap-2 text-sm">
+				<label class="flex items-center gap-2">
 					<input
 						type="checkbox"
 						class="toggle toggle-sm"
@@ -301,9 +300,9 @@
 
 			{#if isWeight}
 				<div class="grid grid-cols-2 gap-4">
-					<label class="form-control w-full">
-						<span class="label text-sm">Sets</span>
-						<div class="my-2 flex items-center justify-center gap-4">
+					<label class="flex w-full flex-col gap-1.5">
+						<span class="label">Sets</span>
+						<div class="flex items-center justify-center gap-4">
 							<button
 								type="button"
 								class={stepBtn}
@@ -312,25 +311,20 @@
 							>
 								<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
 							</button>
-							<input
-								class="input w-16 text-center text-sm"
-								type="number"
-								min="1"
-								bind:value={sets}
-							/>
+							<input class="input w-16 text-center" type="number" min="1" bind:value={sets} />
 							<button
 								type="button"
 								class={stepBtn}
 								aria-label="Increase sets"
 								onclick={() => (sets += 1)}
 							>
-								<PlusFillIcon class="size-4" />
+								<AddFillIcon class="size-4" />
 							</button>
 						</div>
 					</label>
-					<label class="form-control w-full">
-						<span class="label text-sm">Reps per set</span>
-						<div class="my-2 flex items-center justify-center gap-4">
+					<label class="flex w-full flex-col gap-1.5">
+						<span class="label">Reps per set</span>
+						<div class="flex items-center justify-center gap-4">
 							<button
 								type="button"
 								class={stepBtn}
@@ -339,30 +333,25 @@
 							>
 								<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
 							</button>
-							<input
-								class="input w-16 text-center text-sm"
-								type="number"
-								min="1"
-								bind:value={reps}
-							/>
+							<input class="input w-16 text-center" type="number" min="1" bind:value={reps} />
 							<button
 								type="button"
 								class={stepBtn}
 								aria-label="Increase reps"
 								onclick={() => (reps += 1)}
 							>
-								<PlusFillIcon class="size-4" />
+								<AddFillIcon class="size-4" />
 							</button>
 						</div>
 					</label>
 				</div>
 			{/if}
 
-			<label class="form-control w-full">
+			<label class="flex w-full flex-col gap-1.5">
 				<span class="label">{isNote ? 'Note for the athlete' : 'Note'}</span>
 				<textarea
 					use:autoGrowNote={note}
-					class="textarea field-sizing-content max-h-48 resize-none"
+					class="textarea field-sizing-content max-h-48 w-full resize-none"
 					rows={isNote ? 4 : 3}
 					placeholder={isNote
 						? 'e.g. Deload week — leave 2 reps in the tank on every set.'
@@ -374,8 +363,14 @@
 			</label>
 
 			<div class="modal-action">
-				<Button variant="destructive" onclick={() => program.closeModal()}>Cancel</Button>
-				<Button variant="primary" type="submit" disabled={!canSave}>Save</Button>
+				<button
+					type="button"
+					class="btn btn-outline btn-error"
+					onclick={() => program.closeModal()}
+				>
+					Cancel
+				</button>
+				<button type="submit" class="btn btn-primary" disabled={!canSave}>Save</button>
 			</div>
 		</form>
 	</div>

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 
 	const builder = getProgramBuilderState();
@@ -47,26 +46,26 @@
 		</h3>
 
 		<form
-			class="flex flex-col gap-4"
+			class="flex flex-col gap-4 text-sm"
 			onsubmit={(e) => {
 				e.preventDefault();
 				submit();
 			}}
 		>
-			<label class="form-control w-full">
+			<label class="flex w-full flex-col gap-1.5">
 				<span class="label">Program name</span>
 				<input
-					class="input"
+					class="input w-full"
 					type="text"
 					placeholder="e.g. 12-Week Strength Program"
 					bind:value={name}
 				/>
 			</label>
 
-			<label class="form-control w-full">
+			<label class="flex w-full flex-col gap-1.5">
 				<span class="label">Description</span>
 				<textarea
-					class="textarea"
+					class="textarea w-full"
 					rows="3"
 					placeholder="What is this program for?"
 					bind:value={description}
@@ -74,10 +73,16 @@
 			</label>
 
 			<div class="modal-action">
-				<Button variant="destructive" onclick={() => builder.closeModal()}>Cancel</Button>
-				<Button variant="primary" type="submit" disabled={!name.trim()}>
+				<button
+					type="button"
+					class="btn btn-outline btn-error"
+					onclick={() => builder.closeModal()}
+				>
+					Cancel
+				</button>
+				<button type="submit" class="btn btn-primary" disabled={!name.trim()}>
 					{editingProgram ? 'Save' : 'Create'}
-				</Button>
+				</button>
 			</div>
 		</form>
 	</div>
