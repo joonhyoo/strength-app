@@ -43,9 +43,8 @@
 	<title>Strength App — Athletes</title>
 </svelte:head>
 
-<div class="my-4">
-	<div class="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-		<aside class="card h-fit bg-base-100 shadow-sm lg:sticky lg:top-4 lg:z-10 lg:self-start">
+<div class="my-4 flex flex-col gap-4 lg:flex-row lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+		<aside class="w-full max-w-full shrink-0 lg:max-w-xs card h-fit bg-base-100 shadow-sm">
 			<div class="card-body">
 				<h1 class="mb-2 font-display text-xl font-bold uppercase">Athletes</h1>
 
@@ -99,6 +98,7 @@
 			</div>
 		</aside>
 
+		<div class="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-y-contain">
 		<div class="card bg-base-100 shadow-sm">
 			<div class="card-body">
 				<div class="flex items-center justify-between gap-2">
@@ -174,5 +174,5 @@
 				{/if}
 			</div>
 		</div>
-	</div>
+		</div>
 </div>

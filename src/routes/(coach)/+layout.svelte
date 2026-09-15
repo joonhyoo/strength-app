@@ -13,7 +13,7 @@
 <div class="flex h-[calc(100dvh-env(safe-area-inset-top))]">
 	<CoachSidebar open={sidebarOpen} onclose={() => (sidebarOpen = false)} />
 
-	<div class="grid flex-1 grid-rows-[auto_1fr] overflow-hidden">
+	<div class="grid flex-1 grid-rows-[auto_1fr] lg:overflow-hidden">
 		<header class="border-b bg-base-100 lg:hidden">
 			<div class="flex items-center px-4 py-3">
 				<button
@@ -27,7 +27,7 @@
 			</div>
 		</header>
 
-		<main class="overflow-y-auto overscroll-y-contain px-4">
+		<main class="flex flex-col overflow-y-auto px-4 lg:overflow-hidden">
 			{@render children()}
 		</main>
 	</div>
