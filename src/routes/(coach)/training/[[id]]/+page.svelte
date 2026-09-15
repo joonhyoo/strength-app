@@ -10,6 +10,7 @@
 	import MonthGrid from '$lib/components/MonthGrid.svelte';
 	import ProgramBreadcrumb from '$lib/components/ProgramBreadcrumb.svelte';
 	import WorkoutTimeline from './WorkoutTimeline.svelte';
+	import MonthTimeline from './MonthTimeline.svelte';
 	import type { Athlete } from '$lib/types';
 
 	const program = getCoachProgramState();
@@ -77,6 +78,14 @@
 
 	const athlete = $derived(athletes?.find((a) => a.id === page.params.id) ?? null);
 
+	// Which layout is showing — a query param rather than a route segment so it
+	// composes with the athlete id param and survives a reload/bookmark.
+	const view = $derived(page.url.searchParams.get('view') === 'month' ? 'month' : 'week');
+
+	$effect(() => {
+		program.activeView = view;
+	});
+
 	$effect(() => {
 		if (athlete) {
 			program.selectAthlete(athlete.id);
@@ -84,15 +93,17 @@
 		} else {
 			program.selectAthlete(null);
 			program.weekDays = [];
+			program.monthDays = [];
 			program.statusMap.clear();
 		}
 	});
 
 	// The visible week's workout days — reloads whenever the athlete or the
 	// selected week changes ($derived so an in-week date tap doesn't refetch).
+	// Only runs for week view; MonthTimeline drives its own loadMonth.
 	const weekStart = $derived(program.selectedWeekStart);
 	$effect(() => {
-		if (athlete) program.loadWeek(athlete.id, weekStart);
+		if (athlete && view === 'week') program.loadWeek(athlete.id, weekStart);
 	});
 
 	$effect(() => {
@@ -113,9 +124,24 @@
 		);
 	});
 
+	// Both callers below resolve() a single interpolated pathname (mirroring the
+	// existing `resolve(id ? ... : ...)` pattern this route already used) rather
+	// than appending `?view=month` to an already-resolved string, so eslint's
+	// no-navigation-without-resolve rule still sees a direct resolve() call.
+	function trainingHref(id: string | null, isMonth: boolean) {
+		if (id) {
+			return isMonth ? resolve(`/training/${id}?view=month`) : resolve(`/training/${id}`);
+		}
+		return isMonth ? resolve('/training?view=month') : resolve('/training');
+	}
+
 	function onAthleteChange(id: string) {
 		// Replaces rather than pushes; see the note in src/app.html.
-		goto(resolve(id ? `/training/${id}` : '/training'), { replaceState: true });
+		goto(trainingHref(id || null, view === 'month'), { replaceState: true });
+	}
+
+	function setView(next: 'week' | 'month') {
+		goto(trainingHref(athlete?.id ?? null, next === 'month'), { replaceState: true });
 	}
 </script>
 
@@ -152,107 +178,135 @@
 	{/if}
 </div>
 
-<div class="my-4 grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-	<aside class="card h-fit bg-base-100 shadow-sm lg:sticky lg:top-4 lg:z-10 lg:self-start">
-		<div class="card-body">
-			<h1 class="mb-3 font-display text-xl font-bold uppercase">Training</h1>
-
-			<label class="flex w-full flex-col gap-1.5">
-				<span class="label">Athlete</span>
-				{#if athletes === null}
-					<div class="h-10 w-full skeleton"></div>
-				{:else}
-					<select
-						class="select w-full"
-						value={athlete?.id ?? ''}
-						onchange={(e) => onAthleteChange(e.currentTarget.value)}
-					>
-						<option value="">Select athlete…</option>
-						{#each athletes as option (option.id)}
-							<option value={option.id}>{option.name}</option>
-						{/each}
-					</select>
-				{/if}
-			</label>
-
-			<h2 class="mt-3 font-semibold text-base-content/70">Calendar</h2>
-
-			<div class="mt-3">
-				<MonthGrid
-					selectedDate={program.selectedDate}
-					dayStatus={(dateKey) => program.statusMap.get(dateKey) ?? 'none'}
-					onselect={(date) => program.selectDate(date)}
-					highlightWeekOf={program.selectedDate}
-				/>
-			</div>
-
-			{#if athlete}
-				<div class="mt-3 border-t border-dashed border-base-300 pt-3">
-					{#if program.selectedWeekCrumb}
-						<ProgramBreadcrumb crumb={program.selectedWeekCrumb} showLabel={false} />
-					{:else}
-						<p class="text-sm text-base-content/50 italic">No program assigned this week</p>
-					{/if}
-
-					<div class="mt-3 flex flex-col gap-2 border-t border-dashed border-base-300 pt-3">
-						<button
-							type="button"
-							class="btn w-full btn-sm btn-neutral"
-							onclick={() => program.openAssignModal()}
-						>
-							Assign program
-						</button>
-						<CopyPasteButton
-							mode={program.weekClipboardMode}
-							noun="week"
-							canCopy={program.selectedWeekCount > 0}
-							class="w-full"
-							oncopy={() => handleCopyWeek(athlete.name)}
-							onpaste={() => handlePasteWeek(athlete.name)}
-							oncancel={() => program.clearClipboard()}
-						/>
-						<button
-							type="button"
-							class="btn w-full btn-sm btn-neutral"
-							onclick={() => program.openShiftModal()}
-						>
-							Shift schedule
-						</button>
-						<button
-							type="button"
-							class="btn w-full btn-outline btn-sm btn-error"
-							disabled={program.selectedWeekCount === 0}
-							onclick={() => handleClearWeek(athlete.name)}
-						>
-							Clear week
-						</button>
-					</div>
-				</div>
-			{/if}
+<div class="my-4 flex flex-col gap-3 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+	<div class="flex flex-wrap items-center justify-between gap-3">
+		<h1 class="font-display text-xl font-bold uppercase">Training</h1>
+		<div class="join">
+			<button
+				type="button"
+				class="btn join-item btn-sm {view === 'week' ? 'btn-active' : ''}"
+				onclick={() => setView('week')}
+			>
+				Week
+			</button>
+			<button
+				type="button"
+				class="btn join-item btn-sm {view === 'month' ? 'btn-active' : ''}"
+				onclick={() => setView('month')}
+			>
+				Month
+			</button>
 		</div>
-	</aside>
+	</div>
 
-	<hr class="border-t border-base-300 lg:hidden" />
-
-	{#if athletes === null}
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body gap-3">
-				<div class="h-6 w-40 skeleton"></div>
-				<div class="h-32 w-full skeleton"></div>
-			</div>
-		</div>
-	{:else if athlete}
-		<div>
-			<WorkoutTimeline
-				athleteId={athlete.id}
-				athleteName={athlete.name}
-				date={program.selectedDate}
-			/>
-		</div>
+	{#if view === 'month'}
+		<MonthTimeline {athletes} {athlete} {onAthleteChange} />
 	{:else}
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body items-center py-16 text-center">
-				<p class="text-base-content/60">Select an athlete to view and schedule their workouts.</p>
+		<div class="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:overflow-hidden">
+			<aside class="card h-fit w-full max-w-full shrink-0 bg-base-100 shadow-sm lg:max-w-xs">
+				<div class="card-body">
+					<label class="flex w-full flex-col gap-1.5">
+						<span class="label">Athlete</span>
+						{#if athletes === null}
+							<div class="h-10 w-full skeleton"></div>
+						{:else}
+							<select
+								class="select w-full"
+								value={athlete?.id ?? ''}
+								onchange={(e) => onAthleteChange(e.currentTarget.value)}
+							>
+								<option value="">Select athlete…</option>
+								{#each athletes as option (option.id)}
+									<option value={option.id}>{option.name}</option>
+								{/each}
+							</select>
+						{/if}
+					</label>
+
+					<h2 class="mt-3 font-semibold text-base-content/70">Calendar</h2>
+
+					<div class="mt-3">
+						<MonthGrid
+							selectedDate={program.selectedDate}
+							dayStatus={(dateKey) => program.statusMap.get(dateKey) ?? 'none'}
+							onselect={(date) => program.selectDate(date)}
+							highlightWeekOf={program.selectedDate}
+						/>
+					</div>
+
+					{#if athlete}
+						<div class="mt-3 border-t border-dashed border-base-300 pt-3">
+							{#if program.selectedWeekCrumb}
+								<ProgramBreadcrumb crumb={program.selectedWeekCrumb} showLabel={false} />
+							{:else}
+								<p class="text-sm text-base-content/50 italic">No program assigned this week</p>
+							{/if}
+
+							<div class="mt-3 flex flex-col gap-2 border-t border-dashed border-base-300 pt-3">
+								<button
+									type="button"
+									class="btn w-full btn-sm btn-neutral"
+									onclick={() => program.openAssignModal()}
+								>
+									Assign program
+								</button>
+								<CopyPasteButton
+									mode={program.weekClipboardMode}
+									noun="week"
+									canCopy={program.selectedWeekCount > 0}
+									class="w-full"
+									oncopy={() => handleCopyWeek(athlete.name)}
+									onpaste={() => handlePasteWeek(athlete.name)}
+									oncancel={() => program.clearClipboard()}
+								/>
+								<button
+									type="button"
+									class="btn w-full btn-sm btn-neutral"
+									onclick={() => program.openShiftModal()}
+								>
+									Shift schedule
+								</button>
+								<button
+									type="button"
+									class="btn w-full btn-outline btn-sm btn-error"
+									disabled={program.selectedWeekCount === 0}
+									onclick={() => handleClearWeek(athlete.name)}
+								>
+									Clear week
+								</button>
+							</div>
+						</div>
+					{/if}
+				</div>
+			</aside>
+
+			<hr class="border-t border-base-300 lg:hidden" />
+
+			<div class="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-y-contain">
+				{#if athletes === null}
+					<div class="card bg-base-100 shadow-sm">
+						<div class="card-body gap-3">
+							<div class="h-6 w-40 skeleton"></div>
+							<div class="h-32 w-full skeleton"></div>
+						</div>
+					</div>
+				{:else if athlete}
+					<div>
+						<WorkoutTimeline
+							athleteId={athlete.id}
+							athleteName={athlete.name}
+							date={program.selectedDate}
+						/>
+					</div>
+				{:else}
+					<div class="card bg-base-100 shadow-sm">
+						<div class="card-body items-center py-16 text-center">
+							<p class="text-base-content/60">
+								Select an athlete to view and schedule their workouts.
+							</p>
+						</div>
+					</div>
+				{/if}
 			</div>
 		</div>
 	{/if}
