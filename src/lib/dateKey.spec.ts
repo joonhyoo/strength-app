@@ -5,7 +5,8 @@ import {
 	addDays,
 	toKey,
 	mondayOf,
-	diffDays
+	diffDays,
+	monthGridKeys
 } from '$lib/dateKey';
 
 describe('parseKey', () => {
@@ -57,5 +58,21 @@ describe('diffDays', () => {
 describe('formatDayMonth', () => {
 	it('formats a YYYY-MM-DD key into numeric short month', () => {
 		expect(formatDayMonth('1996-12-10')).toBe('10 Dec');
+	});
+});
+
+describe('monthGridKeys', () => {
+	it('pads a month that starts mid-week to full leading/trailing weeks', () => {
+		const keys = monthGridKeys(new Date(2026, 8, 1)); // September 2026 starts on a Tuesday
+		expect(keys[0]).toBe('2026-08-31');
+		expect(keys[keys.length - 1]).toBe('2026-10-04');
+		expect(keys.length % 7).toBe(0);
+	});
+
+	it('still pads a month that starts on a Monday', () => {
+		const keys = monthGridKeys(new Date(2026, 5, 1)); // June 2026 starts on a Monday
+		expect(keys[0]).toBe('2026-06-01');
+		expect(keys[keys.length - 1]).toBe('2026-07-05');
+		expect(keys.length % 7).toBe(0);
 	});
 });

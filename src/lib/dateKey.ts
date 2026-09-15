@@ -41,3 +41,17 @@ export function diffDays(a: string, b: string): number {
 export function formatDayMonth(key: string): string {
 	return parseKey(key).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
 }
+
+/**
+ * Every date-key in the Monday-aligned range of full weeks spanning
+ * `viewDate`'s month — leading days from the previous month and trailing
+ * days from the next, so a month grid always renders complete rows.
+ */
+export function monthGridKeys(viewDate: Date): string[] {
+	const first = toKey(new Date(viewDate.getFullYear(), viewDate.getMonth(), 1));
+	const last = toKey(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0));
+	const start = mondayOf(first);
+	const end = addDays(mondayOf(last), 6);
+	const count = diffDays(start, end) + 1;
+	return Array.from({ length: count }, (_, i) => addDays(start, i));
+}
