@@ -15,6 +15,7 @@ import {
 	updateCachedWorkoutDay,
 	getAthleteStatusMap,
 	getCachedStatusMap,
+	getAthleteRangeExercises,
 	dayStatusFromExercises
 } from '$lib/services/workoutService.svelte';
 import { getBreadcrumb } from '$lib/services/programTemplateService.svelte';
@@ -59,6 +60,16 @@ class CoachProgramState {
 	// shared list. Every per-exercise edit applies to it immediately and
 	// reconciles with the server in the background; see addExercise etc.
 	weekDays = $state<DayEntry[]>([]);
+	// The full-month grid's days — a separate array from weekDays (rather than
+	// a shared cache) so week view stays untouched; kept fresh by re-running
+	// loadMonth every time month view mounts. See activeView below for why
+	// dayFor/dayHolding need to know which of the two is "live".
+	monthDays = $state<DayEntry[]>([]);
+	// Which view is currently mounted — written by +page.svelte whenever the
+	// ?view= toggle changes. weekDays/monthDays aren't cleared when the other
+	// view is active, so a mutation issued from the visible view must prefer
+	// that view's array or it can silently write into the other, stale one.
+	activeView = $state<'week' | 'month'>('week');
 	// Inline error shown in the timeline when an optimistic edit was rolled back.
 	opError = $state<string | null>(null);
 	// Temp ids of exercises inserted optimistically and still reconciling — the
@@ -68,6 +79,8 @@ class CoachProgramState {
 	// Overlapping week loads (athlete/week switch, a paste/assign/shift
 	// reconcile) — only the newest may write weekDays.
 	private weekLoadToken = 0;
+	// Same idea for loadMonth/monthDays.
+	private monthLoadToken = 0;
 	// In-flight optimistic ops; loadWeek waits on these so a background refresh
 	// can't replace weekDays out from under an unreconciled edit. Plain Set —
 	// only ever awaited.
@@ -133,15 +146,32 @@ class CoachProgramState {
 	// so the Program › Cycle › Week breadcrumb holds steady.
 	// ---------------------------------------------------------------------
 
+	/** Prefers whichever of weekDays/monthDays belongs to the currently mounted
+	 *  view — the other array can be stale (nothing keeps it fresh while its
+	 *  view isn't mounted), so it's only a fallback. loadWeek/loadMonth/clearWeek
+	 *  never call this — they only ever touch the one array they own directly. */
 	private dayFor(dateKey: string): DayEntry | undefined {
-		return this.weekDays.find((d) => d.dateKey === dateKey);
+		const [primary, secondary] =
+			this.activeView === 'month'
+				? [this.monthDays, this.weekDays]
+				: [this.weekDays, this.monthDays];
+		return (
+			primary.find((d) => d.dateKey === dateKey) ?? secondary.find((d) => d.dateKey === dateKey)
+		);
 	}
 
 	/** The visible day whose list currently holds `exerciseId` — edit/remove
 	 *  identify their target by the exercise's own (globally unique) id, not by
-	 *  which day happens to be focused. */
+	 *  which day happens to be focused. Same active-view bias as dayFor. */
 	private dayHolding(exerciseId: string): DayEntry | undefined {
-		return this.weekDays.find((d) => d.exercises.some((e) => e.id === exerciseId));
+		const [primary, secondary] =
+			this.activeView === 'month'
+				? [this.monthDays, this.weekDays]
+				: [this.weekDays, this.monthDays];
+		return (
+			primary.find((d) => d.exercises.some((e) => e.id === exerciseId)) ??
+			secondary.find((d) => d.exercises.some((e) => e.id === exerciseId))
+		);
 	}
 
 	/** Push a day's current list into the workout-day cache, so an optimistic
@@ -356,7 +386,7 @@ class CoachProgramState {
 			getWorkoutDay(athleteId, dateKey)
 				.then((list) => {
 					if (token !== this.weekLoadToken) return;
-					const day = this.dayFor(dateKey);
+					const day = this.weekDays.find((d) => d.dateKey === dateKey);
 					if (!day) return;
 					day.exercises = list;
 					day.loading = false;
@@ -373,18 +403,72 @@ class CoachProgramState {
 					getBreadcrumb(athleteId, dateKey)
 						.then((result) => {
 							if (token !== this.weekLoadToken) return;
-							const d = this.dayFor(dateKey);
+							const d = this.weekDays.find((d) => d.dateKey === dateKey);
 							if (d) d.crumb = result;
 						})
 						.catch((e) => console.warn('[breadcrumb] week load failed', dateKey, e));
 				})
 				.catch(() => {
 					if (token !== this.weekLoadToken) return;
-					const day = this.dayFor(dateKey);
+					const day = this.weekDays.find((d) => d.dateKey === dateKey);
 					if (!day) return;
 					day.loading = false;
 					if (getCachedWorkoutDay(athleteId, dateKey) === null) day.loadError = true;
 				});
+		}
+	}
+
+	/**
+	 * Loads a Monday-aligned, full-weeks range into monthDays: paints whatever's
+	 * cached per day, then reconciles the whole range with one bulk fetch — the
+	 * month grid is too wide for loadWeek's N-parallel-requests approach to stay
+	 * cheap. Skips per-day breadcrumb fetching entirely: month view never shows
+	 * a Program › Cycle › Week line. Still warms the per-day workout-day cache,
+	 * so switching to week view repaints instantly from data this already
+	 * fetched.
+	 */
+	async loadMonth(athleteId: string, keys: string[]) {
+		const token = ++this.monthLoadToken;
+
+		while (this.pendingOps.size > 0) {
+			await Promise.allSettled([...this.pendingOps]);
+			if (token !== this.monthLoadToken) return;
+		}
+
+		this.monthDays = keys.map((dateKey) => {
+			const cached = getCachedWorkoutDay(athleteId, dateKey);
+			return {
+				dateKey,
+				date: parseKey(dateKey),
+				exercises: cached ?? [],
+				loading: cached === null,
+				loadError: false,
+				crumb: null
+			};
+		});
+
+		try {
+			const byDate = await getAthleteRangeExercises(athleteId, {
+				from: keys[0],
+				to: keys[keys.length - 1]
+			});
+			if (token !== this.monthLoadToken) return;
+
+			for (const dateKey of keys) {
+				const day = this.monthDays.find((d) => d.dateKey === dateKey);
+				if (!day) continue;
+				const list = byDate.get(dateKey) ?? [];
+				day.exercises = list;
+				day.loading = false;
+				this.setDayStatus(dateKey, list);
+				updateCachedWorkoutDay(athleteId, dateKey, list);
+			}
+		} catch {
+			if (token !== this.monthLoadToken) return;
+			for (const day of this.monthDays) {
+				day.loading = false;
+				if (getCachedWorkoutDay(athleteId, day.dateKey) === null) day.loadError = true;
+			}
 		}
 	}
 
@@ -526,7 +610,7 @@ class CoachProgramState {
 		const res = await clearWeekRequest(athleteId, weekStart);
 		if (!res.ok) {
 			for (const s of snapshots) {
-				const d = this.dayFor(s.dateKey);
+				const d = this.weekDays.find((d) => d.dateKey === s.dateKey);
 				if (d) {
 					d.exercises = s.exercises;
 					d.crumb = s.crumb;
