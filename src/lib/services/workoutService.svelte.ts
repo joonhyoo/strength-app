@@ -165,6 +165,34 @@ export async function getWorkoutDay(athleteId: string, dateKey: string): Promise
 	return exercises;
 }
 
+/**
+ * Full exercise/set detail for every day in [from, to], keyed by
+ * scheduled_date. Not cached here — loadMonth warms the same per-day
+ * workout-day cache getWorkoutDay uses, which is enough.
+ */
+export async function getAthleteRangeExercises(
+	athleteId: string,
+	range: { from: string; to: string }
+): Promise<Map<string, Exercise[]>> {
+	const workouts = await fetchApi<Record<string, unknown>[]>('/api/workout', 'getRangeExercises', {
+		athleteId,
+		...range
+	});
+
+	// Plain Map: the function's return value is consumed once by loadMonth to
+	// populate monthDays, never itself read reactively by a template.
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const map = new Map<string, Exercise[]>();
+	for (const workout of workouts) {
+		const dateKey = workout.scheduled_date as string;
+		const ordered = (workout.athlete_exercises as Record<string, unknown>[])?.sort(
+			(a, b) => (a.position as number) - (b.position as number)
+		);
+		map.set(dateKey, ordered?.map(mapExerciseRow) ?? []);
+	}
+	return map;
+}
+
 export interface ExerciseHistorySet {
 	setNumber: number;
 	weight: string | null;
