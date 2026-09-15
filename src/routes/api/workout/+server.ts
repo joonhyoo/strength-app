@@ -12,6 +12,8 @@ export const POST = postHandler('/api/workout', async (ctx) => {
 			return queries.exerciseHistory(ctx);
 		case 'getStatusMap':
 			return queries.getStatusMap(ctx);
+		case 'getRangeExercises':
+			return queries.getRangeExercises(ctx);
 
 		case 'addExercise':
 			return exerciseActions.addExercise(ctx);

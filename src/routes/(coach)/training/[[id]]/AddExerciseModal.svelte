@@ -363,11 +363,19 @@
 			</label>
 
 			<div class="modal-action">
-				<button
-					type="button"
-					class="btn btn-outline btn-error"
-					onclick={() => program.closeModal()}
-				>
+				{#if isEditing}
+					<button
+						type="button"
+						class="btn mr-auto btn-outline btn-error"
+						onclick={() => {
+							if (editingExercise?.id) program.removeExercise(editingExercise.id);
+							program.closeModal();
+						}}
+					>
+						Delete
+					</button>
+				{/if}
+				<button type="button" class="btn btn-outline" onclick={() => program.closeModal()}>
 					Cancel
 				</button>
 				<button type="submit" class="btn btn-primary" disabled={!canSave}>Save</button>

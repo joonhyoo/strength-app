@@ -148,8 +148,8 @@
 	<title>Strength App — Library</title>
 </svelte:head>
 
-<div class="my-4 flex flex-col lg:flex-row">
-	<div class="card-body flex max-w-xs flex-col gap-4 lg:sticky lg:z-10 lg:self-start">
+<div class="my-4 flex min-w-0 flex-col gap-4 lg:flex-row lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+	<div class="w-full max-w-full shrink-0 lg:max-w-xs card-body flex flex-col gap-4">
 		<div class="">
 			<h1 class="mb-4 font-display text-xl font-bold uppercase">Library</h1>
 			<div class="flex divide-x divide-border overflow-hidden rounded-sm border border-border">
@@ -211,6 +211,7 @@
 		{/if}
 	</div>
 
+	<div class="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-y-contain">
 	{#if tab === 'programs'}
 		<div>
 			<ProgramEditor />
@@ -347,4 +348,5 @@
 			</div>
 		</div>
 	{/if}
+	</div>
 </div>

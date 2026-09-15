@@ -46,6 +46,29 @@ export async function exerciseHistory({ data, supabase, log }: ApiContext) {
 	return json({ data: history });
 }
 
+/**
+ * Full exercise/set detail for every day in [from, to] — the month view's
+ * bulk equivalent of getDay. A day with nothing scheduled is simply absent
+ * from the result (same as getStatusMap).
+ */
+export async function getRangeExercises({ data, supabase, log }: ApiContext) {
+	const { athleteId, from, to } = data;
+	const workouts = await dbList(
+		log,
+		'workout.getRangeExercises',
+		supabase
+			.from('athlete_workouts')
+			.select(
+				'scheduled_date, athlete_exercises(id, exercise_id, note, complete, position, exercises(name, category, video_url), athlete_sets(id, set_number, target_reps, weight, reps))'
+			)
+			.eq('athlete_id', athleteId)
+			.gte('scheduled_date', from)
+			.lte('scheduled_date', to)
+	);
+
+	return json({ data: workouts });
+}
+
 export async function getStatusMap({ data, supabase, log }: ApiContext) {
 	const { athleteId, from, to } = data;
 	let query = supabase

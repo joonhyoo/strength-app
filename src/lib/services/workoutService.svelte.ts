@@ -106,6 +106,35 @@ export function dayStatusFromExercises(
 	);
 }
 
+function mapExerciseRow(row: Record<string, unknown>): Exercise {
+	const ex = row.exercises as {
+		name: string;
+		category: ExerciseCategory;
+		video_url: string | null;
+	};
+	const sets = (row.athlete_sets as Record<string, unknown>[])
+		?.sort((a, b) => (a.set_number as number) - (b.set_number as number))
+		.map((s) => ({
+			id: s.id as string,
+			set_number: s.set_number as number,
+			target_reps: (s.target_reps as number) ?? 0,
+			weight: s.weight != null ? String(s.weight) : undefined,
+			reps: (s.reps as number) ?? undefined
+		}));
+
+	return {
+		id: row.id as string,
+		exerciseId: row.exercise_id as string,
+		category: ex.category,
+		activity: ex.name,
+		videoUrl: ex.video_url ?? undefined,
+		note: (row.note as string) ?? '',
+		complete: (row.complete as boolean) ?? false,
+		plan: sets?.map((s) => s.target_reps) ?? [],
+		performed: sets ?? []
+	};
+}
+
 export async function getWorkoutDay(athleteId: string, dateKey: string): Promise<Exercise[]> {
 	// `fetchApi` throws on a non-2xx (and `fetch` already throws when offline)
 	// rather than resolving `[]` — the callers can't tell an empty result apart
@@ -130,37 +159,38 @@ export async function getWorkoutDay(athleteId: string, dateKey: string): Promise
 		return [];
 	}
 
-	const exercises = ordered.map((row) => {
-		const ex = row.exercises as {
-			name: string;
-			category: ExerciseCategory;
-			video_url: string | null;
-		};
-		const sets = (row.athlete_sets as Record<string, unknown>[])
-			?.sort((a, b) => (a.set_number as number) - (b.set_number as number))
-			.map((s) => ({
-				id: s.id as string,
-				set_number: s.set_number as number,
-				target_reps: (s.target_reps as number) ?? 0,
-				weight: s.weight != null ? String(s.weight) : undefined,
-				reps: (s.reps as number) ?? undefined
-			}));
-
-		return {
-			id: row.id as string,
-			exerciseId: row.exercise_id as string,
-			category: ex.category,
-			activity: ex.name,
-			videoUrl: ex.video_url ?? undefined,
-			note: (row.note as string) ?? '',
-			complete: (row.complete as boolean) ?? false,
-			plan: sets?.map((s) => s.target_reps) ?? [],
-			performed: sets ?? []
-		};
-	});
+	const exercises = ordered.map(mapExerciseRow);
 
 	cacheWorkoutDay(athleteId, dateKey, exercises);
 	return exercises;
+}
+
+/**
+ * Full exercise/set detail for every day in [from, to], keyed by
+ * scheduled_date. Not cached here — loadMonth warms the same per-day
+ * workout-day cache getWorkoutDay uses, which is enough.
+ */
+export async function getAthleteRangeExercises(
+	athleteId: string,
+	range: { from: string; to: string }
+): Promise<Map<string, Exercise[]>> {
+	const workouts = await fetchApi<Record<string, unknown>[]>('/api/workout', 'getRangeExercises', {
+		athleteId,
+		...range
+	});
+
+	// Plain Map: the function's return value is consumed once by loadMonth to
+	// populate monthDays, never itself read reactively by a template.
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const map = new Map<string, Exercise[]>();
+	for (const workout of workouts) {
+		const dateKey = workout.scheduled_date as string;
+		const ordered = (workout.athlete_exercises as Record<string, unknown>[])?.sort(
+			(a, b) => (a.position as number) - (b.position as number)
+		);
+		map.set(dateKey, ordered?.map(mapExerciseRow) ?? []);
+	}
+	return map;
 }
 
 export interface ExerciseHistorySet {

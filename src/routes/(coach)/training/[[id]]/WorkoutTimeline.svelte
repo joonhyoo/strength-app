@@ -75,10 +75,11 @@
 	}
 </script>
 
+{#if program.opError}
+	<p class="mb-3 rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{program.opError}</p>
+{/if}
+
 <div class="flex w-full min-w-0 flex-col gap-4">
-	{#if program.opError}
-		<p class="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{program.opError}</p>
-	{/if}
 	{#each program.weekDays as day, i (day.dateKey)}
 		{#if i > 0}
 			<div class="mx-auto w-[70%] border-t border-dashed border-muted-fg"></div>
@@ -201,7 +202,7 @@
 					</div>
 				{/if}
 
-				<div class="mt-2 flex justify-center gap-2">
+				<div class="mt-2 flex flex-wrap justify-center gap-2">
 					<button
 						type="button"
 						class="btn btn-dash btn-primary"

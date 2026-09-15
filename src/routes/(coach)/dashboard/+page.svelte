@@ -23,7 +23,7 @@
 	<title>Strength App — Dashboard</title>
 </svelte:head>
 
-<div class="my-4">
+<div class="my-4 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-y-contain">
 	<h1 class="mb-4 font-display text-xl font-bold uppercase">Dashboard</h1>
 
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
