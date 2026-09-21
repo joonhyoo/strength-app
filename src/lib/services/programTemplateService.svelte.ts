@@ -12,9 +12,6 @@ export type { ColorKey, ProgramDetail, Breadcrumb, AssignmentDate };
 export interface ProgramSummary {
 	id: string;
 	name: string;
-	description: string;
-	cycleCount: number;
-	weekCount: number;
 }
 
 export interface ProgramExerciseInput {

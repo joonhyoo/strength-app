@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
+	import { locateExercise } from '$lib/programBuilderTree';
 	import {
 		getExerciseLibrary,
 		findExercise,
@@ -52,15 +53,8 @@
 
 	const editingExercise = $derived.by(() => {
 		if (!editingExerciseId || !builder.selectedProgram) return null;
-		for (const cycle of builder.selectedProgram.cycles) {
-			for (const week of cycle.weeks) {
-				for (const session of week.sessions) {
-					const exercise = session.exercises.find((e) => e.id === editingExerciseId);
-					if (exercise) return exercise;
-				}
-			}
-		}
-		return null;
+		const loc = locateExercise(builder.selectedProgram, editingExerciseId);
+		return loc ? (loc.exercises[loc.index] ?? null) : null;
 	});
 
 	let creatingNew = $state(false);
@@ -143,6 +137,8 @@
 	const canSave = $derived(isNote ? note.trim().length > 0 : exerciseName.length > 0);
 
 	let dialog = $state() as HTMLDialogElement;
+	let saving = $state(false);
+	let error = $state('');
 
 	$effect(() => {
 		dialog.showModal();
@@ -152,7 +148,7 @@
 	});
 
 	async function submit() {
-		if (!canSave) return;
+		if (!canSave || saving) return;
 
 		// Capture every reactive value before the first await. addExerciseDefinition() reassigns
 		// the shared `exercises` state, whose flush re-runs the seeding $effect before this
@@ -176,26 +172,43 @@
 		const trimmedVideoUrl = videoUrl.trim();
 		const videoUrlChanged = !!existing && (existing.videoUrl ?? '') !== trimmedVideoUrl;
 
-		// Close now — saveExercise applies the change to the tree optimistically
-		// and reconciles with the server in the background.
-		builder.closeModal();
+		// The modal stays open while the writes run — it closes only once both
+		// have succeeded, and shows the first failure inline.
+		saving = true;
+		error = '';
 
 		if (creating) {
-			await addExerciseDefinition({
+			const res = await addExerciseDefinition({
 				name: input.activity,
 				category: input.category,
 				videoUrl: trimmedVideoUrl || undefined
 			});
+			if (!res.ok) {
+				saving = false;
+				error = res.error ?? 'Could not add the exercise to the library.';
+				return;
+			}
 		} else if (existing && videoUrlChanged) {
-			await updateExerciseDefinition({
+			const res = await updateExerciseDefinition({
 				id: existing.id,
 				name: existing.name,
 				category: existing.category,
 				videoUrl: trimmedVideoUrl || undefined
 			});
+			if (!res.ok) {
+				saving = false;
+				error = res.error ?? 'Could not update the video link.';
+				return;
+			}
 		}
 
-		await builder.saveExercise(targetSessionId, targetExerciseId, input);
+		const res = await builder.saveExercise(targetSessionId, targetExerciseId, input);
+		saving = false;
+		if (!res.ok) {
+			error = res.error ?? 'Could not save the exercise.';
+			return;
+		}
+		builder.closeModal();
 	}
 </script>
 
@@ -357,15 +370,25 @@
 				></textarea>
 			</label>
 
+			{#if error}
+				<p class="text-sm text-error">{error}</p>
+			{/if}
+
 			<div class="modal-action">
 				<button
 					type="button"
 					class="btn btn-outline btn-error"
+					disabled={saving}
 					onclick={() => builder.closeModal()}
 				>
 					Cancel
 				</button>
-				<button type="submit" class="btn btn-primary" disabled={!canSave}>Save</button>
+				<button type="submit" class="btn btn-primary" disabled={!canSave || saving}>
+					{#if saving}
+						<span class="loading loading-xs loading-spinner"></span>
+					{/if}
+					Save
+				</button>
 			</div>
 		</form>
 	</div>

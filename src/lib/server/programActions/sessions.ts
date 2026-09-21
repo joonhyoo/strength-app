@@ -1,7 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { json, type ApiContext } from '$lib/server/apiHandler';
 import { dbList, dbMaybe, dbWrite, dbWriteReturning } from '$lib/server/db';
-import { loadSessionDetail } from '$lib/server/programTree';
 
 export async function addSession({ data, supabase, log }: ApiContext) {
 	const { weekId, dayNumber, name } = data;
@@ -131,7 +130,7 @@ export async function duplicateSession({ data, supabase, log }: ApiContext) {
 		return error(500, 'Failed to copy session');
 	}
 
-	return json({ data: await loadSessionDetail(supabase, newSession.id, log) });
+	return json({ data: { id: newSession.id } });
 }
 
 export async function updateSession({ data, supabase, log }: ApiContext) {

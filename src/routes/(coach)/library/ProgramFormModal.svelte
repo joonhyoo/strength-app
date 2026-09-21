@@ -18,7 +18,28 @@
 		description = editingProgram?.description ?? '';
 	});
 
+	let saving = $state(false);
+	let error = $state('');
+
 	let dialog = $state() as HTMLDialogElement;
+
+	async function submit() {
+		const trimmed = name.trim();
+		if (!trimmed || saving) return;
+		// Awaits the server write — the modal stays open (button disabled)
+		// until it resolves, closes on success, shows the failure inline.
+		saving = true;
+		error = '';
+		const res = editingId
+			? await builder.updateProgram(editingId, trimmed, description.trim())
+			: await builder.createProgram(trimmed, description.trim());
+		saving = false;
+		if (!res.ok) {
+			error = res.error ?? 'Something went wrong — try again.';
+			return;
+		}
+		builder.closeModal();
+	}
 
 	$effect(() => {
 		dialog.showModal();
@@ -26,17 +47,6 @@
 			if (dialog.open) dialog.close();
 		};
 	});
-
-	function submit() {
-		const trimmed = name.trim();
-		if (!trimmed) return;
-		// Both apply optimistically and close this modal themselves.
-		if (editingId) {
-			builder.updateProgram(editingId, trimmed, description.trim());
-		} else {
-			builder.createProgram(trimmed, description.trim());
-		}
-	}
 </script>
 
 <dialog bind:this={dialog} class="modal" onclose={() => builder.closeModal()}>
@@ -72,15 +82,23 @@
 				></textarea>
 			</label>
 
+			{#if error}
+				<p class="text-sm text-error">{error}</p>
+			{/if}
+
 			<div class="modal-action">
 				<button
 					type="button"
 					class="btn btn-outline btn-error"
+					disabled={saving}
 					onclick={() => builder.closeModal()}
 				>
 					Cancel
 				</button>
-				<button type="submit" class="btn btn-primary" disabled={!name.trim()}>
+				<button type="submit" class="btn btn-primary" disabled={!name.trim() || saving}>
+					{#if saving}
+						<span class="loading loading-xs loading-spinner"></span>
+					{/if}
 					{editingProgram ? 'Save' : 'Create'}
 				</button>
 			</div>

@@ -6,7 +6,6 @@
 	const builder = getProgramBuilderState();
 
 	const modal = $derived(builder.modal);
-	const programId = $derived(modal?.type === 'cycle' ? modal.programId : '');
 	const editingCycleId = $derived(modal?.type === 'cycle' ? modal.cycleId : null);
 	const editingCycle = $derived(
 		editingCycleId
@@ -17,6 +16,8 @@
 	let name = $state('');
 	let goal = $state('');
 	let colorKey = $state<ColorKey>(DEFAULT_CYCLE_COLOR);
+	let saving = $state(false);
+	let error = $state('');
 
 	$effect(() => {
 		if (!builder.modal) return;
@@ -34,11 +35,20 @@
 		};
 	});
 
-	function submit() {
+	async function submit() {
 		const trimmed = name.trim();
-		if (!trimmed) return;
-		// Applies optimistically and closes this modal itself.
-		builder.saveCycle(programId, editingCycleId, trimmed, goal.trim(), colorKey);
+		if (!trimmed || saving) return;
+		// Awaits the server write — the modal stays open (button disabled)
+		// until it resolves, closes on success, shows the failure inline.
+		saving = true;
+		error = '';
+		const res = await builder.saveCycle(editingCycleId, trimmed, goal.trim(), colorKey);
+		saving = false;
+		if (!res.ok) {
+			error = res.error ?? 'Could not save the cycle.';
+			return;
+		}
+		builder.closeModal();
 	}
 </script>
 
@@ -99,15 +109,23 @@
 				</p>
 			{/if}
 
+			{#if error}
+				<p class="text-sm text-error">{error}</p>
+			{/if}
+
 			<div class="modal-action">
 				<button
 					type="button"
 					class="btn btn-outline btn-error"
+					disabled={saving}
 					onclick={() => builder.closeModal()}
 				>
 					Cancel
 				</button>
-				<button type="submit" class="btn btn-primary" disabled={!name.trim()}>
+				<button type="submit" class="btn btn-primary" disabled={!name.trim() || saving}>
+					{#if saving}
+						<span class="loading loading-xs loading-spinner"></span>
+					{/if}
 					{editingCycle ? 'Save' : 'Add cycle'}
 				</button>
 			</div>

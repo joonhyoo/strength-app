@@ -26,21 +26,8 @@
 	// whichever week is open then turns into a set of paste targets.
 	const clipboard = $derived(builder.sessionClipboard);
 
-	// True while the expanded week is an optimistic copy still reconciling with
-	// the server — the grid is frozen (inert) so an edit can't hit a temp id.
-	const weekPending = $derived(!!expandedWeek && builder.pendingWeekIds.has(expandedWeek.id));
-
-	let copyBusy = $state(false);
-	let copyError = $state('');
-	let pasteBusy = $state(false);
-	let pasteError = $state('');
-
 	async function handleCopyPreviousWeek() {
-		copyBusy = true;
-		copyError = '';
-		const res = await builder.copyPreviousWeek(cycle.id);
-		copyBusy = false;
-		if (res && !res.ok) copyError = res.error ?? 'Could not copy the week.';
+		await builder.copyPreviousWeek(cycle.id);
 	}
 
 	async function handlePasteInto(
@@ -56,11 +43,7 @@
 			)
 		)
 			return;
-		pasteBusy = true;
-		pasteError = '';
-		const res = await builder.pasteSession(expandedWeek.id, dayNumber, Boolean(existing));
-		pasteBusy = false;
-		if (res && !res.ok) pasteError = res.error ?? 'Could not paste the session.';
+		await builder.pasteSession(expandedWeek.id, dayNumber, Boolean(existing));
 	}
 
 	async function handleDeleteCycle() {
@@ -105,8 +88,7 @@
 					type="button"
 					class="btn btn-square btn-ghost btn-xs"
 					aria-label={`Edit ${cycle.name}`}
-					onclick={() =>
-						builder.openModal({ type: 'cycle', programId: cycle.id, cycleId: cycle.id })}
+					onclick={() => builder.openModal({ type: 'cycle', cycleId: cycle.id })}
 				>
 					<EditBoxLineIcon class="size-4" />
 				</button>
@@ -132,7 +114,6 @@
 					week.id
 						? 'border-primary text-primary'
 						: 'border-base-300 bg-base-200 text-base-content hover:border-primary'}"
-					class:animate-pulse={builder.pendingWeekIds.has(week.id)}
 					aria-label={`Week ${i + 1}`}
 					onclick={() => builder.toggleWeek(week.id)}
 				>
@@ -144,10 +125,10 @@
 					type="button"
 					class="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-sm tracking-wider text-primary uppercase hover:bg-primary/10 disabled:opacity-50"
 					aria-label={`Copy the last week of ${cycle.name} into a new week`}
-					disabled={copyBusy}
+					disabled={builder.busy}
 					onclick={handleCopyPreviousWeek}
 				>
-					{#if copyBusy}
+					{#if builder.busy}
 						<span class="loading loading-xs loading-spinner"></span>
 					{/if}
 					Copy previous week
@@ -155,29 +136,17 @@
 			{/if}
 			<button
 				type="button"
-				class="flex min-w-10 items-center justify-center rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-primary hover:bg-primary/10"
+				class="flex min-w-10 items-center justify-center rounded-lg border border-dashed border-base-300 px-2.5 py-1.5 text-primary hover:bg-primary/10 disabled:opacity-50"
 				aria-label={`Add a blank week to ${cycle.name}`}
+				disabled={builder.busy}
 				onclick={() => builder.addWeek(cycle.id)}
 			>
 				<AddFillIcon class="size-4" />
 			</button>
 		</div>
-		{#if copyError}
-			<p class="mt-1 text-xs text-error">{copyError}</p>
-		{/if}
 
 		{#if expandedWeek}
-			<div
-				class="mt-3 border-t border-dashed border-base-300 pt-3"
-				class:opacity-60={weekPending}
-				inert={weekPending}
-			>
-				{#if weekPending}
-					<p class="mb-2 flex items-center gap-2 text-xs text-base-content/60">
-						<span class="loading loading-xs loading-spinner"></span>
-						Saving…
-					</p>
-				{/if}
+			<div class="mt-3 border-t border-dashed border-base-300 pt-3">
 				{#if clipboard}
 					<div
 						class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm"
@@ -190,14 +159,12 @@
 						<button
 							type="button"
 							class="btn ml-auto btn-ghost btn-xs"
+							disabled={builder.busy}
 							onclick={() => builder.clearSessionClipboard()}
 						>
 							Done
 						</button>
 					</div>
-					{#if pasteError}
-						<p class="mb-3 text-xs text-error">{pasteError}</p>
-					{/if}
 				{/if}
 				<div class="overflow-x-auto">
 					<div class="sticky left-0 z-10 mb-2 flex w-fit items-center gap-2 bg-base-100 pr-3">
@@ -205,6 +172,7 @@
 						<button
 							type="button"
 							class="btn btn-outline btn-xs btn-error"
+							disabled={builder.busy}
 							onclick={() => handleDeleteWeek(expandedWeek.id)}
 						>
 							<Delete3LineIcon class="size-4" />
@@ -217,8 +185,7 @@
 						sessions={expandedWeek.sessions}
 						{clipboard}
 						expandedSessionId={builder.expandedSessionId}
-						pendingSessionIds={builder.pendingSessionIds}
-						{pasteBusy}
+						busy={builder.busy}
 						onToggleSession={(sessionId) => builder.toggleSession(sessionId)}
 						onAddSession={(dayNumber) =>
 							builder.openModal({
@@ -232,8 +199,7 @@
 				</div>
 
 				{#if expandedSession}
-					{@const sessionPending = builder.pendingSessionIds.has(expandedSession.id)}
-					<div class="mt-3" class:opacity-60={sessionPending} inert={sessionPending}>
+					<div class="mt-3">
 						<div class="mb-2 flex items-center justify-between border-b border-base-300 pb-2">
 							<span class="font-semibold">{expandedSession.name}</span>
 							<span class="flex gap-1">
@@ -271,13 +237,9 @@
 							</span>
 						</div>
 
-						{#if builder.opError}
-							<p class="mt-2 text-xs text-error">{builder.opError}</p>
-						{/if}
-
 						<ExerciseDragList
 							exercises={expandedSession.exercises}
-							pendingExerciseIds={builder.pendingExerciseIds}
+							busy={builder.busy}
 							onReorder={(id, toIndex) => builder.moveExerciseTo(id, toIndex)}
 							onEdit={(programExerciseId) =>
 								builder.openModal({

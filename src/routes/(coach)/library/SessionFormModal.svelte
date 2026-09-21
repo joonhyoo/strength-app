@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
+	import { findSession } from '$lib/programBuilderTree';
 
 	const builder = getProgramBuilderState();
 
@@ -10,18 +11,15 @@
 	const dayNumber = $derived(modal?.type === 'session' ? modal.dayNumber : 1);
 	const editingSessionId = $derived(modal?.type === 'session' ? modal.sessionId : null);
 
-	const editingSession = $derived.by(() => {
-		if (!editingSessionId || !builder.selectedProgram) return null;
-		for (const cycle of builder.selectedProgram.cycles) {
-			for (const week of cycle.weeks) {
-				const session = week.sessions.find((s) => s.id === editingSessionId);
-				if (session) return session;
-			}
-		}
-		return null;
-	});
+	const editingSession = $derived(
+		editingSessionId
+			? (findSession(builder.selectedProgram, editingSessionId)?.session ?? null)
+			: null
+	);
 
 	let name = $state('');
+	let saving = $state(false);
+	let error = $state('');
 
 	$effect(() => {
 		if (!builder.modal) return;
@@ -37,11 +35,20 @@
 		};
 	});
 
-	function submit() {
+	async function submit() {
 		const trimmed = name.trim();
-		if (!trimmed) return;
-		// Applies optimistically and closes this modal itself.
-		builder.saveSession(weekId, dayNumber, editingSessionId, trimmed);
+		if (!trimmed || saving) return;
+		// Awaits the server write — the modal stays open (button disabled)
+		// until it resolves, closes on success, shows the failure inline.
+		saving = true;
+		error = '';
+		const res = await builder.saveSession(weekId, dayNumber, editingSessionId, trimmed);
+		saving = false;
+		if (!res.ok) {
+			error = res.error ?? 'Could not save the session.';
+			return;
+		}
+		builder.closeModal();
 	}
 </script>
 
@@ -70,15 +77,23 @@
 				/>
 			</label>
 
+			{#if error}
+				<p class="text-sm text-error">{error}</p>
+			{/if}
+
 			<div class="modal-action">
 				<button
 					type="button"
 					class="btn btn-outline btn-error"
+					disabled={saving}
 					onclick={() => builder.closeModal()}
 				>
 					Cancel
 				</button>
-				<button type="submit" class="btn btn-primary" disabled={!name.trim()}>
+				<button type="submit" class="btn btn-primary" disabled={!name.trim() || saving}>
+					{#if saving}
+						<span class="loading loading-xs loading-spinner"></span>
+					{/if}
 					{editingSession ? 'Save' : 'Add session'}
 				</button>
 			</div>

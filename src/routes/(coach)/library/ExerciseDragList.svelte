@@ -7,18 +7,17 @@
 	import { formatPlan } from '$lib/formatPlan';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import type { SvelteSet } from 'svelte/reactivity';
 	import type { ProgramExerciseDetail } from '$lib/types';
 
 	let {
 		exercises,
-		pendingExerciseIds,
+		busy,
 		onReorder,
 		onEdit,
 		onRemove
 	}: {
 		exercises: ProgramExerciseDetail[];
-		pendingExerciseIds: SvelteSet<string>;
+		busy: boolean;
 		onReorder: (programExerciseId: string, toIndex: number) => void;
 		onEdit: (programExerciseId: string) => void;
 		onRemove: (programExerciseId: string) => void;
@@ -33,7 +32,7 @@
 	// `consider` can write the live drag order into it; it snaps back to the
 	// prop whenever `exercises` itself changes.
 	let dragItems = $derived<ProgramExerciseDetail[]>(exercises.slice());
-	const dragDisabled = $derived(dragItems.length < 2 || pendingExerciseIds.size > 0);
+	const dragDisabled = $derived(dragItems.length < 2 || busy);
 
 	function handleDndConsider(e: CustomEvent<DndEvent<ProgramExerciseDetail>>) {
 		dragItems = e.detail.items;
@@ -63,8 +62,6 @@
 		{#each dragItems as exercise (exercise.id)}
 			<div
 				class="flex min-w-0 items-center gap-3 border-b border-base-300 py-2 last:border-none"
-				class:opacity-60={pendingExerciseIds.has(exercise.id)}
-				inert={pendingExerciseIds.has(exercise.id)}
 				animate:flip={{ duration: FLIP_MS }}
 			>
 				<CategoryIcon category={exercise.category} />

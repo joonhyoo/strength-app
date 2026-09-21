@@ -1,29 +1,5 @@
 import type { ProgramDetail, WeekDetail, SessionDetail, ProgramExerciseDetail } from '$lib/types';
 
-export function locateWeek(
-	program: ProgramDetail | null,
-	weekId: string
-): { weeks: WeekDetail[]; index: number } | null {
-	for (const cycle of program?.cycles ?? []) {
-		const index = cycle.weeks.findIndex((w) => w.id === weekId);
-		if (index !== -1) return { weeks: cycle.weeks, index };
-	}
-	return null;
-}
-
-export function locateSession(
-	program: ProgramDetail | null,
-	sessionId: string
-): { sessions: SessionDetail[]; index: number } | null {
-	for (const cycle of program?.cycles ?? []) {
-		for (const week of cycle.weeks) {
-			const index = week.sessions.findIndex((s) => s.id === sessionId);
-			if (index !== -1) return { sessions: week.sessions, index };
-		}
-	}
-	return null;
-}
-
 export function locateExercise(
 	program: ProgramDetail | null,
 	programExerciseId: string
