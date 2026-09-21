@@ -13,6 +13,9 @@
 	const program = getCoachProgramState();
 
 	let programs = $state<ProgramSummary[] | null>(null);
+	// The program list couldn't be fetched — shown instead of a skeleton that
+	// would never resolve, and Confirm stays disabled (no program, no assign).
+	let programsFailed = $state(false);
 	let selectedProgramId = $state('');
 	let conflicts = $state<string[] | null>(null);
 	// The conflict preview couldn't be fetched — shown instead of a skeleton that
@@ -28,10 +31,12 @@
 	const startDate = $derived(program.selectedWeekStart);
 
 	$effect(() => {
-		listPrograms().then((list) => {
-			programs = list;
-			if (list.length > 0 && !selectedProgramId) selectedProgramId = list[0].id;
-		});
+		listPrograms()
+			.then((list) => {
+				programs = list;
+				if (list.length > 0 && !selectedProgramId) selectedProgramId = list[0].id;
+			})
+			.catch(() => (programsFailed = true));
 	});
 
 	$effect(() => {
@@ -95,7 +100,11 @@
 				on a Monday, so this follows whichever week is selected on the calendar.
 			</p>
 
-			{#if programs === null}
+			{#if programsFailed}
+				<div class="rounded-lg bg-error/10 p-3 text-error">
+					Could not load the program list. Close this dialog and reopen it to try again.
+				</div>
+			{:else if programs === null}
 				<div class="h-10 w-full skeleton"></div>
 			{:else if programs.length === 0}
 				<p class="text-base-content/60">No programs yet — build one in the Library first.</p>

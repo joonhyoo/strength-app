@@ -68,6 +68,10 @@ class ProgramBuilderState {
 	// op (program / cycle / week / session / exercise create, rename, delete,
 	// reorder) failed and was rolled back.
 	opError = $state<string | null>(null);
+	// A failed listPrograms/getProgram read ("Could not load..."). listPrograms
+	// and getProgram reject on failure (see fetchApi) so an outage can never
+	// pass for "no programs yet" or a blank editor; shown in ProgramList.
+	loadError = $state<string | null>(null);
 	// Every in-flight optimistic op (server write + local reconcile). refresh()
 	// waits on these so a concurrent mutation's refetch can't replace
 	// selectedProgram out from under an optimistic node. Plain Set — only ever
@@ -75,13 +79,22 @@ class ProgramBuilderState {
 	private pendingOps = new Set<Promise<unknown>>();
 
 	async loadPrograms() {
-		this.programs = await service.listPrograms();
+		this.loadError = null;
+		try {
+			this.programs = await service.listPrograms();
+		} catch {
+			// Fail loud: an empty list is "no programs yet", not "couldn't load".
+			this.programs = [];
+			this.loadError = 'Could not load programs — check your connection and reload.';
+			return;
+		}
 		if (!this.selectedProgramId && this.programs.length > 0) {
 			await this.selectProgram(this.programs[0].id);
 		}
 	}
 
 	async selectProgram(id: string) {
+		const prevId = this.selectedProgramId;
 		this.selectedProgramId = id;
 		// A previously-expanded week/session number can coincidentally collide
 		// with a different program's own numbering (each program's weeks
@@ -92,7 +105,15 @@ class ProgramBuilderState {
 		// The clipboard holds a session id from the program being navigated away
 		// from; keeping it would offer a confusing cross-program paste.
 		this.sessionClipboard = null;
-		this.selectedProgram = await service.getProgram(id);
+		try {
+			this.selectedProgram = await service.getProgram(id);
+			this.loadError = null;
+		} catch {
+			// Abort the switch rather than drop the coach into a blank editor:
+			// the previous program stays selected and the failure is shown.
+			this.selectedProgramId = prevId;
+			this.loadError = 'Could not load this program — check your connection and try again.';
+		}
 	}
 
 	/**
@@ -422,7 +443,7 @@ class ProgramBuilderState {
 			} else if (sameProgram && programId) {
 				// A concurrent reload replaced selectedProgram before we could swap
 				// the real week in — reload directly rather than lose it.
-				this.selectedProgram = await service.getProgram(programId);
+				await this.reload(programId);
 			}
 		} else if (loc) {
 			loc.weeks.splice(loc.index, 1);
@@ -608,13 +629,13 @@ class ProgramBuilderState {
 				loc.sessions[loc.index] = serverSession;
 				if (this.expandedSessionId === tempSessionId) this.expandedSessionId = serverSession.id;
 			} else if (sameProgram && programId) {
-				this.selectedProgram = await service.getProgram(programId);
+				await this.reload(programId);
 			}
 		} else if (sameProgram) {
 			if (replace && programId) {
 				// The server may have already deleted the day's previous session
 				// before failing — it can't be safely restored locally, so reload.
-				this.selectedProgram = await service.getProgram(programId);
+				await this.reload(programId);
 			} else {
 				const loc = locateSession(this.selectedProgram, tempSessionId);
 				if (loc) loc.sessions.splice(loc.index, 1);
@@ -775,10 +796,17 @@ class ProgramBuilderState {
 		return res;
 	}
 
-	/** Direct program refetch — used from inside a tracked op, where refresh()
-	 *  would deadlock waiting on that same op. */
+	/** Best-effort program refetch used from inside a tracked op, where
+	 *  refresh() would deadlock waiting on that same op. A failed refetch keeps
+	 *  the current tree standing and surfaces the read error — never blanks
+	 *  the editor the way the old "getProgram → null" behaviour did. */
 	private async reload(programId: string | null) {
-		if (programId) this.selectedProgram = await service.getProgram(programId);
+		if (!programId) return;
+		try {
+			this.selectedProgram = await service.getProgram(programId);
+		} catch {
+			this.opError = 'Could not refresh the program.';
+		}
 	}
 }
 

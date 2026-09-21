@@ -105,13 +105,21 @@
 		if (athlete && view === 'week') program.loadWeek(athlete.id, weekStart);
 	});
 
+	// Refresh on tab return — but only when the tab actually comes back and
+	// only the view that's mounted. Firing on hide would reload a hidden page
+	// for nothing, and reloading the week while month view is up would refetch
+	// data nobody is looking at. Month view's MonthTimeline watches
+	// refreshTick and re-runs its own loadMonth.
 	$effect(() => {
 		if (typeof document === 'undefined') return;
 		const handler = () => {
-			if (athlete) {
+			if (document.visibilityState !== 'visible' || !athlete) return;
+			if (view === 'week') {
 				program.loadWeek(athlete.id, program.selectedWeekStart);
-				program.loadStatusMap();
+			} else {
+				program.refreshTick++;
 			}
+			program.loadStatusMap();
 		};
 		document.addEventListener('visibilitychange', handler);
 		return () => document.removeEventListener('visibilitychange', handler);
@@ -172,6 +180,9 @@
 </div>
 
 <div class="my-4 flex flex-col gap-3 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+	{#if program.opError}
+		<p class="rounded-lg bg-error/10 px-4 py-3 text-sm text-error">{program.opError}</p>
+	{/if}
 	<div class="flex flex-wrap items-center justify-between gap-3">
 		<h1 class="font-display text-xl font-bold uppercase">Training</h1>
 		<div class="join">

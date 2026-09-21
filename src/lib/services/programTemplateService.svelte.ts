@@ -35,13 +35,11 @@ const readProgram = <T>(action: string, data: Record<string, unknown>) =>
 	fetchApi<T>('/api/program', action, data);
 
 export async function listPrograms() {
-	const res = await postProgram('listPrograms', {});
-	return res.ok ? (res.data as ProgramSummary[]) : [];
+	return readProgram<ProgramSummary[]>('listPrograms', {});
 }
 
 export async function getProgram(programId: string) {
-	const res = await postProgram('getProgram', { programId });
-	return res.ok ? (res.data as ProgramDetail) : null;
+	return readProgram<ProgramDetail>('getProgram', { programId });
 }
 
 export async function createProgram(name: string, description: string) {
