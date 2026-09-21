@@ -8,12 +8,7 @@ import type {
 	ProgramExerciseInput
 } from '$lib/services/programTemplateService.svelte';
 import type { WeekDetail, SessionDetail } from '$lib/types';
-import {
-	tempId,
-	trackOptimistic,
-	cloneSessionForOptimism,
-	cloneWeekForOptimism
-} from '$lib/optimisticTree';
+import { tempId, trackOptimistic } from '$lib/optimisticTree';
 import {
 	locateWeek,
 	locateSession,
@@ -57,10 +52,12 @@ class ProgramBuilderState {
 		sourceDayNumber: number;
 	} | null>(null);
 
-	// Temp ids of nodes inserted optimistically (copyPreviousWeek / pasteSession /
-	// a brand-new exercise from saveExercise) and still being reconciled with the
+	// Temp ids of nodes inserted optimistically (a brand-new week from addWeek, a
+	// brand-new session from saveSession) and still being reconciled with the
 	// server. CycleBand freezes (inert) any node whose id is in here so an edit
-	// can't fire against a temp- id before the real one lands.
+	// can't fire against a temp- id before the real one lands. copyPreviousWeek
+	// and pasteSession do NOT use these — they're non-optimistic and never
+	// insert a temp node.
 	pendingWeekIds = $state(new SvelteSet<string>());
 	pendingSessionIds = $state(new SvelteSet<string>());
 	pendingExerciseIds = $state(new SvelteSet<string>());
@@ -386,53 +383,35 @@ class ProgramBuilderState {
 	}
 
 	/**
-	 * Duplicates the cycle's current last week. The new week renders immediately
-	 * from a local clone (temp ids), then reconciles with the server's real copy
-	 * — or is removed if that copy fails. Returns the reconcile promise so the
-	 * caller can surface an error and knows when the pending state clears.
+	 * Duplicates the cycle's current last week on the server, then inserts the
+	 * result once it arrives. Non-optimistic: the caller's own busy flag
+	 * (CycleBand's `copyBusy`) drives the spinner while this is in flight.
+	 * Returns the settled OpResult so the caller can surface `res.error`.
 	 */
 	copyPreviousWeek(cycleId: string) {
 		const cycle = this.selectedProgram?.cycles.find((c) => c.id === cycleId);
 		const lastWeek = cycle?.weeks[cycle.weeks.length - 1];
 		if (!cycle || !lastWeek || lastWeek.id.startsWith('temp-')) return;
 
-		const optimistic = cloneWeekForOptimism(lastWeek);
-		cycle.weeks.push(optimistic);
-		this.pendingWeekIds.add(optimistic.id);
-		this.expandedWeekId = optimistic.id;
-		this.expandedSessionId = null;
-
 		return trackOptimistic(
 			this.pendingOps,
-			this.runWeekCopy(lastWeek.id, optimistic.id, this.selectedProgramId)
+			this.runWeekCopy(cycleId, lastWeek.id, this.selectedProgramId)
 		);
 	}
 
-	private async runWeekCopy(sourceWeekId: string, tempWeekId: string, programId: string | null) {
+	private async runWeekCopy(cycleId: string, sourceWeekId: string, programId: string | null) {
 		const res = await service.duplicateWeek(sourceWeekId);
-
-		const sameProgram = this.selectedProgramId === programId;
-		const loc = sameProgram ? locateWeek(this.selectedProgram, tempWeekId) : null;
-
-		if (res.ok) {
-			const serverWeek = res.data as WeekDetail;
-			if (loc) {
-				loc.weeks[loc.index] = serverWeek;
-				if (this.expandedWeekId === tempWeekId) this.expandedWeekId = serverWeek.id;
-			} else if (sameProgram && programId) {
-				// A concurrent reload replaced selectedProgram before we could swap
-				// the real week in — reload directly rather than lose it.
-				this.selectedProgram = await service.getProgram(programId);
-			}
-		} else if (loc) {
-			loc.weeks.splice(loc.index, 1);
-			if (this.expandedWeekId === tempWeekId) {
-				this.expandedWeekId = null;
+		if (res.ok && this.selectedProgramId === programId) {
+			// Re-look-up fresh: a concurrent op may have changed cycle.weeks'
+			// contents while this call was in flight, or the cycle may be gone.
+			const cycle = this.selectedProgram?.cycles.find((c) => c.id === cycleId);
+			if (cycle) {
+				const serverWeek = res.data as WeekDetail;
+				cycle.weeks.push(serverWeek);
+				this.expandedWeekId = serverWeek.id;
 				this.expandedSessionId = null;
 			}
 		}
-
-		this.pendingWeekIds.delete(tempWeekId);
 		return res;
 	}
 
@@ -553,11 +532,12 @@ class ProgramBuilderState {
 	}
 
 	/**
-	 * Copies the clipboard session onto destWeekId's given day. `replace` must
-	 * be set by the caller when that day already has a session — the server
-	 * refuses the paste otherwise rather than silently merging. The pasted
-	 * session renders immediately from a local clone, then reconciles with the
-	 * server copy (or is rolled back on failure).
+	 * Copies the clipboard session onto destWeekId's given day on the server,
+	 * then inserts the result once it arrives. `replace` must be set by the
+	 * caller when that day already has a session — the server refuses the
+	 * paste otherwise rather than silently merging. Non-optimistic: the
+	 * caller's own busy flag (CycleBand's `pasteBusy`) drives the spinner
+	 * while this is in flight.
 	 */
 	pasteSession(destWeekId: string, destDayNumber: number, replace: boolean) {
 		const clip = this.sessionClipboard;
@@ -566,26 +546,9 @@ class ProgramBuilderState {
 		const targetWeek = findWeek(this.selectedProgram, destWeekId);
 		if (!source || source.id.startsWith('temp-') || !targetWeek) return;
 
-		const optimistic = cloneSessionForOptimism(source, destDayNumber);
-		if (replace) {
-			const i = targetWeek.sessions.findIndex((s) => s.dayNumber === destDayNumber);
-			if (i !== -1) targetWeek.sessions.splice(i, 1);
-		}
-		targetWeek.sessions.push(optimistic);
-		this.pendingSessionIds.add(optimistic.id);
-		this.expandedWeekId = destWeekId;
-		this.expandedSessionId = optimistic.id;
-
 		return trackOptimistic(
 			this.pendingOps,
-			this.runSessionPaste(
-				clip.sessionId,
-				destWeekId,
-				destDayNumber,
-				replace,
-				optimistic.id,
-				this.selectedProgramId
-			)
+			this.runSessionPaste(clip.sessionId, destWeekId, destDayNumber, replace, this.selectedProgramId)
 		);
 	}
 
@@ -594,35 +557,24 @@ class ProgramBuilderState {
 		destWeekId: string,
 		destDayNumber: number,
 		replace: boolean,
-		tempSessionId: string,
 		programId: string | null
 	) {
 		const res = await service.duplicateSession(sourceSessionId, destWeekId, destDayNumber, replace);
-
-		const sameProgram = this.selectedProgramId === programId;
-
-		if (res.ok) {
-			const serverSession = res.data as SessionDetail;
-			const loc = sameProgram ? locateSession(this.selectedProgram, tempSessionId) : null;
-			if (loc) {
-				loc.sessions[loc.index] = serverSession;
-				if (this.expandedSessionId === tempSessionId) this.expandedSessionId = serverSession.id;
-			} else if (sameProgram && programId) {
-				this.selectedProgram = await service.getProgram(programId);
-			}
-		} else if (sameProgram) {
-			if (replace && programId) {
-				// The server may have already deleted the day's previous session
-				// before failing — it can't be safely restored locally, so reload.
-				this.selectedProgram = await service.getProgram(programId);
-			} else {
-				const loc = locateSession(this.selectedProgram, tempSessionId);
-				if (loc) loc.sessions.splice(loc.index, 1);
-				if (this.expandedSessionId === tempSessionId) this.expandedSessionId = null;
+		if (res.ok && this.selectedProgramId === programId) {
+			const targetWeek = findWeek(this.selectedProgram, destWeekId);
+			if (targetWeek) {
+				const serverSession = res.data as SessionDetail;
+				if (replace) {
+					const i = targetWeek.sessions.findIndex((s) => s.dayNumber === destDayNumber);
+					if (i !== -1) targetWeek.sessions.splice(i, 1, serverSession);
+					else targetWeek.sessions.push(serverSession);
+				} else {
+					targetWeek.sessions.push(serverSession);
+				}
+				this.expandedWeekId = destWeekId;
+				this.expandedSessionId = serverSession.id;
 			}
 		}
-
-		this.pendingSessionIds.delete(tempSessionId);
 		return res;
 	}
 
