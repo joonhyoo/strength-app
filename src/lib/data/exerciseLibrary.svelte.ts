@@ -1,5 +1,5 @@
 import type { ExerciseCategory } from '$lib/types';
-import { fetchApi, postApi } from '$lib/services/api';
+import { postApi } from '$lib/services/api';
 
 export type ExerciseDef = {
 	id: string;
@@ -8,13 +8,14 @@ export type ExerciseDef = {
 	videoUrl?: string;
 };
 
-/** Row shape as it comes back from Supabase / the /api/exercises 'list' route
- *  (snake_case, nullable) — mapped to the camelCase `ExerciseDef` the rest of
- *  the app reads. */
+/** Row shape as it comes back from Supabase (snake_case, nullable) — mapped to
+ *  the camelCase `ExerciseDef` the rest of the app reads. `category` is a plain
+ *  string here because the generated DB types don't carry the CHECK constraint;
+ *  `fromRow` is the one place that narrows it. */
 export type ExerciseRow = {
 	id: string;
 	name: string;
-	category: ExerciseCategory;
+	category: string;
 	video_url: string | null;
 };
 
@@ -22,7 +23,7 @@ function fromRow(row: ExerciseRow): ExerciseDef {
 	return {
 		id: row.id,
 		name: row.name,
-		category: row.category,
+		category: row.category as ExerciseCategory,
 		videoUrl: row.video_url ?? undefined
 	};
 }
@@ -44,8 +45,8 @@ export function getExerciseLibrary() {
 	return exercises;
 }
 
-/** Whether the catalog has been fetched or seeded yet — lets a consumer tell
- *  "empty catalog" apart from "not loaded". */
+/** Whether the catalog has been seeded yet — lets a consumer tell "empty
+ *  catalog" apart from "not loaded". */
 export function isExerciseLibraryLoaded() {
 	return loaded;
 }
@@ -54,20 +55,11 @@ export function findExercise(name: string): ExerciseDef | undefined {
 	return exercises.find((e) => e.name === name);
 }
 
+/** Called once by the (coach) layout with its streamed catalog query. */
 export function seedExerciseLibrary(data: ExerciseRow[]) {
 	if (loaded) return;
 	exercises = data.map(fromRow);
 	loaded = true;
-}
-
-export async function loadExerciseLibrary() {
-	if (loaded) return;
-	try {
-		exercises = (await fetchApi<ExerciseRow[]>('/api/exercises', 'list')).map(fromRow);
-		loaded = true;
-	} catch {
-		// Leave the catalog unloaded — a later call retries.
-	}
 }
 
 /** Every `/api/exercises` call, normalised to `{ ok, data | error }` — see `postApi`. */

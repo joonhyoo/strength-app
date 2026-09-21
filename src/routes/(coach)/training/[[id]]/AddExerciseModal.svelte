@@ -6,8 +6,7 @@
 		getExerciseLibrary,
 		findExercise,
 		addExerciseDefinition,
-		updateExerciseDefinition,
-		loadExerciseLibrary
+		updateExerciseDefinition
 	} from '$lib/data/exerciseLibrary.svelte';
 	import type { Exercise, ExerciseCategory } from '$lib/types';
 	import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '$lib/data/categories';
@@ -59,10 +58,6 @@
 	let reps = $state(5);
 	let note = $state('');
 	let complete = $state(false);
-
-	$effect(() => {
-		loadExerciseLibrary();
-	});
 
 	// Seed the form once, when the modal opens (it remounts on every open). The body is
 	// untracked so it never subscribes to the exercise catalog: submit() mutates that catalog

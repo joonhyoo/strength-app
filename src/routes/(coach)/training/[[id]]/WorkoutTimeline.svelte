@@ -75,10 +75,6 @@
 	}
 </script>
 
-{#if program.opError}
-	<p class="mb-3 rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{program.opError}</p>
-{/if}
-
 <div class="flex w-full min-w-0 flex-col gap-4">
 	{#each program.weekDays as day, i (day.dateKey)}
 		{#if i > 0}

@@ -3,7 +3,6 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { getCoachProgramState, type Clipboard } from '$lib/coachProgramState.svelte';
-	import { seedExerciseLibrary } from '$lib/data/exerciseLibrary.svelte';
 	import { checkPasteWeekConflicts } from '$lib/services/programService.svelte';
 	import { formatDayMonth } from '$lib/dateKey';
 	import CopyPasteButton from '$lib/components/CopyPasteButton.svelte';
@@ -116,12 +115,6 @@
 		};
 		document.addEventListener('visibilitychange', handler);
 		return () => document.removeEventListener('visibilitychange', handler);
-	});
-
-	$effect(() => {
-		(page.data.exerciseLibrary as Promise<Parameters<typeof seedExerciseLibrary>[0]>).then(
-			seedExerciseLibrary
-		);
 	});
 
 	// Both callers below resolve() a single interpolated pathname (mirroring the

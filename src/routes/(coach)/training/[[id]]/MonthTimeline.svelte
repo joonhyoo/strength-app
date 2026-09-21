@@ -44,8 +44,9 @@
 
 	// Re-runs every time MonthTimeline mounts (i.e. every time the coach
 	// switches into month view) — that's what keeps this repainted instead of
-	// showing whatever it last held.
+	// showing whatever it last held — and when the tab comes back into view.
 	$effect(() => {
+		void program.refreshTick;
 		if (athlete) program.loadMonth(athlete.id, gridKeys);
 	});
 

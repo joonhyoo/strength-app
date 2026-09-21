@@ -72,6 +72,9 @@ class CoachProgramState {
 	activeView = $state<'week' | 'month'>('week');
 	// Inline error shown in the timeline when an optimistic edit was rolled back.
 	opError = $state<string | null>(null);
+	// Bumped by the page when the browser tab becomes visible again. Whichever
+	// view is mounted reads it in its load effect, so it re-runs and refreshes.
+	refreshTick = $state(0);
 	// Temp ids of exercises inserted optimistically and still reconciling — the
 	// timeline freezes (inert) their row so an edit can't fire against a temp id.
 	pendingExerciseIds = $state(new SvelteSet<string>());

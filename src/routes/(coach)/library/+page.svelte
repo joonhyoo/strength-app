@@ -1,14 +1,11 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import {
 		getExerciseLibrary,
 		isExerciseLibraryLoaded,
-		seedExerciseLibrary,
 		addExerciseDefinition,
 		updateExerciseDefinition,
 		deleteExerciseDefinition,
-		type ExerciseDef,
-		type ExerciseRow
+		type ExerciseDef
 	} from '$lib/data/exerciseLibrary.svelte';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import PlayCircleFillIcon from '@iconify-svelte/mingcute/play-circle-fill';
@@ -28,15 +25,9 @@
 
 	// The catalog view is the shared library module, not a local copy — so an
 	// exercise created from a program-builder modal (which writes that module)
-	// appears here on tab switch instead of only after a reload. `page.data`
-	// is streamed, so this is null until the seed resolves and the page shell
-	// (including the Add form) renders immediately regardless.
-	$effect(() => {
-		(page.data.exercises as Promise<ExerciseRow[]>).then((list) => {
-			seedExerciseLibrary(list);
-		});
-	});
-
+	// appears here on tab switch instead of only after a reload. The (coach)
+	// layout seeds it from a streamed load, so this is null until that resolves
+	// and the page shell (including the Add form) renders immediately regardless.
 	const exercises = $derived<ExerciseDef[] | null>(
 		isExerciseLibraryLoaded() ? getExerciseLibrary() : null
 	);

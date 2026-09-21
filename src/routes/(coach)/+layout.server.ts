@@ -22,6 +22,18 @@ export const load: LayoutServerLoad = async ({ parent, locals: { supabase } }) =
 				.eq('coach_id', user!.id)
 				.eq('role', 'athlete')
 				.order('name')
+		),
+		// The exercise catalog — seeded into `data/exerciseLibrary` by +layout.svelte,
+		// which every coach page and modal reads. `note` is excluded: the shared
+		// 'Note' catalog row backs the note feature but isn't a real, pickable
+		// exercise.
+		exercises: streamList(
+			'coach.exercises',
+			supabase
+				.from('exercises')
+				.select('id, name, category, video_url')
+				.neq('category', 'note')
+				.order('name')
 		)
 	};
 };
