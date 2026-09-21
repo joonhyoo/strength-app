@@ -7,18 +7,10 @@ export async function listPrograms({ supabase, log }: ApiContext) {
 	const programs = await dbList(
 		log,
 		'program.list',
-		supabase.from('programs').select('id, name, description, cycles(id, weeks(id))').order('name')
+		supabase.from('programs').select('id, name').order('name')
 	);
 
-	const summaries = programs.map((p) => ({
-		id: p.id,
-		name: p.name,
-		description: p.description,
-		cycleCount: p.cycles?.length ?? 0,
-		weekCount: (p.cycles ?? []).reduce((n, c) => n + (c.weeks?.length ?? 0), 0)
-	}));
-
-	return json({ data: summaries });
+	return json({ data: programs });
 }
 
 export async function getProgram({ data, supabase, log }: ApiContext) {

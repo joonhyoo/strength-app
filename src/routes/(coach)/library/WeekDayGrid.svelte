@@ -1,23 +1,15 @@
 <script lang="ts">
 	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
 	import PasteLineIcon from '@iconify-svelte/mingcute/paste-line';
-	import type { SvelteSet } from 'svelte/reactivity';
+	import type { SessionClipboard } from '$lib/programBuilderState.svelte';
 	import type { SessionDetail } from '$lib/types';
-
-	interface SessionClipboard {
-		sessionId: string;
-		sessionName: string;
-		sourceWeekId: string;
-		sourceDayNumber: number;
-	}
 
 	let {
 		weekId,
 		sessions,
 		clipboard,
 		expandedSessionId,
-		pendingSessionIds,
-		pasteBusy,
+		busy,
 		onToggleSession,
 		onAddSession,
 		onPasteInto
@@ -26,8 +18,7 @@
 		sessions: SessionDetail[];
 		clipboard: SessionClipboard | null;
 		expandedSessionId: string | null;
-		pendingSessionIds: SvelteSet<string>;
-		pasteBusy: boolean;
+		busy: boolean;
 		onToggleSession: (sessionId: string) => void;
 		onAddSession: (dayNumber: number) => void;
 		onPasteInto: (
@@ -52,7 +43,7 @@
 				class="flex min-h-[4.6rem] flex-col gap-1 rounded-lg border p-2 text-left transition-colors disabled:opacity-60 {isSource
 					? 'border-base-300 bg-base-200 opacity-60'
 					: 'border-dashed border-primary/60 bg-primary/5 hover:bg-primary/15'}"
-				disabled={isSource || pasteBusy}
+				disabled={isSource || busy}
 				onclick={() => onPasteInto(dayNumber, dowLabel, session)}
 			>
 				<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase"
@@ -62,25 +53,32 @@
 					<span class="mt-1 text-xs text-base-content/50">Copied from here</span>
 				{:else if session}
 					<span class="mt-1 flex items-center gap-1 text-sm font-semibold text-primary">
-						<PasteLineIcon class="size-4" /> Replace
+						{#if busy}
+							<span class="loading loading-xs loading-spinner"></span>
+						{:else}
+							<PasteLineIcon class="size-4" />
+						{/if}
+						Replace
 					</span>
 					<span class="truncate text-[0.66rem] text-base-content/50">{session.name}</span>
 				{:else}
 					<span class="mt-1 flex items-center gap-1 text-sm font-semibold text-primary">
-						<PasteLineIcon class="size-4" /> Paste here
+						{#if busy}
+							<span class="loading loading-xs loading-spinner"></span>
+						{:else}
+							<PasteLineIcon class="size-4" />
+						{/if}
+						Paste here
 					</span>
 				{/if}
 			</button>
 		{:else if session}
 			{@const isOpen = expandedSessionId === session.id}
-			{@const sessionPending = pendingSessionIds.has(session.id)}
 			<button
 				type="button"
 				class="min-h-[4.6rem] rounded-lg border p-2 text-left {isOpen
 					? 'border-primary shadow-[inset_0_0_0_1px_var(--color-primary)]'
 					: 'border-base-300 bg-base-100 hover:border-primary'}"
-				class:animate-pulse={sessionPending}
-				inert={sessionPending}
 				onclick={() => onToggleSession(session.id)}
 			>
 				<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase"

@@ -64,7 +64,7 @@
 			<button
 				type="button"
 				class="btn btn-dash btn-primary"
-				onclick={() => builder.openModal({ type: 'cycle', programId: program.id, cycleId: null })}
+				onclick={() => builder.openModal({ type: 'cycle', cycleId: null })}
 			>
 				Add cycle
 			</button>

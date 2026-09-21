@@ -1,11 +1,20 @@
 <script lang="ts">
 	import { initCoachProgramState } from '$lib/coachProgramState.svelte';
+	import { seedExerciseLibrary } from '$lib/data/exerciseLibrary.svelte';
 	import CoachSidebar from '$lib/components/CoachSidebar.svelte';
 	import MenuLineIcon from '@iconify-svelte/mingcute/menu-line';
+	import type { LayoutProps } from './$types';
 
 	initCoachProgramState();
 
-	let { children } = $props();
+	let { data, children }: LayoutProps = $props();
+
+	// The catalog every coach page and modal reads. Seeded here, once, from the
+	// layout's streamed load — a page seeding its own (differently-shaped) copy is
+	// how rows once ended up without ids or video links.
+	$effect(() => {
+		data.exercises.then(seedExerciseLibrary);
+	});
 
 	let sidebarOpen = $state(false);
 </script>

@@ -5,6 +5,9 @@
 </script>
 
 <div class="card h-fit bg-base-100 shadow-sm">
+	{#if builder.loadError}
+		<p class="mb-2 rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{builder.loadError}</p>
+	{/if}
 	{#if builder.programs === null}
 		<div class="mt-1 flex flex-col gap-2">
 			{#each [0, 1, 2] as n (n)}

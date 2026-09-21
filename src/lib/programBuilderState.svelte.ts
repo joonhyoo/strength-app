@@ -1,5 +1,4 @@
 import { getContext, setContext } from 'svelte';
-import { SvelteSet } from 'svelte/reactivity';
 import * as service from '$lib/services/programTemplateService.svelte';
 import type {
 	ProgramSummary,
@@ -7,24 +6,19 @@ import type {
 	ColorKey,
 	ProgramExerciseInput
 } from '$lib/services/programTemplateService.svelte';
-import type { WeekDetail, SessionDetail } from '$lib/types';
-import { tempId, trackOptimistic } from '$lib/optimisticTree';
-import {
-	locateWeek,
-	locateSession,
-	locateExercise,
-	findWeek,
-	findSession
-} from '$lib/programBuilderTree';
+import { locateExercise, findWeek, findSession } from '$lib/programBuilderTree';
+import { runWrite, writeQueueBusy } from '$lib/writeQueue.svelte';
 
-/** What every `service.*` call resolves to (see `postProgram`) — it never
+/** What every `service.*` write call resolves to (see `postProgram`) — it never
  *  rejects, so a failed write, network included, is always `{ ok: false }`.
  *  `error` is present only for a 4xx; otherwise the caller shows `failMessage`. */
 type OpResult = { ok: true; data: unknown } | { ok: false; error?: string };
 
 type ModalState =
 	| { type: 'program'; programId: string | null }
-	| { type: 'cycle'; programId: string; cycleId: string | null }
+	// The cycle a form is editing; the program it belongs to is always the
+	// selected one, so it isn't part of the payload (see saveCycle).
+	| { type: 'cycle'; cycleId: string | null }
 	| { type: 'session'; weekId: string; dayNumber: number; sessionId: string | null }
 	| {
 			type: 'exercise';
@@ -35,6 +29,16 @@ type ModalState =
 	  }
 	| null;
 
+/** A session picked up with "Copy" in the week grid (see the state's
+ *  `sessionClipboard`). Exported so the week grid and the state share one
+ *  definition. */
+export interface SessionClipboard {
+	sessionId: string;
+	sessionName: string;
+	sourceWeekId: string;
+	sourceDayNumber: number;
+}
+
 class ProgramBuilderState {
 	programs = $state<ProgramSummary[] | null>(null);
 	selectedProgramId = $state<string | null>(null);
@@ -42,43 +46,41 @@ class ProgramBuilderState {
 	expandedWeekId = $state<string | null>(null);
 	expandedSessionId = $state<string | null>(null);
 	modal = $state<ModalState>(null);
-	// A session picked up with "Copy" in the week grid, held until it's pasted
-	// onto another day or explicitly cleared. sourceWeekId/sourceDayNumber only
-	// exist to grey out the origin cell when its own week is the one on screen.
-	sessionClipboard = $state<{
-		sessionId: string;
-		sessionName: string;
-		sourceWeekId: string;
-		sourceDayNumber: number;
-	} | null>(null);
-
-	// Temp ids of nodes inserted optimistically (a brand-new week from addWeek, a
-	// brand-new session from saveSession) and still being reconciled with the
-	// server. CycleBand freezes (inert) any node whose id is in here so an edit
-	// can't fire against a temp- id before the real one lands. copyPreviousWeek
-	// and pasteSession do NOT use these — they're non-optimistic and never
-	// insert a temp node.
-	pendingWeekIds = $state(new SvelteSet<string>());
-	pendingSessionIds = $state(new SvelteSet<string>());
-	pendingExerciseIds = $state(new SvelteSet<string>());
-	// Shown near the program header / expanded-session panel when any optimistic
-	// op (program / cycle / week / session / exercise create, rename, delete,
-	// reorder) failed and was rolled back.
+	sessionClipboard = $state<SessionClipboard | null>(null);
+	// Shown above the program tree when any failed op (program / cycle / week /
+	// session / exercise create, rename, delete, reorder, paste, copy) left the
+	// tree untouched. The open modal shows its own inline error first when one
+	// is open; this banner covers button-triggered ops (add/copy week, paste,
+	// delete).
 	opError = $state<string | null>(null);
-	// Every in-flight optimistic op (server write + local reconcile). refresh()
-	// waits on these so a concurrent mutation's refetch can't replace
-	// selectedProgram out from under an optimistic node. Plain Set — only ever
-	// awaited, never read reactively.
-	private pendingOps = new Set<Promise<unknown>>();
+	// A failed listPrograms/getProgram read ("Could not load..."). listPrograms
+	// and getProgram reject on failure (see fetchApi) so an outage can never
+	// pass for "no programs yet" or a blank editor; shown in ProgramList.
+	loadError = $state<string | null>(null);
+
+	/** True while any server write is on the queue — buttons that start another
+	 *  write disable themselves against this so two can't interleave. */
+	get busy(): boolean {
+		return writeQueueBusy();
+	}
 
 	async loadPrograms() {
-		this.programs = await service.listPrograms();
+		this.loadError = null;
+		try {
+			this.programs = await service.listPrograms();
+		} catch {
+			// Fail loud: an empty list is "no programs yet", not "couldn't load".
+			this.programs = [];
+			this.loadError = 'Could not load programs — check your connection and reload.';
+			return;
+		}
 		if (!this.selectedProgramId && this.programs.length > 0) {
 			await this.selectProgram(this.programs[0].id);
 		}
 	}
 
 	async selectProgram(id: string) {
+		const prevId = this.selectedProgramId;
 		this.selectedProgramId = id;
 		// A previously-expanded week/session number can coincidentally collide
 		// with a different program's own numbering (each program's weeks
@@ -89,33 +91,18 @@ class ProgramBuilderState {
 		// The clipboard holds a session id from the program being navigated away
 		// from; keeping it would offer a confusing cross-program paste.
 		this.sessionClipboard = null;
-		this.selectedProgram = await service.getProgram(id);
-	}
-
-	/**
-	 * Server call for a program/cycle/week/session change that's ALREADY been
-	 * applied to the local tree. On failure runs `rollback` and shows
-	 * `failMessage`; on success runs `onSuccess` (used to swap a temp id for the
-	 * real one). Tracked so a concurrent reload waits for it.
-	 */
-	private confirmTreeOp(
-		call: Promise<OpResult>,
-		rollback: () => void,
-		failMessage: string,
-		onSuccess?: (data: { id: string }) => void
-	) {
-		return trackOptimistic(
-			this.pendingOps,
-			(async () => {
-				const res = await call;
-				if (res.ok) onSuccess?.(res.data as { id: string });
-				else {
-					rollback();
-					this.opError = res.error || failMessage;
-				}
-				return res;
-			})()
-		);
+		try {
+			const detail = await service.getProgram(id);
+			if (this.selectedProgramId !== id) return; // stale — a newer selection owns the editor
+			this.selectedProgram = detail;
+			this.loadError = null;
+		} catch {
+			// Abort the switch rather than drop the coach into a blank editor:
+			// the previous program stays selected and the failure is shown.
+			if (this.selectedProgramId !== id) return;
+			this.selectedProgramId = prevId;
+			this.loadError = 'Could not load this program — check your connection and try again.';
+		}
 	}
 
 	/** The day_number of whichever session is currently expanded, if any. */
@@ -160,359 +147,191 @@ class ProgramBuilderState {
 		this.modal = null;
 	}
 
-	// ---------------------------------------------------------------------
-	// Program / cycle / week / session CRUD — every one applies its change to
-	// `programs` / `selectedProgram` immediately and reconciles (or rolls back)
-	// against the server in the background, same shape as copyPreviousWeek /
-	// pasteSession / saveExercise below. The owning modal closes right away.
-	// ---------------------------------------------------------------------
-
-	createProgram(name: string, description: string) {
-		this.opError = null;
-		this.closeModal();
-
-		const temp = tempId();
-		const prevId = this.selectedProgramId;
-		const prevProgram = this.selectedProgram;
-		const prevList = this.programs;
-
-		this.programs = [
-			...(this.programs ?? []),
-			{ id: temp, name, description, cycleCount: 0, weekCount: 0 }
-		];
-		this.selectedProgramId = temp;
-		this.selectedProgram = { id: temp, name, description, cycles: [] };
-		this.expandedWeekId = null;
-		this.expandedSessionId = null;
-		this.sessionClipboard = null;
-
-		return this.confirmTreeOp(
-			service.createProgram(name, description),
-			() => {
-				this.programs = prevList;
-				if (this.selectedProgramId === temp) {
-					this.selectedProgramId = prevId;
-					this.selectedProgram = prevProgram;
-				}
-			},
-			'Could not create the program.',
-			({ id }) => {
-				this.programs = (this.programs ?? []).map((p) => (p.id === temp ? { ...p, id } : p));
-				if (this.selectedProgramId === temp) this.selectedProgramId = id;
-				if (this.selectedProgram?.id === temp)
-					this.selectedProgram = { ...this.selectedProgram, id };
+	/**
+	 * Runs a server write on the serial queue. On failure nothing changed
+	 * locally, so the error is surfaced and the caller keeps whatever modal is
+	 * open. On success the program is refetched (server truth) and
+	 * `afterSuccess` runs any small local bookkeeping (list sync, expansion).
+	 * Every CRUD method below funnels through here.
+	 */
+	private async write(
+		call: Promise<OpResult>,
+		failMessage: string,
+		afterSuccess?: (res: OpResult) => void
+	): Promise<OpResult> {
+		const programId = this.selectedProgramId;
+		return runWrite(async () => {
+			const res = await call;
+			if (!res.ok) {
+				this.opError = res.error || failMessage;
+				return res;
 			}
-		);
+			if (programId && this.selectedProgramId !== programId) {
+				// The coach navigated to another program while the write was
+				// queued — nothing local to refresh for this one.
+				return res;
+			}
+			await this.refresh(programId);
+			afterSuccess?.(res);
+			return res;
+		});
 	}
 
-	updateProgram(programId: string, name: string, description: string) {
-		this.opError = null;
-		this.closeModal();
-
-		const prevProgram = this.selectedProgram;
-		const prevList = this.programs;
-		if (this.selectedProgram?.id === programId)
-			this.selectedProgram = { ...this.selectedProgram, name, description };
-		this.programs = (this.programs ?? []).map((p) =>
-			p.id === programId ? { ...p, name, description } : p
-		);
-
-		return this.confirmTreeOp(
-			service.updateProgram(programId, name, description),
-			() => {
-				this.selectedProgram = prevProgram;
-				this.programs = prevList;
-			},
-			'Could not save the program — reverted.'
-		);
+	/** Best-effort program refetch after a successful write. A failed refetch
+	 *  keeps the current tree standing and surfaces the read error — never
+	 *  blanks the editor the way the old "getProgram → null" behaviour did. */
+	private async refresh(programId: string | null) {
+		if (!programId) return;
+		try {
+			const detail = await service.getProgram(programId);
+			if (this.selectedProgramId === programId) this.selectedProgram = detail;
+		} catch {
+			if (this.selectedProgramId === programId) this.opError = 'Could not refresh the program.';
+		}
 	}
 
-	deleteProgram(programId: string) {
+	// ---------------------------------------------------------------------
+	// Program / cycle / week / session CRUD — each awaits the server write,
+	// then reloads the program. Nothing is applied optimistically, so a failed
+	// write can't leave the tree half-edited. The owning modal stays open until
+	// the write resolves, showing its inline error on failure and closing on
+	// success.
+	// ---------------------------------------------------------------------
+
+	async createProgram(name: string, description: string) {
 		this.opError = null;
-
-		const prevId = this.selectedProgramId;
-		const prevProgram = this.selectedProgram;
-		const prevList = this.programs;
-		const wasSelected = this.selectedProgramId === programId;
-
-		const remaining = (this.programs ?? []).filter((p) => p.id !== programId);
-		this.programs = remaining;
-		if (wasSelected) {
-			this.selectedProgramId = remaining[0]?.id ?? null;
+		return runWrite(async () => {
+			const res = await service.createProgram(name, description);
+			if (!res.ok) {
+				this.opError = res.error || 'Could not create the program.';
+				return res;
+			}
+			const id = (res.data as { id: string }).id;
+			this.programs = [...(this.programs ?? []), { id, name }];
+			this.selectedProgramId = id;
 			this.selectedProgram = null;
 			this.expandedWeekId = null;
 			this.expandedSessionId = null;
 			this.sessionClipboard = null;
-		}
-
-		return this.confirmTreeOp(
-			service.deleteProgram(programId),
-			() => {
-				this.programs = prevList;
-				this.selectedProgramId = prevId;
-				this.selectedProgram = prevProgram;
-			},
-			'Could not delete the program — restored.',
-			() => {
-				// Load the now-selected program's detail — deferred to here so a
-				// failed delete's rollback isn't clobbered by an in-flight getProgram.
-				if (wasSelected && this.selectedProgramId) void this.selectProgram(this.selectedProgramId);
-			}
-		);
-	}
-
-	saveCycle(
-		programId: string,
-		cycleId: string | null,
-		name: string,
-		goal: string,
-		colorKey: ColorKey
-	) {
-		this.opError = null;
-		this.closeModal();
-
-		const program = this.selectedProgram;
-		if (!program || program.id !== programId) {
-			return this.confirmTreeOp(
-				cycleId
-					? service.updateCycle(cycleId, name, goal, colorKey)
-					: service.addCycle(programId, name, goal, colorKey),
-				() => {},
-				'Could not save the cycle.'
-			);
-		}
-
-		if (cycleId) {
-			const cycle = program.cycles.find((c) => c.id === cycleId);
-			const snapshot = cycle && { name: cycle.name, goal: cycle.goal, colorKey: cycle.colorKey };
-			if (cycle) {
-				cycle.name = name;
-				cycle.goal = goal;
-				cycle.colorKey = colorKey;
-			}
-			return this.confirmTreeOp(
-				service.updateCycle(cycleId, name, goal, colorKey),
-				() => {
-					const c = this.selectedProgram?.cycles.find((x) => x.id === cycleId);
-					if (c && snapshot) Object.assign(c, snapshot);
-				},
-				'Could not save the cycle — reverted.'
-			);
-		}
-
-		const temp = tempId();
-		program.cycles.push({
-			id: temp,
-			name,
-			goal,
-			colorKey,
-			position: program.cycles.length,
-			weeks: []
+			await this.refresh(id);
+			return res;
 		});
-		return this.confirmTreeOp(
-			service.addCycle(programId, name, goal, colorKey),
+	}
+
+	async updateProgram(programId: string, name: string, description: string) {
+		this.opError = null;
+		return this.write(
+			service.updateProgram(programId, name, description),
+			'Could not save the program.',
 			() => {
-				const cycles = this.selectedProgram?.cycles;
-				const i = cycles?.findIndex((c) => c.id === temp) ?? -1;
-				if (cycles && i !== -1) cycles.splice(i, 1);
-			},
-			'Could not add the cycle.',
-			({ id }) => {
-				const c = this.selectedProgram?.cycles.find((x) => x.id === temp);
-				if (c) c.id = id;
+				// Keep the sidebar list's label in sync with the saved name.
+				this.programs = (this.programs ?? []).map((p) => (p.id === programId ? { ...p, name } : p));
 			}
 		);
 	}
 
-	removeCycle(cycleId: string) {
+	async deleteProgram(programId: string) {
 		this.opError = null;
-
-		const cycles = this.selectedProgram?.cycles;
-		const index = cycles?.findIndex((c) => c.id === cycleId) ?? -1;
-		const removed = index !== -1 ? cycles![index] : null;
-		if (cycles && index !== -1) cycles.splice(index, 1);
-		if (this.expandedWeekId && !findWeek(this.selectedProgram, this.expandedWeekId)) {
-			this.expandedWeekId = null;
-			this.expandedSessionId = null;
-		}
-
-		return this.confirmTreeOp(
-			service.removeCycle(cycleId),
-			() => {
-				if (cycles && removed && !cycles.some((c) => c.id === cycleId))
-					cycles.splice(Math.min(index, cycles.length), 0, removed);
-			},
-			'Could not delete the cycle — restored.'
-		);
-	}
-
-	addWeek(cycleId: string) {
-		this.opError = null;
-
-		const cycle = this.selectedProgram?.cycles.find((c) => c.id === cycleId);
-		if (!cycle) {
-			return this.confirmTreeOp(service.addWeek(cycleId), () => {}, 'Could not add the week.');
-		}
-
-		const temp = tempId();
-		const weekNumber = (cycle.weeks[cycle.weeks.length - 1]?.weekNumber ?? 0) + 1;
-		cycle.weeks.push({ id: temp, weekNumber, sessions: [] });
-		this.pendingWeekIds.add(temp);
-		this.expandedWeekId = temp;
-		this.expandedSessionId = null;
-
-		return this.confirmTreeOp(
-			service.addWeek(cycleId),
-			() => {
-				const loc = locateWeek(this.selectedProgram, temp);
-				if (loc) loc.weeks.splice(loc.index, 1);
-				if (this.expandedWeekId === temp) {
-					this.expandedWeekId = null;
-					this.expandedSessionId = null;
-				}
-				this.pendingWeekIds.delete(temp);
-			},
-			'Could not add the week.',
-			({ id }) => {
-				const loc = locateWeek(this.selectedProgram, temp);
-				if (loc) loc.weeks[loc.index].id = id;
-				if (this.expandedWeekId === temp) this.expandedWeekId = id;
-				this.pendingWeekIds.delete(temp);
+		return runWrite(async () => {
+			const res = await service.deleteProgram(programId);
+			if (!res.ok) {
+				this.opError = res.error || 'Could not delete the program.';
+				return res;
 			}
+			const remaining = (this.programs ?? []).filter((p) => p.id !== programId);
+			this.programs = remaining;
+			if (this.selectedProgramId === programId) {
+				// Select the next program in the list (like before the delete
+				// happened); the editor briefly clears, then loads its detail.
+				this.selectedProgram = null;
+				this.expandedWeekId = null;
+				this.expandedSessionId = null;
+				this.sessionClipboard = null;
+				const nextId = remaining[0]?.id ?? null;
+				this.selectedProgramId = nextId;
+				if (nextId) await this.selectProgram(nextId);
+			}
+			return res;
+		});
+	}
+
+	async saveCycle(cycleId: string | null, name: string, goal: string, colorKey: ColorKey) {
+		this.opError = null;
+		const programId = this.selectedProgramId;
+		if (!programId) return { ok: false, error: 'No program selected.' };
+		return this.write(
+			cycleId
+				? service.updateCycle(cycleId, name, goal, colorKey)
+				: service.addCycle(programId, name, goal, colorKey),
+			cycleId ? 'Could not save the cycle.' : 'Could not add the cycle.'
 		);
 	}
 
-	/**
-	 * Duplicates the cycle's current last week on the server, then inserts the
-	 * result once it arrives. Non-optimistic: the caller's own busy flag
-	 * (CycleBand's `copyBusy`) drives the spinner while this is in flight.
-	 * Returns the settled OpResult so the caller can surface `res.error`.
-	 */
-	copyPreviousWeek(cycleId: string) {
-		const cycle = this.selectedProgram?.cycles.find((c) => c.id === cycleId);
-		const lastWeek = cycle?.weeks[cycle.weeks.length - 1];
-		if (!cycle || !lastWeek || lastWeek.id.startsWith('temp-')) return;
-
-		return trackOptimistic(
-			this.pendingOps,
-			this.runWeekCopy(cycleId, lastWeek.id, this.selectedProgramId)
-		);
-	}
-
-	private async runWeekCopy(cycleId: string, sourceWeekId: string, programId: string | null) {
-		const res = await service.duplicateWeek(sourceWeekId);
-		if (res.ok && this.selectedProgramId === programId) {
-			// Re-look-up fresh: a concurrent op may have changed cycle.weeks'
-			// contents while this call was in flight, or the cycle may be gone.
-			const cycle = this.selectedProgram?.cycles.find((c) => c.id === cycleId);
-			if (cycle) {
-				const serverWeek = res.data as WeekDetail;
-				cycle.weeks.push(serverWeek);
-				this.expandedWeekId = serverWeek.id;
+	async removeCycle(cycleId: string) {
+		this.opError = null;
+		return this.write(service.removeCycle(cycleId), 'Could not delete the cycle.', () => {
+			// Collapse the week grid if its week went away with the cycle.
+			if (this.expandedWeekId && !findWeek(this.selectedProgram, this.expandedWeekId)) {
+				this.expandedWeekId = null;
 				this.expandedSessionId = null;
 			}
-		}
-		return res;
+		});
 	}
 
-	removeWeek(weekId: string) {
+	async addWeek(cycleId: string) {
 		this.opError = null;
-
-		const loc = locateWeek(this.selectedProgram, weekId);
-		if (!loc) {
-			return this.confirmTreeOp(service.removeWeek(weekId), () => {}, 'Could not delete the week.');
-		}
-		const { weeks, index } = loc;
-		const [removed] = weeks.splice(index, 1);
-		if (this.expandedWeekId === weekId) {
-			this.expandedWeekId = null;
-			this.expandedSessionId = null;
-		}
-
-		return this.confirmTreeOp(
-			service.removeWeek(weekId),
-			() => {
-				if (!weeks.some((w) => w.id === weekId))
-					weeks.splice(Math.min(index, weeks.length), 0, removed);
-			},
-			'Could not delete the week — restored.'
-		);
-	}
-
-	saveSession(weekId: string, dayNumber: number, sessionId: string | null, name: string) {
-		this.opError = null;
-		this.closeModal();
-
-		if (sessionId) {
-			const found = findSession(this.selectedProgram, sessionId);
-			const prevName = found?.session.name;
-			if (found) found.session.name = name;
-			return this.confirmTreeOp(
-				service.updateSession(sessionId, name),
-				() => {
-					const f = findSession(this.selectedProgram, sessionId);
-					if (f && prevName !== undefined) f.session.name = prevName;
-				},
-				'Could not rename the session — reverted.'
-			);
-		}
-
-		const week = findWeek(this.selectedProgram, weekId);
-		if (!week) {
-			return this.confirmTreeOp(
-				service.addSession(weekId, dayNumber, name),
-				() => {},
-				'Could not add the session.'
-			);
-		}
-
-		const temp = tempId();
-		week.sessions.push({ id: temp, dayNumber, name, exercises: [] });
-		this.pendingSessionIds.add(temp);
-		this.expandedWeekId = weekId;
-		this.expandedSessionId = temp;
-
-		return this.confirmTreeOp(
-			service.addSession(weekId, dayNumber, name),
-			() => {
-				const loc = locateSession(this.selectedProgram, temp);
-				if (loc) loc.sessions.splice(loc.index, 1);
-				if (this.expandedSessionId === temp) this.expandedSessionId = null;
-				this.pendingSessionIds.delete(temp);
-			},
-			'Could not add the session.',
-			({ id }) => {
-				const loc = locateSession(this.selectedProgram, temp);
-				if (loc) loc.sessions[loc.index].id = id;
-				if (this.expandedSessionId === temp) this.expandedSessionId = id;
-				this.pendingSessionIds.delete(temp);
+		return this.write(service.addWeek(cycleId), 'Could not add the week.', () => {
+			// Open the freshly-added (now last) week.
+			const cycle = this.selectedProgram?.cycles.find((c) => c.id === cycleId);
+			const last = cycle?.weeks[cycle.weeks.length - 1];
+			if (last) {
+				this.expandedWeekId = last.id;
+				this.expandedSessionId = null;
 			}
+		});
+	}
+
+	async copyPreviousWeek(cycleId: string) {
+		this.opError = null;
+		const cycle = this.selectedProgram?.cycles.find((c) => c.id === cycleId);
+		const lastWeek = cycle?.weeks[cycle.weeks.length - 1];
+		if (!cycle || !lastWeek) return { ok: false, error: 'No week to copy.' };
+		return this.write(service.duplicateWeek(lastWeek.id), 'Could not copy the week.', () => {
+			// The duplicated week is appended, so the cycle's last week is the copy.
+			const c = this.selectedProgram?.cycles.find((x) => x.id === cycleId);
+			const last = c?.weeks[c.weeks.length - 1];
+			if (last) {
+				this.expandedWeekId = last.id;
+				this.expandedSessionId = null;
+			}
+		});
+	}
+
+	async removeWeek(weekId: string) {
+		this.opError = null;
+		return this.write(service.removeWeek(weekId), 'Could not delete the week.', () => {
+			if (this.expandedWeekId && !findWeek(this.selectedProgram, this.expandedWeekId)) {
+				this.expandedWeekId = null;
+				this.expandedSessionId = null;
+			}
+		});
+	}
+
+	async saveSession(weekId: string, dayNumber: number, sessionId: string | null, name: string) {
+		this.opError = null;
+		return this.write(
+			sessionId
+				? service.updateSession(sessionId, name)
+				: service.addSession(weekId, dayNumber, name),
+			sessionId ? 'Could not rename the session.' : 'Could not add the session.'
 		);
 	}
 
-	removeSession(sessionId: string) {
+	async removeSession(sessionId: string) {
 		this.opError = null;
-
-		const loc = locateSession(this.selectedProgram, sessionId);
-		if (!loc) {
-			return this.confirmTreeOp(
-				service.removeSession(sessionId),
-				() => {},
-				'Could not remove the session.'
-			);
-		}
-		const { sessions, index } = loc;
-		const [removed] = sessions.splice(index, 1);
-		if (this.expandedSessionId === sessionId) this.expandedSessionId = null;
-
-		return this.confirmTreeOp(
-			service.removeSession(sessionId),
-			() => {
-				if (!sessions.some((s) => s.id === sessionId))
-					sessions.splice(Math.min(index, sessions.length), 0, removed);
-			},
-			'Could not remove the session — restored.'
-		);
+		return this.write(service.removeSession(sessionId), 'Could not remove the session.', () => {
+			if (this.expandedSessionId === sessionId) this.expandedSessionId = null;
+		});
 	}
 
 	/** Picks up a session for pasting onto another day. No-op if the id isn't in the loaded program. */
@@ -532,205 +351,78 @@ class ProgramBuilderState {
 	}
 
 	/**
-	 * Copies the clipboard session onto destWeekId's given day on the server,
-	 * then inserts the result once it arrives. `replace` must be set by the
-	 * caller when that day already has a session — the server refuses the
-	 * paste otherwise rather than silently merging. Non-optimistic: the
-	 * caller's own busy flag (CycleBand's `pasteBusy`) drives the spinner
-	 * while this is in flight.
+	 * Copies the clipboard session onto destWeekId's given day. `replace` must
+	 * be set by the caller when that day already has a session — the server
+	 * refuses the paste otherwise rather than silently merging. The pasted
+	 * session appears only after the server write succeeds.
 	 */
-	pasteSession(destWeekId: string, destDayNumber: number, replace: boolean) {
+	async pasteSession(destWeekId: string, destDayNumber: number, replace: boolean) {
+		this.opError = null;
 		const clip = this.sessionClipboard;
-		if (!clip) return;
-		const source = findSession(this.selectedProgram, clip.sessionId)?.session;
-		const targetWeek = findWeek(this.selectedProgram, destWeekId);
-		if (!source || source.id.startsWith('temp-') || !targetWeek) return;
-
-		return trackOptimistic(
-			this.pendingOps,
-			this.runSessionPaste(clip.sessionId, destWeekId, destDayNumber, replace, this.selectedProgramId)
+		if (!clip) return { ok: false, error: 'Nothing copied to paste.' };
+		return this.write(
+			service.duplicateSession(clip.sessionId, destWeekId, destDayNumber, replace),
+			'Could not paste the session.',
+			() => {
+				// Open the pasted day once the reloaded program shows it.
+				const week = findWeek(this.selectedProgram, destWeekId);
+				const pasted = week?.sessions.find((s) => s.dayNumber === destDayNumber);
+				if (pasted) {
+					this.expandedWeekId = destWeekId;
+					this.expandedSessionId = pasted.id;
+				}
+			}
 		);
 	}
 
-	private async runSessionPaste(
-		sourceSessionId: string,
-		destWeekId: string,
-		destDayNumber: number,
-		replace: boolean,
-		programId: string | null
-	) {
-		const res = await service.duplicateSession(sourceSessionId, destWeekId, destDayNumber, replace);
-		if (res.ok && this.selectedProgramId === programId) {
-			const targetWeek = findWeek(this.selectedProgram, destWeekId);
-			if (targetWeek) {
-				const serverSession = res.data as SessionDetail;
-				if (replace) {
-					const i = targetWeek.sessions.findIndex((s) => s.dayNumber === destDayNumber);
-					if (i !== -1) targetWeek.sessions.splice(i, 1, serverSession);
-					else targetWeek.sessions.push(serverSession);
-				} else {
-					targetWeek.sessions.push(serverSession);
-				}
-				this.expandedWeekId = destWeekId;
-				this.expandedSessionId = serverSession.id;
-			}
-		}
-		return res;
-	}
-
-	/**
-	 * Adds or edits an exercise on a session — applied to selectedProgram
-	 * immediately, server call in the background. On failure the program is
-	 * reloaded (server truth) and `opError` is shown. The modal closes
-	 * itself; this no longer touches modal state.
-	 */
-	saveExercise(
+	async saveExercise(
 		sessionId: string,
 		programExerciseId: string | null,
 		exercise: ProgramExerciseInput
 	) {
 		this.opError = null;
-		const session = findSession(this.selectedProgram, sessionId)?.session;
-		const plan = exercise.category === 'weight' ? [...exercise.plan] : [];
-		const programId = this.selectedProgramId;
-		const isEdit = !!programExerciseId && !programExerciseId.startsWith('temp-');
-
-		// Edit — patch the exercise in place.
-		if (isEdit) {
-			const target = session?.exercises.find((e) => e.id === programExerciseId);
-			if (target) {
-				target.activity = exercise.activity;
-				target.category = exercise.category;
-				target.note = exercise.note;
-				target.plan = plan;
-			}
-			return trackOptimistic(
-				this.pendingOps,
-				this.confirmExerciseOp(
-					service.updateProgramExercise(programExerciseId!, exercise),
-					programId,
-					target ? 'reload-on-fail' : 'always-reload',
-					'Could not save the exercise — reverted.'
-				)
-			);
-		}
-
-		// Add — append an optimistic row, swap in the real id on success.
-		if (!session) {
-			return trackOptimistic(
-				this.pendingOps,
-				this.confirmExerciseOp(
-					service.addProgramExercise(sessionId, exercise),
-					programId,
-					'always-reload',
-					'Could not add the exercise.'
-				)
-			);
-		}
-		const tempExId = tempId();
-		session.exercises.push({
-			id: tempExId,
-			activity: exercise.activity,
-			category: exercise.category,
-			note: exercise.note,
-			plan
-		});
-		this.pendingExerciseIds.add(tempExId);
-
-		return trackOptimistic(
-			this.pendingOps,
-			(async () => {
-				const res = await service.addProgramExercise(sessionId, exercise);
-				if (this.selectedProgramId === programId) {
-					const loc = locateExercise(this.selectedProgram, tempExId);
-					if (res.ok && loc) {
-						loc.exercises[loc.index].id = (res.data as { id: string }).id;
-					} else if (!res.ok) {
-						if (loc) loc.exercises.splice(loc.index, 1);
-						this.opError = 'Could not add the exercise — removed.';
-					}
-				}
-				this.pendingExerciseIds.delete(tempExId);
-				return res;
-			})()
+		return this.write(
+			programExerciseId
+				? service.updateProgramExercise(programExerciseId, exercise)
+				: service.addProgramExercise(sessionId, exercise),
+			programExerciseId ? 'Could not save the exercise.' : 'Could not add the exercise.'
 		);
 	}
 
-	removeExercise(programExerciseId: string) {
+	async removeExercise(programExerciseId: string) {
 		this.opError = null;
-		const loc = locateExercise(this.selectedProgram, programExerciseId);
-		const appliedLocally = !!loc && !programExerciseId.startsWith('temp-');
-		if (appliedLocally) loc.exercises.splice(loc.index, 1);
-		return trackOptimistic(
-			this.pendingOps,
-			this.confirmExerciseOp(
-				service.removeProgramExercise(programExerciseId),
-				this.selectedProgramId,
-				appliedLocally ? 'reload-on-fail' : 'always-reload',
-				'Could not remove the exercise — restored.'
-			)
+		return this.write(
+			service.removeProgramExercise(programExerciseId),
+			'Could not remove the exercise.'
 		);
 	}
 
 	/** `toIndex` is the desired final position of the exercise in the full
-	 *  sibling list (matches the array index the drag ends on). */
+	 *  sibling list (matches the array index the drag ends on). This is the one
+	 *  intentionally-optimistic op: the row's new spot is applied locally right
+	 *  before the queued write, and a follow-up reload re-confirms server
+	 *  truth (undoing the drop visually if the reorder failed). */
 	moveExerciseTo(programExerciseId: string, toIndex: number) {
 		this.opError = null;
-		const loc = locateExercise(this.selectedProgram, programExerciseId);
-		if (loc && !programExerciseId.startsWith('temp-')) {
-			const { exercises, index } = loc;
-			if (toIndex === index) return;
-			const [item] = exercises.splice(index, 1);
-			const dest = Math.max(0, Math.min(toIndex, exercises.length));
-			exercises.splice(dest, 0, item);
-			return trackOptimistic(
-				this.pendingOps,
-				this.confirmExerciseOp(
-					service.reorderProgramExercise(programExerciseId, toIndex),
-					this.selectedProgramId,
-					'reload-on-fail',
-					'Could not reorder — reverted.'
-				)
-			);
-		}
-		return trackOptimistic(
-			this.pendingOps,
-			this.confirmExerciseOp(
-				service.reorderProgramExercise(programExerciseId, toIndex),
-				this.selectedProgramId,
-				'always-reload',
-				'Could not reorder.'
-			)
-		);
-	}
-
-	/**
-	 * Awaits an exercise mutation that's already been applied to the tree.
-	 * 'reload-on-fail' reloads the program only if the call fails (undoing the
-	 * optimistic change); 'always-reload' also reloads on success (used when
-	 * nothing was applied locally, so the change lives only on the server).
-	 */
-	private async confirmExerciseOp(
-		call: Promise<OpResult>,
-		programId: string | null,
-		mode: 'reload-on-fail' | 'always-reload',
-		failMessage: string
-	) {
-		const res = await call;
-		if (this.selectedProgramId !== programId) return res;
-		if (!res.ok) {
-			this.opError = failMessage;
-			await this.reload(programId);
-		} else if (mode === 'always-reload') {
-			await this.reload(programId);
-		}
-		return res;
-	}
-
-	/** Direct program refetch — used from inside a tracked op, where refresh()
-	 *  would deadlock waiting on that same op. */
-	private async reload(programId: string | null) {
-		if (programId) this.selectedProgram = await service.getProgram(programId);
+		return runWrite(async () => {
+			const loc = locateExercise(this.selectedProgram, programExerciseId);
+			if (loc && toIndex !== loc.index) {
+				const { exercises, index } = loc;
+				const [item] = exercises.splice(index, 1);
+				const dest = Math.max(0, Math.min(toIndex, exercises.length));
+				exercises.splice(dest, 0, item);
+				const res = await service.reorderProgramExercise(programExerciseId, toIndex);
+				if (!res.ok) {
+					this.opError = res.error || 'Could not reorder the exercises — reverted.';
+					return res;
+				}
+				await this.refresh(this.selectedProgramId);
+				return res;
+			}
+			// Not in the tree (e.g. removed by an earlier queued write) or a
+			// no-op drop — nothing to reorder.
+			return { ok: true, data: {} };
+		});
 	}
 }
 

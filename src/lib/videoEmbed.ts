@@ -20,8 +20,7 @@ export function resolveVideoEmbed(url: string | undefined | null): VideoEmbed | 
 
 	if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
 		const id =
-			parsed.searchParams.get('v') ??
-			parsed.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1];
+			parsed.searchParams.get('v') ?? parsed.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1];
 		if (id) return { kind: 'iframe', src: `https://www.youtube-nocookie.com/embed/${id}` };
 	}
 

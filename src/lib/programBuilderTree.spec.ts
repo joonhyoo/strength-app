@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-	locateWeek,
-	locateSession,
-	locateExercise,
-	findWeek,
-	findSession
-} from '$lib/programBuilderTree';
+import { locateExercise, findWeek, findSession } from '$lib/programBuilderTree';
 import type { ProgramDetail } from '$lib/types';
 
 const program: ProgramDetail = {
@@ -58,40 +52,6 @@ const program: ProgramDetail = {
 		}
 	]
 };
-
-describe('locateWeek', () => {
-	it('finds a week in the first cycle', () => {
-		const loc = locateWeek(program, 'week-1');
-		expect(loc?.index).toBe(0);
-		expect(loc?.weeks).toBe(program.cycles[0].weeks);
-	});
-
-	it('finds a week nested in a later cycle', () => {
-		const loc = locateWeek(program, 'week-2');
-		expect(loc?.index).toBe(0);
-		expect(loc?.weeks).toBe(program.cycles[1].weeks);
-	});
-
-	it('returns null for an unknown id', () => {
-		expect(locateWeek(program, 'missing')).toBeNull();
-	});
-
-	it('returns null for a null program', () => {
-		expect(locateWeek(null, 'week-1')).toBeNull();
-	});
-});
-
-describe('locateSession', () => {
-	it('finds a session across cycles', () => {
-		const loc = locateSession(program, 'session-2');
-		expect(loc?.index).toBe(0);
-		expect(loc?.sessions).toBe(program.cycles[1].weeks[0].sessions);
-	});
-
-	it('returns null for an unknown id', () => {
-		expect(locateSession(program, 'missing')).toBeNull();
-	});
-});
 
 describe('locateExercise', () => {
 	it('finds an exercise and reports its owning session id', () => {

@@ -1,14 +1,12 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import {
 		getExerciseLibrary,
 		isExerciseLibraryLoaded,
-		seedExerciseLibrary,
+		getExerciseLibraryBusy,
 		addExerciseDefinition,
 		updateExerciseDefinition,
 		deleteExerciseDefinition,
-		type ExerciseDef,
-		type ExerciseRow
+		type ExerciseDef
 	} from '$lib/data/exerciseLibrary.svelte';
 	import Delete3LineIcon from '@iconify-svelte/mingcute/delete-3-line';
 	import PlayCircleFillIcon from '@iconify-svelte/mingcute/play-circle-fill';
@@ -28,18 +26,16 @@
 
 	// The catalog view is the shared library module, not a local copy — so an
 	// exercise created from a program-builder modal (which writes that module)
-	// appears here on tab switch instead of only after a reload. `page.data`
-	// is streamed, so this is null until the seed resolves and the page shell
-	// (including the Add form) renders immediately regardless.
-	$effect(() => {
-		(page.data.exercises as Promise<ExerciseRow[]>).then((list) => {
-			seedExerciseLibrary(list);
-		});
-	});
-
+	// appears here on tab switch instead of only after a reload. The (coach)
+	// layout seeds it from a streamed load, so this is null until that resolves
+	// and the page shell (including the Add form) renders immediately regardless.
 	const exercises = $derived<ExerciseDef[] | null>(
 		isExerciseLibraryLoaded() ? getExerciseLibrary() : null
 	);
+
+	// True while a catalog (or any coach) write is in flight — rows only change
+	// once the server saves, so the add/edit/delete buttons disable mid-save.
+	const libraryBusy = $derived(getExerciseLibraryBusy());
 
 	let query = $state('');
 
@@ -63,6 +59,7 @@
 
 	async function handleAdd(e: SubmitEvent) {
 		e.preventDefault();
+		if (libraryBusy) return;
 		const name = newName.trim();
 		if (!name) return;
 
@@ -71,19 +68,19 @@
 			return;
 		}
 
-		// The row appears in the catalog straight away; clear the form now.
+		// The row only appears once the server has saved it — keep the form as-is
+		// until then, clearing it just on success so a failure is easy to retry.
 		addError = '';
 		const category = newCategory;
 		const videoUrl = newVideoUrl.trim() || undefined;
-		newName = '';
-		newVideoUrl = '';
 
 		const res = await addExerciseDefinition({ name, category, videoUrl });
 		if (!res.ok) {
 			addError = res.error ?? 'Failed to add exercise.';
-			newName = name;
-			newVideoUrl = videoUrl ?? '';
+			return;
 		}
+		newName = '';
+		newVideoUrl = '';
 	}
 
 	let editingId = $state<string | null>(null);
@@ -109,15 +106,15 @@
 
 	async function saveEdit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!editingId) return;
+		if (!editingId || libraryBusy) return;
 
 		const name = editName.trim();
 		if (!name) return;
 
-		// Close the row editor now — the change is already live in the list.
+		// Keep the row editor open until the save lands — a failure leaves the
+		// fields and the error visible instead of bouncing the row back open.
 		const id = editingId;
 		editError = '';
-		editingId = null;
 
 		const result = await updateExerciseDefinition({
 			id,
@@ -127,13 +124,14 @@
 		});
 
 		if (!result.ok) {
-			// Reopen so the coach sees the error; the edit fields still hold their attempt.
-			editingId = id;
 			editError = result.error ?? 'Failed to update exercise.';
+			return;
 		}
+		editingId = null;
 	}
 
 	async function handleDelete(item: ExerciseDef) {
+		if (libraryBusy) return;
 		if (!confirm(`Warning: are you sure you want to delete "${item.name}"?`)) return;
 
 		rowError = null;
@@ -148,8 +146,8 @@
 	<title>Strength App — Library</title>
 </svelte:head>
 
-<div class="my-4 flex min-w-0 flex-col gap-4 lg:flex-row lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-	<div class="w-full max-w-full shrink-0 lg:max-w-xs card-body flex flex-col gap-4">
+<div class="my-4 flex min-w-0 flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:overflow-hidden">
+	<div class="card-body flex w-full max-w-full shrink-0 flex-col gap-4 lg:max-w-xs">
 		<div class="">
 			<h1 class="mb-4 font-display text-xl font-bold uppercase">Library</h1>
 			<div class="flex divide-x divide-border overflow-hidden rounded-sm border border-border">
@@ -203,7 +201,7 @@
 					{#if addError}
 						<p class="text-xs text-error">{addError}</p>
 					{/if}
-					<button type="submit" class="btn btn-primary" disabled={!newName.trim()}
+					<button type="submit" class="btn btn-primary" disabled={libraryBusy || !newName.trim()}
 						>Add exercise</button
 					>
 				</form>
@@ -211,142 +209,146 @@
 		{/if}
 	</div>
 
-	<div class="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-y-contain">
-	{#if tab === 'programs'}
-		<div>
-			<ProgramEditor />
-		</div>
-	{:else}
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body">
-				<h2 class="card-title font-display text-xl uppercase">Exercise catalog</h2>
-				{#if exercises === null}
-					<div class="mt-2 flex flex-col gap-2">
-						{#each [0, 1, 2, 3] as n (n)}
-							<div class="h-5 w-full skeleton"></div>
-						{/each}
-					</div>
-				{:else if exercises.length === 0}
-					<p class="pt-3 text-base-content/60">No exercises yet.</p>
-				{:else}
-					<div class="relative mt-2 mb-5 w-full max-w-md">
-						<input
-							type="search"
-							placeholder="Search exercises…"
-							class="input input-md w-full pr-8 [&::-webkit-search-cancel-button]:appearance-none"
-							bind:value={query}
-						/>
-						{#if query}
-							<button
-								type="button"
-								class="btn absolute top-1/2 right-1 -translate-y-1/2 px-1 btn-ghost btn-xs"
-								aria-label="Clear search"
-								onclick={() => (query = '')}
-							>
-								<CloseLineIcon class="size-4" />
-							</button>
-						{/if}
-					</div>
-					{#if !filteredExercises || filteredExercises.length === 0}
-						<p class="text-base-content/60">No exercises match your search.</p>
-					{:else}
-						<div class="flex flex-wrap gap-8">
-							{#each CATEGORY_OPTIONS as cat (cat)}
-								{@const { icon: CatIcon, color } = CATEGORY_ICON[cat]}
-								{@const items = filteredExercises.filter((ex) => ex.category === cat)}
-								{#if items.length > 0}
-									<div class="w-full max-w-md rounded-md border-2 border-border p-3">
-										<h3 class="text-xs font-semibold tracking-wide text-base-content/60 uppercase">
-											{CATEGORY_LABEL[cat]} · {items.length}
-										</h3>
-										<ul class="flex flex-col divide-y divide-base-200">
-											{#each items as item (item.id)}
-												<li class="py-2">
-													{#if editingId === item.id}
-														<form class="flex flex-col gap-2" onsubmit={saveEdit}>
-															<div class="flex gap-2">
-																<input
-																	class="input input-sm w-full"
-																	type="text"
-																	bind:value={editName}
-																/>
-																<select class="select select-sm" bind:value={editCategory}>
-																	{#each CATEGORY_OPTIONS as c (c)}
-																		<option value={c}>{CATEGORY_LABEL[c]}</option>
-																	{/each}
-																</select>
-															</div>
-															<input
-																class="input input-sm w-full"
-																type="url"
-																placeholder="Video link (optional)"
-																bind:value={editVideoUrl}
-															/>
-															{#if editError}
-																<p class="text-xs text-error">{editError}</p>
-															{/if}
-															<div class="flex gap-2">
-																<button
-																	type="submit"
-																	class="btn btn-sm btn-primary"
-																	disabled={!editName.trim()}
-																>
-																	Save
-																</button>
-																<button
-																	type="button"
-																	class="btn btn-ghost btn-sm"
-																	onclick={cancelEdit}
-																>
-																	Cancel
-																</button>
-															</div>
-														</form>
-													{:else}
-														<div class="flex items-center justify-between gap-2 text-base">
-															<span class="flex min-w-0 flex-1 items-center gap-2">
-																<CatIcon class="size-5 {color} shrink-0" />
-																<span class="truncate">{item.name}</span>
-																{#if item.videoUrl}
-																	<span title="Has video" class="shrink-0 text-base-content/40">
-																		<PlayCircleFillIcon class="size-5" />
-																	</span>
-																{/if}
-															</span>
-															<div class="flex shrink-0 items-center gap-1">
-																<button
-																	type="button"
-																	class="btn btn-square btn-ghost btn-xs"
-																	aria-label={`Edit ${item.name}`}
-																	onclick={() => startEdit(item)}
-																>
-																	<EditBoxLineIcon class="size-4" />
-																</button>
-																<button
-																	type="button"
-																	class="btn btn-square text-error btn-ghost btn-xs"
-																	aria-label={`Delete ${item.name}`}
-																	onclick={() => handleDelete(item)}
-																>
-																	<Delete3LineIcon class="size-4" />
-																</button>
-															</div>
-														</div>
-														{#if rowError?.id === item.id}
-															<p class="mt-1 text-xs text-error">{rowError.message}</p>
-														{/if}
-													{/if}
-												</li>
-											{/each}
-										</ul>
-									</div>
-								{/if}
+	<div class="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-y-contain">
+		{#if tab === 'programs'}
+			<div>
+				<ProgramEditor />
+			</div>
+		{:else}
+			<div class="card bg-base-100 shadow-sm">
+				<div class="card-body">
+					<h2 class="card-title font-display text-xl uppercase">Exercise catalog</h2>
+					{#if exercises === null}
+						<div class="mt-2 flex flex-col gap-2">
+							{#each [0, 1, 2, 3] as n (n)}
+								<div class="h-5 w-full skeleton"></div>
 							{/each}
 						</div>
+					{:else if exercises.length === 0}
+						<p class="pt-3 text-base-content/60">No exercises yet.</p>
+					{:else}
+						<div class="relative mt-2 mb-5 w-full max-w-md">
+							<input
+								type="search"
+								placeholder="Search exercises…"
+								class="input input-md w-full pr-8 [&::-webkit-search-cancel-button]:appearance-none"
+								bind:value={query}
+							/>
+							{#if query}
+								<button
+									type="button"
+									class="btn absolute top-1/2 right-1 -translate-y-1/2 px-1 btn-ghost btn-xs"
+									aria-label="Clear search"
+									onclick={() => (query = '')}
+								>
+									<CloseLineIcon class="size-4" />
+								</button>
+							{/if}
+						</div>
+						{#if !filteredExercises || filteredExercises.length === 0}
+							<p class="text-base-content/60">No exercises match your search.</p>
+						{:else}
+							<div class="flex flex-wrap gap-8">
+								{#each CATEGORY_OPTIONS as cat (cat)}
+									{@const { icon: CatIcon, color } = CATEGORY_ICON[cat]}
+									{@const items = filteredExercises.filter((ex) => ex.category === cat)}
+									{#if items.length > 0}
+										<div class="w-full max-w-md rounded-md border-2 border-border p-3">
+											<h3
+												class="text-xs font-semibold tracking-wide text-base-content/60 uppercase"
+											>
+												{CATEGORY_LABEL[cat]} · {items.length}
+											</h3>
+											<ul class="flex flex-col divide-y divide-base-200">
+												{#each items as item (item.id)}
+													<li class="py-2">
+														{#if editingId === item.id}
+															<form class="flex flex-col gap-2" onsubmit={saveEdit}>
+																<div class="flex gap-2">
+																	<input
+																		class="input input-sm w-full"
+																		type="text"
+																		bind:value={editName}
+																	/>
+																	<select class="select select-sm" bind:value={editCategory}>
+																		{#each CATEGORY_OPTIONS as c (c)}
+																			<option value={c}>{CATEGORY_LABEL[c]}</option>
+																		{/each}
+																	</select>
+																</div>
+																<input
+																	class="input input-sm w-full"
+																	type="url"
+																	placeholder="Video link (optional)"
+																	bind:value={editVideoUrl}
+																/>
+																{#if editError}
+																	<p class="text-xs text-error">{editError}</p>
+																{/if}
+																<div class="flex gap-2">
+																	<button
+																		type="submit"
+																		class="btn btn-sm btn-primary"
+																		disabled={libraryBusy || !editName.trim()}
+																	>
+																		Save
+																	</button>
+																	<button
+																		type="button"
+																		class="btn btn-ghost btn-sm"
+																		onclick={cancelEdit}
+																	>
+																		Cancel
+																	</button>
+																</div>
+															</form>
+														{:else}
+															<div class="flex items-center justify-between gap-2 text-base">
+																<span class="flex min-w-0 flex-1 items-center gap-2">
+																	<CatIcon class="size-5 {color} shrink-0" />
+																	<span class="truncate">{item.name}</span>
+																	{#if item.videoUrl}
+																		<span title="Has video" class="shrink-0 text-base-content/40">
+																			<PlayCircleFillIcon class="size-5" />
+																		</span>
+																	{/if}
+																</span>
+																<div class="flex shrink-0 items-center gap-1">
+																	<button
+																		type="button"
+																		class="btn btn-square btn-ghost btn-xs"
+																		aria-label={`Edit ${item.name}`}
+																		disabled={libraryBusy}
+																		onclick={() => startEdit(item)}
+																	>
+																		<EditBoxLineIcon class="size-4" />
+																	</button>
+																	<button
+																		type="button"
+																		class="btn btn-square text-error btn-ghost btn-xs"
+																		aria-label={`Delete ${item.name}`}
+																		disabled={libraryBusy}
+																		onclick={() => handleDelete(item)}
+																	>
+																		<Delete3LineIcon class="size-4" />
+																	</button>
+																</div>
+															</div>
+															{#if rowError?.id === item.id}
+																<p class="mt-1 text-xs text-error">{rowError.message}</p>
+															{/if}
+														{/if}
+													</li>
+												{/each}
+											</ul>
+										</div>
+									{/if}
+								{/each}
+							</div>
+						{/if}
 					{/if}
-				{/if}
+				</div>
 			</div>
-		</div>
-	{/if}
+		{/if}
 	</div>
 </div>

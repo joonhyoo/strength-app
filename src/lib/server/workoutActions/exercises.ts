@@ -69,8 +69,30 @@ export async function addExercise({ data, supabase, log }: ApiContext) {
 	return json({ data: athleteExercise });
 }
 
+/**
+ * Edits a scheduled exercise's lift, note, and target plan. The athlete's own
+ * log lives on the same rows — `athlete_sets.weight` / `.reps`, and
+ * `athlete_exercises.complete` — so this must never rewrite them wholesale:
+ *  - `complete` is not written at all (only the athlete toggles it, and the
+ *    coach's edit form holds a snapshot that can be stale by the time it's saved);
+ *  - sets are diffed against the new plan instead of deleted and re-inserted, so
+ *    editing just a note (or adding a set) keeps what was already logged.
+ * Swapping in a *different* catalog exercise is the exception: whatever was
+ * logged belonged to the old lift, so its sets start afresh.
+ */
 export async function updateExercise({ data, supabase, log }: ApiContext) {
 	const { athleteExerciseId, exercise } = data;
+
+	const current = await dbMaybe(
+		log,
+		'workout.updateExercise.find',
+		supabase
+			.from('athlete_exercises')
+			.select('exercise_id')
+			.eq('id', athleteExerciseId)
+			.maybeSingle()
+	);
+	if (!current) return error(404, 'Exercise not found');
 
 	const exerciseRecord = await getOrCreateExercise(
 		supabase,
@@ -82,30 +104,63 @@ export async function updateExercise({ data, supabase, log }: ApiContext) {
 
 	await dbWrite(
 		log,
-		'workout.updateExercise.clearSets',
-		supabase.from('athlete_sets').delete().eq('athlete_exercise_id', athleteExerciseId)
-	);
-
-	await dbWrite(
-		log,
 		'workout.updateExercise',
 		supabase
 			.from('athlete_exercises')
-			.update({
-				exercise_id: exerciseRecord.id,
-				note: exercise.note,
-				complete: exercise.complete
-			})
+			.update({ exercise_id: exerciseRecord.id, note: exercise.note })
 			.eq('id', athleteExerciseId)
 	);
 
-	if (exercise.category === 'weight' && exercise.plan.length > 0) {
-		const sets = exercise.plan.map((targetReps: number, i: number) => ({
-			athlete_exercise_id: athleteExerciseId,
-			set_number: i + 1,
-			target_reps: targetReps
-		}));
-		await dbWrite(log, 'workout.updateExercise.sets', supabase.from('athlete_sets').insert(sets));
+	if (current.exercise_id !== exerciseRecord.id) {
+		await dbWrite(
+			log,
+			'workout.updateExercise.clearSets',
+			supabase.from('athlete_sets').delete().eq('athlete_exercise_id', athleteExerciseId)
+		);
+	}
+
+	const plan: number[] = exercise.category === 'weight' ? exercise.plan : [];
+	const existing = await dbList(
+		log,
+		'workout.updateExercise.sets',
+		supabase
+			.from('athlete_sets')
+			.select('id, set_number, target_reps')
+			.eq('athlete_exercise_id', athleteExerciseId)
+			.order('set_number')
+	);
+
+	// Retarget the sets that stay, drop any beyond the new plan, append new ones.
+	for (const [i, row] of existing.slice(0, plan.length).entries()) {
+		if (row.target_reps === plan[i]) continue;
+		await dbWrite(
+			log,
+			'workout.updateExercise.retargetSet',
+			supabase.from('athlete_sets').update({ target_reps: plan[i] }).eq('id', row.id)
+		);
+	}
+
+	const surplus = existing.slice(plan.length).map((row) => row.id);
+	if (surplus.length > 0) {
+		await dbWrite(
+			log,
+			'workout.updateExercise.dropSets',
+			supabase.from('athlete_sets').delete().in('id', surplus)
+		);
+	}
+
+	const lastSetNumber = existing.at(-1)?.set_number ?? 0;
+	const added = plan.slice(existing.length).map((targetReps, i) => ({
+		athlete_exercise_id: athleteExerciseId,
+		set_number: lastSetNumber + i + 1,
+		target_reps: targetReps
+	}));
+	if (added.length > 0) {
+		await dbWrite(
+			log,
+			'workout.updateExercise.addSets',
+			supabase.from('athlete_sets').insert(added)
+		);
 	}
 
 	return json({ data: { success: true } });

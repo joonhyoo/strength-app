@@ -1,46 +1,14 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
+	import ExerciseForm from '$lib/components/ExerciseForm.svelte';
 	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import {
 		getExerciseLibrary,
 		findExercise,
 		addExerciseDefinition,
-		updateExerciseDefinition,
-		loadExerciseLibrary
+		updateExerciseDefinition
 	} from '$lib/data/exerciseLibrary.svelte';
 	import type { Exercise, ExerciseCategory } from '$lib/types';
-	import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '$lib/data/categories';
-
-	const NOTE_MAX_HEIGHT_PX = 192; // matches max-h-48
-
-	// Matches the athlete workout modal's ghost nav-button treatment
-	// (train/WorkoutModal.svelte's navBtn) — color-only feedback, no
-	// border or background, so it stays consistent across the app.
-	const stepBtn =
-		'flex size-9 cursor-pointer items-center justify-center rounded-full text-base-content/80 transition-colors duration-150 active:text-base-content/45';
-
-	const supportsFieldSizing = typeof CSS !== 'undefined' && CSS.supports('field-sizing', 'content');
-
-	// `value` is unused in the body (resize reads node.scrollHeight directly)
-	// but is required so `update` re-fires when the bound value changes.
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	function autoGrowNote(node: HTMLTextAreaElement, value: string) {
-		if (supportsFieldSizing) return {};
-
-		const resize = () => {
-			node.style.height = 'auto';
-			node.style.height = `${Math.min(node.scrollHeight, NOTE_MAX_HEIGHT_PX)}px`;
-		};
-
-		resize();
-		node.addEventListener('input', resize);
-
-		return {
-			update: resize,
-			destroy: () => node.removeEventListener('input', resize)
-		};
-	}
 
 	const program = getCoachProgramState();
 
@@ -59,10 +27,10 @@
 	let reps = $state(5);
 	let note = $state('');
 	let complete = $state(false);
-
-	$effect(() => {
-		loadExerciseLibrary();
-	});
+	// A write is in flight — Save/Delete disable and a spinner shows until it
+	// settles; the modal stays open on failure so the coach can retry.
+	let saving = $state(false);
+	let error = $state('');
 
 	// Seed the form once, when the modal opens (it remounts on every open). The body is
 	// untracked so it never subscribes to the exercise catalog: submit() mutates that catalog
@@ -141,7 +109,7 @@
 	});
 
 	async function submit() {
-		if (!canSave) return;
+		if (!canSave || saving) return;
 
 		// Capture every reactive value before the first await. addExerciseDefinition() reassigns
 		// the shared `exercises` state, whose flush re-runs the seeding $effect before this
@@ -168,33 +136,68 @@
 		const dateKey = program.selectedDateKey;
 		const editingId = program.editingExercise?.id;
 
-		// Close now — the day list updates optimistically and reconciles in the
-		// background (same as the library's ProgramExerciseModal).
-		program.closeModal();
+		saving = true;
+		error = '';
+		try {
+			if (existing && videoUrlChanged) {
+				const vres = await updateExerciseDefinition({
+					id: existing.id,
+					name: existing.name,
+					category: existing.category,
+					videoUrl: trimmedVideoUrl || undefined
+				});
+				if (!vres.ok) {
+					error = vres.error ?? 'Could not save the video link.';
+					return;
+				}
+			}
 
-		if (existing && videoUrlChanged) {
-			void updateExerciseDefinition({
-				id: existing.id,
-				name: existing.name,
-				category: existing.category,
-				videoUrl: trimmedVideoUrl || undefined
-			});
+			if (editingId) {
+				const res = await program.updateExercise(editingId, exercise);
+				if (!res.ok) {
+					error = res.error ?? 'Could not save the exercise.';
+					return;
+				}
+			} else {
+				// A brand-new catalog row must exist before the day references it — the
+				// day-add's getOrCreateExercise would otherwise race this create on the
+				// unique exercise name.
+				if (creating) {
+					const cres = await addExerciseDefinition({
+						name: exercise.activity,
+						category: exercise.category,
+						videoUrl: trimmedVideoUrl || undefined
+					});
+					if (!cres.ok) {
+						error = cres.error ?? 'Could not create the exercise.';
+						return;
+					}
+				}
+				const res = await program.addExercise(dateKey, exercise);
+				if (!res.ok) {
+					error = res.error ?? 'Could not add the exercise.';
+					return;
+				}
+			}
+			// Every write landed — only now does the modal close; the day list
+			// refreshes from server truth (see coachProgramState's refetchDay).
+			program.closeModal();
+		} finally {
+			saving = false;
 		}
+	}
 
-		if (editingId) {
-			program.updateExercise(editingId, exercise);
-		} else if (creating) {
-			// A brand-new catalog row must exist before the day references it — the
-			// day-add's getOrCreateExercise would otherwise race this create on the
-			// unique exercise name.
-			await addExerciseDefinition({
-				name: exercise.activity,
-				category: exercise.category,
-				videoUrl: trimmedVideoUrl || undefined
-			});
-			program.addExercise(dateKey, exercise);
+	async function confirmDelete() {
+		const id = editingExercise?.id;
+		if (!id || saving) return;
+		saving = true;
+		error = '';
+		const res = await program.removeExercise(id);
+		saving = false;
+		if (!res.ok) {
+			error = res.error ?? 'Could not remove the exercise.';
 		} else {
-			program.addExercise(dateKey, exercise);
+			program.closeModal();
 		}
 	}
 </script>
@@ -218,167 +221,51 @@
 				submit();
 			}}
 		>
-			{#if !isNote && !creatingNew}
-				<label class="flex w-full flex-col gap-1.5">
-					<span class="label">Exercise</span>
-					<select class="select w-full" bind:value={selectedName}>
-						{#each CATEGORY_OPTIONS as cat (cat)}
-							{@const items = library.filter((item) => item.category === cat)}
-							{#if items.length > 0}
-								<optgroup label={CATEGORY_LABEL[cat]}>
-									{#each items as item (item.name)}
-										<option value={item.name}>{item.name}</option>
-									{/each}
-								</optgroup>
-							{/if}
-						{/each}
-					</select>
-					<span class="text-xs text-base-content/60">
-						Category: {CATEGORY_LABEL[category]}
-					</span>
-				</label>
+			<ExerciseForm
+				{library}
+				{category}
+				{isNote}
+				{isEditing}
+				{isWeight}
+				bind:creatingNew
+				bind:selectedName
+				bind:newName
+				bind:newCategory
+				bind:videoUrl
+				bind:sets
+				bind:reps
+				bind:note
+			/>
 
-				<label class="flex w-full flex-col gap-1.5">
-					<span class="label">Video link (optional)</span>
-					<input
-						class="input w-full"
-						type="url"
-						placeholder="https://youtube.com/watch?v=..."
-						bind:value={videoUrl}
-					/>
-					<span class="text-xs text-base-content/60">
-						Shown to the athlete under this exercise. Plays inside the app.
-					</span>
-				</label>
+			{#if error}
+				<p class="rounded-lg bg-error/10 px-3 py-2 text-error">{error}</p>
 			{/if}
-
-			{#if !isNote && creatingNew}
-				<label class="flex w-full flex-col gap-1.5">
-					<span class="label">Exercise name</span>
-					<input
-						class="input w-full"
-						type="text"
-						placeholder="e.g. Barbell Back Squat"
-						bind:value={newName}
-					/>
-				</label>
-
-				<label class="flex w-full flex-col gap-1.5">
-					<span class="label">Category</span>
-					<select class="select w-full" bind:value={newCategory}>
-						{#each CATEGORY_OPTIONS as cat (cat)}
-							<option value={cat}>{CATEGORY_LABEL[cat]}</option>
-						{/each}
-					</select>
-				</label>
-
-				<label class="flex w-full flex-col gap-1.5">
-					<span class="label">Video link (optional)</span>
-					<input
-						class="input w-full"
-						type="url"
-						placeholder="https://youtube.com/watch?v=..."
-						bind:value={videoUrl}
-					/>
-					<span class="text-xs text-base-content/60">
-						Shown to the athlete under this exercise. Plays inside the app.
-					</span>
-				</label>
-			{/if}
-
-			{#if !isNote && !isEditing}
-				<label class="flex items-center gap-2">
-					<input
-						type="checkbox"
-						class="toggle toggle-sm"
-						bind:checked={creatingNew}
-						disabled={isEditing && !editingExercise}
-					/>
-					New exercise
-				</label>
-			{/if}
-
-			{#if isWeight}
-				<div class="grid grid-cols-2 gap-4">
-					<label class="flex w-full flex-col gap-1.5">
-						<span class="label">Sets</span>
-						<div class="flex items-center justify-center gap-4">
-							<button
-								type="button"
-								class={stepBtn}
-								aria-label="Decrease sets"
-								onclick={() => (sets = Math.max(1, sets - 1))}
-							>
-								<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
-							</button>
-							<input class="input w-16 text-center" type="number" min="1" bind:value={sets} />
-							<button
-								type="button"
-								class={stepBtn}
-								aria-label="Increase sets"
-								onclick={() => (sets += 1)}
-							>
-								<AddFillIcon class="size-4" />
-							</button>
-						</div>
-					</label>
-					<label class="flex w-full flex-col gap-1.5">
-						<span class="label">Reps per set</span>
-						<div class="flex items-center justify-center gap-4">
-							<button
-								type="button"
-								class={stepBtn}
-								aria-label="Decrease reps"
-								onclick={() => (reps = Math.max(1, reps - 1))}
-							>
-								<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
-							</button>
-							<input class="input w-16 text-center" type="number" min="1" bind:value={reps} />
-							<button
-								type="button"
-								class={stepBtn}
-								aria-label="Increase reps"
-								onclick={() => (reps += 1)}
-							>
-								<AddFillIcon class="size-4" />
-							</button>
-						</div>
-					</label>
-				</div>
-			{/if}
-
-			<label class="flex w-full flex-col gap-1.5">
-				<span class="label">{isNote ? 'Note for the athlete' : 'Note'}</span>
-				<textarea
-					use:autoGrowNote={note}
-					class="textarea field-sizing-content max-h-48 w-full resize-none"
-					rows={isNote ? 4 : 3}
-					placeholder={isNote
-						? 'e.g. Deload week — leave 2 reps in the tank on every set.'
-						: isWeight
-							? 'e.g. 4s eccentric, explode up.'
-							: 'e.g. 3 x 5\nReset between every jump.'}
-					bind:value={note}
-				></textarea>
-			</label>
 
 			<div class="modal-action">
 				{#if isEditing}
 					<button
 						type="button"
 						class="btn mr-auto btn-outline btn-error"
-						onclick={() => {
-							if (editingExercise?.id) program.removeExercise(editingExercise.id);
-							program.closeModal();
-						}}
+						disabled={saving}
+						onclick={confirmDelete}
 					>
 						Delete
 					</button>
 				{/if}
-				<button type="button" class="btn btn-outline" onclick={() => program.closeModal()}>
+				<button
+					type="button"
+					class="btn btn-outline"
+					disabled={saving}
+					onclick={() => program.closeModal()}
+				>
 					Cancel
 				</button>
-				<button type="submit" class="btn btn-primary" disabled={!canSave}>Save</button>
+				<button type="submit" class="btn btn-primary" disabled={!canSave || saving}>
+					{#if saving}
+						<span class="loading loading-sm loading-spinner"></span>
+					{/if}
+					Save
+				</button>
 			</div>
 		</form>
 	</div>

@@ -17,6 +17,14 @@
 	let shiftWeeks = $state(1);
 	let moving = $state<string[] | null>(null);
 	let conflicts = $state<string[]>([]);
+	// The latest preview couldn't be fetched. `moving` still holds the previous
+	// shift amount's preview (see the effect below), so this must win over it —
+	// and Confirm stays disabled — or a stale preview would sit next to a live button.
+	let checkFailed = $state(false);
+	// Set while the shift runs; the modal stays open so a failure can be shown
+	// here, rather than after the dialog has gone.
+	let shifting = $state(false);
+	let shiftError = $state('');
 	let loadToken = 0;
 
 	const fromDate = $derived(program.selectedWeekStart);
@@ -49,11 +57,16 @@
 		const weeks = shiftWeeks;
 		if (weeks === 0) return;
 		const token = ++loadToken;
-		checkShiftConflicts(athleteId, date, weeks).then((result) => {
-			if (token !== loadToken || !result) return;
-			moving = result.moving;
-			conflicts = result.conflicts;
-		});
+		checkFailed = false;
+		checkShiftConflicts(athleteId, date, weeks)
+			.then((result) => {
+				if (token !== loadToken) return;
+				moving = result.moving;
+				conflicts = result.conflicts;
+			})
+			.catch(() => {
+				if (token === loadToken) checkFailed = true;
+			});
 	});
 
 	// Zero is skipped entirely in either direction — a same-week "shift" is a
@@ -66,13 +79,17 @@
 	}
 
 	async function confirmShift() {
-		if (shiftWeeks === 0) return;
-		// Close now; the calendar + timeline refresh once the server has moved the
-		// sessions, or show an inline error if it couldn't.
-		program.closeShiftModal();
+		if (shiftWeeks === 0 || shifting) return;
+		shifting = true;
+		shiftError = '';
 		const res = await shiftSchedule(athleteId, fromDate, shiftWeeks);
-		if (res.ok) await program.onScheduleChanged();
-		else program.opError = res.error || 'Could not shift the schedule.';
+		if (!res.ok) {
+			shifting = false;
+			shiftError = res.error || 'Could not shift the schedule.';
+			return;
+		}
+		// Closes this modal, then refreshes the calendar dots and the visible week.
+		await program.onScheduleChanged();
 	}
 
 	let dialog = $state() as HTMLDialogElement;
@@ -85,7 +102,15 @@
 	});
 </script>
 
-<dialog bind:this={dialog} class="modal" onclose={() => program.closeShiftModal()}>
+<!-- Esc is ignored while the shift is in flight, so its outcome can't be lost. -->
+<dialog
+	bind:this={dialog}
+	class="modal"
+	oncancel={(e) => {
+		if (shifting) e.preventDefault();
+	}}
+	onclose={() => program.closeShiftModal()}
+>
 	<div class="modal-box">
 		<h3 class="mb-4 font-display text-lg font-bold uppercase">Shift schedule</h3>
 
@@ -119,7 +144,12 @@
 			</label>
 
 			{#if shiftWeeks !== 0}
-				{#if moving === null}
+				{#if checkFailed}
+					<div class="rounded-lg bg-error/10 p-3 text-error">
+						Could not check this shift for conflicts. Change the number of weeks, or close and
+						reopen this dialog, to try again.
+					</div>
+				{:else if moving === null}
 					<div class="h-14 w-full skeleton"></div>
 				{:else if moving.length === 0}
 					<div class="rounded-lg bg-warning/15 p-3">
@@ -149,10 +179,15 @@
 				{/if}
 			{/if}
 
+			{#if shiftError}
+				<p class="text-xs text-error">{shiftError}</p>
+			{/if}
+
 			<div class="modal-action">
 				<button
 					type="button"
 					class="btn btn-outline btn-error"
+					disabled={shifting}
 					onclick={() => program.closeShiftModal()}
 				>
 					Cancel
@@ -160,9 +195,16 @@
 				<button
 					type="button"
 					class="btn btn-primary"
-					disabled={shiftWeeks === 0 || moving === null || moving.length === 0}
+					disabled={shiftWeeks === 0 ||
+						moving === null ||
+						moving.length === 0 ||
+						checkFailed ||
+						shifting}
 					onclick={confirmShift}
 				>
+					{#if shifting}
+						<span class="loading loading-xs loading-spinner"></span>
+					{/if}
 					Confirm shift
 				</button>
 			</div>

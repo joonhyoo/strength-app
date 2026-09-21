@@ -68,10 +68,9 @@ export async function loadProgramTree(
 	};
 }
 
-// Shared PostgREST select + row→view-model mapping for a program's exercise-level
-// detail. loadProgramDetail (whole tree) and loadWeekDetail / loadSessionDetail
-// (one node, for reconciling an optimistic copy) all go through these so the
-// shapes and per-level ordering can't drift apart.
+// Shared PostgREST select + row→view-model mapping for the exercise-level
+// detail. loadProgramDetail (the whole tree) goes through these so the shape
+// and per-level ordering can't drift apart between levels.
 
 const SESSION_DETAIL_SELECT = `id, day_number, name,
 	program_exercises(id, position, note,
@@ -188,38 +187,6 @@ export async function loadProgramDetail(
 					.map(mapWeekRow)
 			}))
 	};
-}
-
-/** One week's full subtree (sessions → exercises → sets), ordered per level like
- *  loadProgramDetail. Used to reconcile an optimistically-inserted copied week. */
-export async function loadWeekDetail(
-	supabase: SupabaseClient,
-	weekId: string,
-	log: Logger = serverLog
-): Promise<WeekDetail | null> {
-	const data = await dbMaybe(
-		log,
-		'program.loadWeekDetail',
-		supabase.from('weeks').select(WEEK_DETAIL_SELECT).eq('id', weekId).maybeSingle()
-	);
-
-	return data ? mapWeekRow(data as unknown as RawWeekRow) : null;
-}
-
-/** One session's full subtree (exercises → sets), ordered per level like
- *  loadProgramDetail. Used to reconcile an optimistically-pasted session. */
-export async function loadSessionDetail(
-	supabase: SupabaseClient,
-	sessionId: string,
-	log: Logger = serverLog
-): Promise<SessionDetail | null> {
-	const data = await dbMaybe(
-		log,
-		'program.loadSessionDetail',
-		supabase.from('sessions').select(SESSION_DETAIL_SELECT).eq('id', sessionId).maybeSingle()
-	);
-
-	return data ? mapSessionRow(data as unknown as RawSessionRow) : null;
 }
 
 export interface FlatWeek {

@@ -1,27 +1,12 @@
 import { error } from '@sveltejs/kit';
 import { getOrCreateExercise } from '$lib/server/exercises';
 import { postHandler, json } from '$lib/server/apiHandler';
-import { dbList, dbWrite, dbWriteReturning } from '$lib/server/db';
+import { dbWrite, dbWriteReturning } from '$lib/server/db';
 import { DbError } from '$lib/server/db';
 
+// Catalog writes only — the catalog itself is read by the (coach) layout load.
 export const POST = postHandler('/api/exercises', async ({ action, data, supabase, log }) => {
 	switch (action) {
-		case 'list': {
-			// `note` is excluded — the shared 'Note' catalog row backs the note
-			// feature but isn't a real, pickable catalog exercise.
-			const exercises = await dbList(
-				log,
-				'exercise.list',
-				supabase
-					.from('exercises')
-					.select('id, name, category, video_url')
-					.neq('category', 'note')
-					.order('name')
-			);
-
-			return json({ data: exercises });
-		}
-
 		case 'create': {
 			const { name, category, videoUrl } = data;
 			const exercise = await getOrCreateExercise(supabase, name, category, videoUrl, log);

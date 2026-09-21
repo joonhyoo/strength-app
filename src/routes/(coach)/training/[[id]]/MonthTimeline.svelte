@@ -3,11 +3,11 @@
 	import RightFillIcon from '@iconify-svelte/mingcute/right-fill';
 	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
-	import { getCoachProgramState, type DayEntry } from '$lib/coachProgramState.svelte';
+	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import { parseKey, toKey, monthGridKeys } from '$lib/dateKey';
 	import { formatPlan } from '$lib/formatPlan';
-	import type { Athlete, Exercise } from '$lib/types';
-	import { dndzone, type DndEvent } from 'svelte-dnd-action';
+	import type { Athlete } from '$lib/types';
+	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 
 	const FLIP_MS = 200;
@@ -44,8 +44,9 @@
 
 	// Re-runs every time MonthTimeline mounts (i.e. every time the coach
 	// switches into month view) — that's what keeps this repainted instead of
-	// showing whatever it last held.
+	// showing whatever it last held — and when the tab comes back into view.
 	$effect(() => {
+		void program.refreshTick;
 		if (athlete) program.loadMonth(athlete.id, gridKeys);
 	});
 
@@ -54,13 +55,6 @@
 	function openAdd(date: Date) {
 		program.selectDate(date);
 		program.openModal();
-	}
-
-	function handleDndFinalize(day: DayEntry, e: CustomEvent<DndEvent<Exercise>>) {
-		day.exercises = e.detail.items;
-		const id = e.detail.info.id;
-		const toIndex = day.exercises.findIndex((x) => x.id === id);
-		if (id && toIndex >= 0) program.reorderExercise(day.dateKey, id, toIndex);
 	}
 </script>
 
@@ -140,24 +134,22 @@
 									use:dndzone={{
 										items: day.exercises,
 										flipDurationMs: FLIP_MS,
-										dragDisabled: day.exercises.length < 2,
+										dragDisabled: day.exercises.length < 2 || program.busy,
 										dropTargetStyle: {}
 									}}
 									onconsider={(e) => (day.exercises = e.detail.items)}
-									onfinalize={(e) => handleDndFinalize(day, e)}
+									onfinalize={(e) => program.finalizeReorder(day, e.detail.items, e.detail.info.id)}
 								>
 									{#each day.exercises as exercise (exercise.id)}
-										{@const pending = !!exercise.id && program.pendingExerciseIds.has(exercise.id)}
 										<div
 											class="flex min-w-0 cursor-grab items-center gap-1 rounded p-0.5 active:cursor-grabbing"
-											class:opacity-60={pending}
-											inert={pending}
 											animate:flip={{ duration: FLIP_MS }}
 										>
 											<CategoryIcon category={exercise.category} size="sm" />
 											<button
 												type="button"
 												class="min-w-0 flex-1 cursor-pointer text-left"
+												disabled={program.busy}
 												onclick={() => exercise.id && program.openEdit(exercise)}
 											>
 												{#if exercise.category === 'note'}
@@ -189,7 +181,8 @@
 
 							<button
 								type="button"
-								class="flex min-w-0 cursor-pointer items-center gap-1 rounded p-0.5 text-left text-base-content/50 hover:text-primary"
+								class="flex min-w-0 cursor-pointer items-center gap-1 rounded p-0.5 text-left text-base-content/50 hover:text-primary disabled:cursor-not-allowed"
+								disabled={program.busy}
 								onclick={() => openAdd(cellDate)}
 							>
 								<span class="shrink-0 rounded-full p-2">

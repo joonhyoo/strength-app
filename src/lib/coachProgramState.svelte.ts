@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteMap } from 'svelte/reactivity';
 import {
 	addExerciseToDay,
 	updateExercise as updateScheduledExercise,
@@ -18,9 +18,9 @@ import {
 	getAthleteRangeExercises,
 	dayStatusFromExercises
 } from '$lib/services/workoutService.svelte';
+import { runWrite, writeQueueBusy } from '$lib/writeQueue.svelte';
 import { getBreadcrumb } from '$lib/services/programTemplateService.svelte';
 import { toKey, parseKey, addDays, mondayOf } from '$lib/dateKey';
-import { tempId, trackOptimistic } from '$lib/optimisticTree';
 import {
 	type Clipboard,
 	dayClipboardMode as computeDayClipboardMode,
@@ -43,6 +43,11 @@ export interface DayEntry {
 	crumb: Breadcrumb | null;
 }
 
+/** Every write resolves with `{ ok }` (optionally an error message or the
+ *  server's payload) — values that already raced here are no longer read
+ *  optimistically, so the data field stays for postApi's shape. */
+type OpResult = { ok: boolean; error?: string; data?: unknown };
+
 class CoachProgramState {
 	selectedAthleteId = $state<string | null>(null);
 	selectedDate = $state<Date>(new Date());
@@ -57,8 +62,9 @@ class CoachProgramState {
 
 	// The focused Monday–Sunday week's workout days — owned here (not in
 	// WorkoutTimeline) so the add-exercise modal and the timeline mutate one
-	// shared list. Every per-exercise edit applies to it immediately and
-	// reconciles with the server in the background; see addExercise etc.
+	// shared list. Every per-exercise write is serialised through writeQueue:
+	// the row only appears after the server saves, then the day re-fetches
+	// server truth (see refetchDay).
 	weekDays = $state<DayEntry[]>([]);
 	// The full-month grid's days — a separate array from weekDays (rather than
 	// a shared cache) so week view stays untouched; kept fresh by re-running
@@ -70,21 +76,23 @@ class CoachProgramState {
 	// view is active, so a mutation issued from the visible view must prefer
 	// that view's array or it can silently write into the other, stale one.
 	activeView = $state<'week' | 'month'>('week');
-	// Inline error shown in the timeline when an optimistic edit was rolled back.
+	// Inline error shown in the timeline when a write fails.
 	opError = $state<string | null>(null);
-	// Temp ids of exercises inserted optimistically and still reconciling — the
-	// timeline freezes (inert) their row so an edit can't fire against a temp id.
-	pendingExerciseIds = $state(new SvelteSet<string>());
+	// Bumped by the page when the browser tab becomes visible again. Whichever
+	// view is mounted reads it in its load effect, so it re-runs and refreshes.
+	refreshTick = $state(0);
 
 	// Overlapping week loads (athlete/week switch, a paste/assign/shift
 	// reconcile) — only the newest may write weekDays.
 	private weekLoadToken = 0;
 	// Same idea for loadMonth/monthDays.
 	private monthLoadToken = 0;
-	// In-flight optimistic ops; loadWeek waits on these so a background refresh
-	// can't replace weekDays out from under an unreconciled edit. Plain Set —
-	// only ever awaited.
-	private pendingOps = new Set<Promise<unknown>>();
+
+	/** True while a write is queued or running — disables submit buttons and
+	 *  drag-and-drop so an edit can't fire mid-save. */
+	get busy(): boolean {
+		return writeQueueBusy();
+	}
 
 	get selectedDateKey(): string {
 		return toKey(this.selectedDate);
@@ -108,8 +116,8 @@ class CoachProgramState {
 	/** The loaded week's Program › Cycle › Week crumb, taken from whichever day
 	 * carries a session link — every on-program day of a week shares the same
 	 * program/cycle/week, so the line stays put as the coach clicks between
-	 * workout and rest days. Null for an off-program or freshly-cleared week
-	 * (clearWeek nulls every day's crumb), even once exercises are added back. */
+	 * workout and rest days. Null for an off-program or cleared week (clearing
+	 * reloads every day's crumb to null), even once exercises are added back. */
 	get selectedWeekCrumb(): Breadcrumb | null {
 		return this.weekDays.find((d) => d.crumb !== null)?.crumb ?? null;
 	}
@@ -139,13 +147,6 @@ class CoachProgramState {
 		this.editingExercise = null;
 	}
 
-	// ---------------------------------------------------------------------
-	// Per-exercise edits — each applies to weekDays + the day cache + the
-	// calendar dot immediately, fires the server call in the background, and
-	// reconciles (real id) or rolls back on failure. None touch weekDays[].crumb,
-	// so the Program › Cycle › Week breadcrumb holds steady.
-	// ---------------------------------------------------------------------
-
 	/** Prefers whichever of weekDays/monthDays belongs to the currently mounted
 	 *  view — the other array can be stale (nothing keeps it fresh while its
 	 *  view isn't mounted), so it's only a fallback. loadWeek/loadMonth/clearWeek
@@ -174,8 +175,8 @@ class CoachProgramState {
 		);
 	}
 
-	/** Push a day's current list into the workout-day cache, so an optimistic
-	 *  edit survives a cold reload before the next getWorkoutDay. */
+	/** Push a day's current list into the workout-day cache, so a drag-reorder
+	 *  survives a cold reload before the next getWorkoutDay. */
 	private syncDayCache(dateKey: string) {
 		const day = this.dayFor(dateKey);
 		if (this.selectedAthleteId !== null && day) {
@@ -183,9 +184,9 @@ class CoachProgramState {
 		}
 	}
 
-	/** Background refetch of one day (server truth) — used to recover after a
-	 *  reorder the server rejected, where the pre-drag order isn't recoverable
-	 *  locally. */
+	/** Re-fetch one day (server truth) after a write. Also updates the
+	 *  workout-day cache and the calendar dot, so cache-first paints and month
+	 *  view stay in sync with what actually saved. */
 	private async refetchDay(dateKey: string) {
 		if (this.selectedAthleteId === null) return;
 		const athleteId = this.selectedAthleteId;
@@ -203,170 +204,113 @@ class CoachProgramState {
 		}
 	}
 
-	addExercise(dateKey: string, exercise: Exercise) {
-		if (this.selectedAthleteId === null) return;
+	/** Runs `call` through the serial write queue. On failure the inline
+	 *  error banner shows `failMessage` and nothing changed locally; on success
+	 *  `refresh` runs (still on the queue) so a write and its reload can't
+	 *  interleave with another write. Resolves with the OpResult. */
+	private write(
+		call: () => Promise<OpResult>,
+		failMessage: string,
+		refresh?: () => void | Promise<void>
+	): Promise<OpResult> {
+		return runWrite(async () => {
+			const res = await call();
+			if (!res.ok) {
+				this.opError = res.error || failMessage;
+				return res;
+			}
+			await refresh?.();
+			return res;
+		});
+	}
+
+	// ---------------------------------------------------------------------
+	// Per-exercise writes — each runs through the serial write queue, then
+	// re-fetches the affected day so what's shown is always server truth. On
+	// failure nothing changed locally; the opError banner explains why. None
+	// touch weekDays[].crumb, so the Program › Cycle › Week breadcrumb holds
+	// steady even when a day's exercises change.
+	// ---------------------------------------------------------------------
+
+	addExercise(dateKey: string, exercise: Exercise): Promise<OpResult> {
+		if (this.selectedAthleteId === null)
+			return Promise.resolve({ ok: false, error: 'No athlete selected.' });
 		this.opError = null;
 		const athleteId = this.selectedAthleteId;
-		const day = this.dayFor(dateKey);
 
-		if (!day) {
-			return trackOptimistic(
-				this.pendingOps,
-				(async () => {
-					const res = await addExerciseToDay(athleteId, dateKey, exercise);
-					if (!res.ok) this.opError = res.error || 'Could not add the exercise.';
-					return res;
-				})()
-			);
-		}
-
-		const temp = tempId();
-		day.exercises = [...day.exercises, { ...exercise, id: temp }];
-		this.pendingExerciseIds.add(temp);
-		this.syncDayCache(dateKey);
-		this.setDayStatus(dateKey, day.exercises);
-
-		return trackOptimistic(
-			this.pendingOps,
-			(async () => {
-				const res = await addExerciseToDay(athleteId, dateKey, exercise);
-				const d = this.dayFor(dateKey);
-				if (res.ok) {
-					const realId = (res.data as { id: string }).id;
-					const target = d?.exercises.find((e) => e.id === temp);
-					if (target) target.id = realId;
-					this.syncDayCache(dateKey);
-				} else {
-					if (d) {
-						d.exercises = d.exercises.filter((e) => e.id !== temp);
-						this.syncDayCache(dateKey);
-						this.setDayStatus(dateKey, d.exercises);
-					}
-					this.opError = res.error || 'Could not add the exercise — removed.';
-				}
-				this.pendingExerciseIds.delete(temp);
-				return res;
-			})()
+		return this.write(
+			() => addExerciseToDay(athleteId, dateKey, exercise),
+			'Could not add the exercise.',
+			() => this.refetchDay(dateKey)
 		);
 	}
 
-	updateExercise(id: string, exercise: Exercise) {
-		if (this.selectedAthleteId === null) return;
+	updateExercise(id: string, exercise: Exercise): Promise<OpResult> {
+		if (this.selectedAthleteId === null)
+			return Promise.resolve({ ok: false, error: 'No athlete selected.' });
 		this.opError = null;
 		const day = this.dayHolding(id);
-		const index = day?.exercises.findIndex((e) => e.id === id) ?? -1;
+		const dateKey = day?.dateKey;
 
-		if (!day || index === -1) {
-			return trackOptimistic(
-				this.pendingOps,
-				(async () => {
-					const res = await updateScheduledExercise(id, exercise);
-					if (!res.ok) this.opError = res.error || 'Could not save the exercise.';
-					return res;
-				})()
-			);
-		}
-
-		const dateKey = day.dateKey;
-		const snapshot = day.exercises[index];
-		// Keep the catalog-derived fields the edit form doesn't carry (exerciseId,
-		// videoUrl); override the rest.
-		day.exercises[index] = { ...snapshot, ...exercise, id };
-		this.syncDayCache(dateKey);
-		this.setDayStatus(dateKey, day.exercises);
-
-		return trackOptimistic(
-			this.pendingOps,
-			(async () => {
-				const res = await updateScheduledExercise(id, exercise);
-				if (!res.ok) {
-					const d = this.dayFor(dateKey);
-					const i = d?.exercises.findIndex((e) => e.id === id) ?? -1;
-					if (d && i !== -1) {
-						d.exercises[i] = snapshot;
-						this.syncDayCache(dateKey);
-						this.setDayStatus(dateKey, d.exercises);
-					}
-					this.opError = res.error || 'Could not save the exercise — reverted.';
-				}
-				return res;
-			})()
+		return this.write(
+			() => updateScheduledExercise(id, exercise),
+			'Could not save the exercise.',
+			() => (dateKey ? this.refetchDay(dateKey) : undefined)
 		);
 	}
 
-	removeExercise(id: string) {
-		if (this.selectedAthleteId === null) return;
+	removeExercise(id: string): Promise<OpResult> {
+		if (this.selectedAthleteId === null)
+			return Promise.resolve({ ok: false, error: 'No athlete selected.' });
 		this.opError = null;
 		const day = this.dayHolding(id);
-		const index = day?.exercises.findIndex((e) => e.id === id) ?? -1;
+		const dateKey = day?.dateKey;
 
-		if (!day || index === -1) {
-			return trackOptimistic(
-				this.pendingOps,
-				(async () => {
-					const res = await removeScheduledExercise(id);
-					if (!res.ok) this.opError = res.error || 'Could not remove the exercise.';
-					return res;
-				})()
-			);
-		}
-
-		const dateKey = day.dateKey;
-		const [removed] = day.exercises.splice(index, 1);
-		this.syncDayCache(dateKey);
-		this.setDayStatus(dateKey, day.exercises);
-
-		return trackOptimistic(
-			this.pendingOps,
-			(async () => {
-				const res = await removeScheduledExercise(id);
-				if (!res.ok) {
-					const d = this.dayFor(dateKey);
-					if (d && !d.exercises.some((e) => e.id === id)) {
-						d.exercises.splice(Math.min(index, d.exercises.length), 0, removed);
-						this.syncDayCache(dateKey);
-						this.setDayStatus(dateKey, d.exercises);
-					}
-					this.opError = res.error || 'Could not remove the exercise — restored.';
-				}
-				return res;
-			})()
+		return this.write(
+			() => removeScheduledExercise(id),
+			'Could not remove the exercise.',
+			() => (dateKey ? this.refetchDay(dateKey) : undefined)
 		);
 	}
 
+	/** Drag-reorder stays optimistic: WorkoutTimeline's DnD handler has already
+	 *  applied the new order to the day's list; this just persists it through
+	 *  the queue and snaps back from server truth if the server rejects it. */
 	reorderExercise(dateKey: string, id: string, toIndex: number) {
 		if (this.selectedAthleteId === null) return;
 		this.opError = null;
-		// WorkoutTimeline's DnD handler has already applied the new order to
-		// weekDays; just persist it and let the server confirm.
+		// WorkoutTimeline's DnD handler has already applied the new order; keep
+		// the cache warm so a cold reload keeps it.
 		this.syncDayCache(dateKey);
 
-		return trackOptimistic(
-			this.pendingOps,
-			(async () => {
-				const res = await reorderScheduledExercise(id, toIndex);
-				if (!res.ok) {
-					this.opError = res.error || 'Could not reorder — reverted.';
-					await this.refetchDay(dateKey);
-				}
-				return res;
-			})()
-		);
+		return runWrite(async () => {
+			const res = await reorderScheduledExercise(id, toIndex);
+			if (!res.ok) {
+				this.opError = res.error || 'Could not reorder — reverted.';
+				await this.refetchDay(dateKey);
+			}
+			return res;
+		});
+	}
+
+	/** Both timelines call this from their dndzone `onfinalize` — the day's
+	 *  list already holds the new order (dndzone applied it during `consider`),
+	 *  so this just persists it through the queue and snaps back on failure. */
+	finalizeReorder(day: DayEntry, items: Exercise[], draggedId: string | null) {
+		day.exercises = items;
+		const toIndex = day.exercises.findIndex((x) => x.id === draggedId);
+		if (draggedId && toIndex >= 0) this.reorderExercise(day.dateKey, draggedId, toIndex);
 	}
 
 	/**
 	 * Loads the Monday–Sunday week containing `weekStart` into weekDays: paints
 	 * whatever each day has cached, then reconciles every day (and its
-	 * breadcrumb) independently. Waits out any in-flight optimistic edit first
-	 * so a background refresh can't stomp it.
+	 * breadcrumb) independently. No writes settle optimistically anymore, so a
+	 * fresh load can't stomp an unreconciled edit — the write queue already
+	 * serialises those and their reloads.
 	 */
 	async loadWeek(athleteId: string, weekStart: string) {
 		const token = ++this.weekLoadToken;
-
-		while (this.pendingOps.size > 0) {
-			await Promise.allSettled([...this.pendingOps]);
-			if (token !== this.weekLoadToken) return;
-		}
 
 		const keys = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -429,11 +373,6 @@ class CoachProgramState {
 	 */
 	async loadMonth(athleteId: string, keys: string[]) {
 		const token = ++this.monthLoadToken;
-
-		while (this.pendingOps.size > 0) {
-			await Promise.allSettled([...this.pendingOps]);
-			if (token !== this.monthLoadToken) return;
-		}
 
 		this.monthDays = keys.map((dateKey) => {
 			const cached = getCachedWorkoutDay(athleteId, dateKey);
@@ -536,11 +475,9 @@ class CoachProgramState {
 
 	// Paste / assign / shift are server-orchestrated (deep copy with fresh ids,
 	// or an RPC that generates a schedule from a template) — too much to
-	// reconstruct client-side, so these keep a brief wait (assign/shift close
-	// their modal immediately regardless — see AssignModal/ShiftModal). What's
-	// optimistic here: only the affected week reloads (not the whole calendar),
-	// and a failure surfaces as an inline error instead of silently doing
-	// nothing.
+	// reconstruct client-side, so these request through the write queue and
+	// reload the affected week on success. Only the affected week reloads, not
+	// the whole calendar, and a failure surfaces as the inline opError banner.
 
 	async pasteDay() {
 		const cb = this.clipboard;
@@ -550,7 +487,9 @@ class CoachProgramState {
 		const weekStart = this.selectedWeekStart;
 		this.opError = null;
 
-		const res = await pasteDayRequest(cb.athleteId, cb.dateKey, athleteId, destDateKey);
+		const res = await runWrite(() =>
+			pasteDayRequest(cb.athleteId, cb.dateKey, athleteId, destDateKey)
+		);
 		if (!res.ok) {
 			this.opError = res.error || 'Could not paste the day.';
 			return;
@@ -568,7 +507,9 @@ class CoachProgramState {
 		const weekStart = this.selectedWeekStart;
 		this.opError = null;
 
-		const res = await pasteWeekRequest(cb.athleteId, cb.weekStart, athleteId, weekStart);
+		const res = await runWrite(() =>
+			pasteWeekRequest(cb.athleteId, cb.weekStart, athleteId, weekStart)
+		);
 		if (!res.ok) {
 			this.opError = res.error || 'Could not paste the week.';
 			return;
@@ -592,36 +533,14 @@ class CoachProgramState {
 		const athleteId = this.selectedAthleteId;
 		const weekStart = this.selectedWeekStart;
 
-		// Empty the week's days locally (and in the cache) straight away. Bump the
-		// load token first so a still-in-flight day fetch can't repopulate one.
-		this.weekLoadToken++;
-		const snapshots = this.weekDays.map((d) => ({
-			dateKey: d.dateKey,
-			exercises: d.exercises,
-			crumb: d.crumb
-		}));
-		for (const d of this.weekDays) {
-			d.exercises = [];
-			d.crumb = null;
-			updateCachedWorkoutDay(athleteId, d.dateKey, []);
-			this.setDayStatus(d.dateKey, []);
-		}
-
-		const res = await clearWeekRequest(athleteId, weekStart);
+		// No optimistic empty — the week stays on screen until the server
+		// confirms, then reloads cleared (breadcrumbs included).
+		const res = await runWrite(() => clearWeekRequest(athleteId, weekStart));
 		if (!res.ok) {
-			for (const s of snapshots) {
-				const d = this.weekDays.find((d) => d.dateKey === s.dateKey);
-				if (d) {
-					d.exercises = s.exercises;
-					d.crumb = s.crumb;
-					updateCachedWorkoutDay(athleteId, s.dateKey, s.exercises);
-					this.setDayStatus(s.dateKey, s.exercises);
-				}
-			}
-			this.opError = res.error || 'Could not clear the week — restored.';
+			this.opError = res.error || 'Could not clear the week.';
 			return;
 		}
-		// Reconcile per-day breadcrumbs (getBreadcrumb returns null for every day
+		// Reload per-day breadcrumbs (getBreadcrumb returns null for every day
 		// whose program link this just deleted) and calendar dots.
 		await Promise.all([this.loadWeek(athleteId, weekStart), this.loadStatusMap()]);
 	}
