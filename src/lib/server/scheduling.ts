@@ -50,7 +50,7 @@ export async function checkAssignConflicts(
  * row OUTSIDE the moving set — a moving row can legitimately currently sit at
  * another moving row's destination (e.g. shifting by exactly one week),
  * which the real shift_program_schedule RPC resolves safely via a
- * temp-offset move. `movingSet` is what excludes those false positives here.
+ * temporary-offset move. `movingSet` is what excludes those false positives here.
  */
 export async function checkShiftConflicts(
 	supabase: SupabaseClient,

@@ -1,5 +1,6 @@
 import type { ExerciseCategory } from '$lib/types';
 import { postApi } from '$lib/services/api';
+import { runWrite, writeQueueBusy } from '$lib/writeQueue.svelte';
 
 export type ExerciseDef = {
 	id: string;
@@ -29,11 +30,6 @@ function fromRow(row: ExerciseRow): ExerciseDef {
 }
 
 const byName = (a: ExerciseDef, b: ExerciseDef) => a.name.localeCompare(b.name);
-
-// Placeholder id for a row rendered before the server has assigned a real one;
-// swapped for the real id on success, matched only by `===` (never parsed).
-let tempSeq = 0;
-const tempId = () => `temp-ex-${++tempSeq}`;
 
 let exercises = $state<ExerciseDef[]>([]);
 // Reactive: the Library page derives its catalog view from `loaded` +
@@ -67,12 +63,22 @@ const postExercise = (action: string, data: Record<string, unknown>) =>
 	postApi('/api/exercises', action, data);
 
 /**
- * The three catalog mutations below all apply their change to `exercises`
- * immediately and only touch the network afterwards, rolling the list back to
- * the pre-change snapshot if the request fails. `exercises` is reassigned (not
- * mutated) on every change, so holding the old array reference is a free
- * snapshot.
+ * The three catalog mutations below route through the shared serial write
+ * queue: a row is added, changed, or removed in `exercises` only once the
+ * server confirms, so the Library page and every exercise picker only ever
+ * show genuinely saved rows. A failure resolves `{ ok: false }` and changes
+ * nothing in the list. `exercises` is reassigned (never mutated) on each
+ * applied write, so $derived consumers re-render — holding the old array
+ * reference is a free snapshot, though nothing rolls back anymore.
  */
+
+/** True while any catalog write is queued or running — disables the Library
+ *  page's add/edit/delete buttons mid-save. Backed by the shared write queue,
+ *  so it's also true while a program-builder or training write is in flight. */
+export function getExerciseLibraryBusy(): boolean {
+	return writeQueueBusy();
+}
+
 export async function addExerciseDefinition(def: {
 	name: string;
 	category: ExerciseCategory;
@@ -81,20 +87,12 @@ export async function addExerciseDefinition(def: {
 	// Already in the catalog (e.g. just added from another modal) — no-op.
 	if (exercises.some((e) => e.name === def.name)) return { ok: true };
 
-	const temp: ExerciseDef = { id: tempId(), ...def };
-	exercises = [...exercises, temp].sort(byName);
-
-	const res = await postExercise('create', def);
-
-	if (!res.ok) {
-		exercises = exercises.filter((e) => e.id !== temp.id);
-		return { ok: false, error: res.error ?? 'Failed to add exercise' };
-	}
-
-	exercises = exercises.map((e) =>
-		e.id === temp.id ? { ...e, id: (res.data as { id: string }).id } : e
-	);
-	return { ok: true };
+	return runWrite(async () => {
+		const res = await postExercise('create', def);
+		if (!res.ok) return { ok: false, error: res.error ?? 'Failed to add exercise' };
+		exercises = [...exercises, { id: (res.data as { id: string }).id, ...def }].sort(byName);
+		return { ok: true };
+	});
 }
 
 export async function updateExerciseDefinition(def: {
@@ -103,31 +101,27 @@ export async function updateExerciseDefinition(def: {
 	category: ExerciseCategory;
 	videoUrl?: string;
 }): Promise<{ ok: boolean; error?: string }> {
-	const snapshot = exercises;
-	exercises = exercises
-		.map((e) =>
-			e.id === def.id ? { ...e, name: def.name, category: def.category, videoUrl: def.videoUrl } : e
-		)
-		.sort(byName);
-
-	const res = await postExercise('update', def);
-	if (!res.ok) {
-		exercises = snapshot;
-		return { ok: false, error: res.error ?? 'Failed to update exercise' };
-	}
-	return { ok: true };
+	return runWrite(async () => {
+		const res = await postExercise('update', def);
+		if (!res.ok) return { ok: false, error: res.error ?? 'Failed to update exercise' };
+		exercises = exercises
+			.map((e) =>
+				e.id === def.id
+					? { ...e, name: def.name, category: def.category, videoUrl: def.videoUrl }
+					: e
+			)
+			.sort(byName);
+		return { ok: true };
+	});
 }
 
 export async function deleteExerciseDefinition(
 	id: string
 ): Promise<{ ok: boolean; error?: string }> {
-	const snapshot = exercises;
-	exercises = exercises.filter((e) => e.id !== id);
-
-	const res = await postExercise('delete', { id });
-	if (!res.ok) {
-		exercises = snapshot;
-		return { ok: false, error: res.error ?? 'Failed to delete exercise' };
-	}
-	return { ok: true };
+	return runWrite(async () => {
+		const res = await postExercise('delete', { id });
+		if (!res.ok) return { ok: false, error: res.error ?? 'Failed to delete exercise' };
+		exercises = exercises.filter((e) => e.id !== id);
+		return { ok: true };
+	});
 }

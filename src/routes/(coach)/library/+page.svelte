@@ -2,6 +2,7 @@
 	import {
 		getExerciseLibrary,
 		isExerciseLibraryLoaded,
+		getExerciseLibraryBusy,
 		addExerciseDefinition,
 		updateExerciseDefinition,
 		deleteExerciseDefinition,
@@ -32,6 +33,10 @@
 		isExerciseLibraryLoaded() ? getExerciseLibrary() : null
 	);
 
+	// True while a catalog (or any coach) write is in flight — rows only change
+	// once the server saves, so the add/edit/delete buttons disable mid-save.
+	const libraryBusy = $derived(getExerciseLibraryBusy());
+
 	let query = $state('');
 
 	// Mirrors the same substring-filter pattern used on the Athletes page.
@@ -54,6 +59,7 @@
 
 	async function handleAdd(e: SubmitEvent) {
 		e.preventDefault();
+		if (libraryBusy) return;
 		const name = newName.trim();
 		if (!name) return;
 
@@ -62,19 +68,19 @@
 			return;
 		}
 
-		// The row appears in the catalog straight away; clear the form now.
+		// The row only appears once the server has saved it — keep the form as-is
+		// until then, clearing it just on success so a failure is easy to retry.
 		addError = '';
 		const category = newCategory;
 		const videoUrl = newVideoUrl.trim() || undefined;
-		newName = '';
-		newVideoUrl = '';
 
 		const res = await addExerciseDefinition({ name, category, videoUrl });
 		if (!res.ok) {
 			addError = res.error ?? 'Failed to add exercise.';
-			newName = name;
-			newVideoUrl = videoUrl ?? '';
+			return;
 		}
+		newName = '';
+		newVideoUrl = '';
 	}
 
 	let editingId = $state<string | null>(null);
@@ -100,15 +106,15 @@
 
 	async function saveEdit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!editingId) return;
+		if (!editingId || libraryBusy) return;
 
 		const name = editName.trim();
 		if (!name) return;
 
-		// Close the row editor now — the change is already live in the list.
+		// Keep the row editor open until the save lands — a failure leaves the
+		// fields and the error visible instead of bouncing the row back open.
 		const id = editingId;
 		editError = '';
-		editingId = null;
 
 		const result = await updateExerciseDefinition({
 			id,
@@ -118,13 +124,14 @@
 		});
 
 		if (!result.ok) {
-			// Reopen so the coach sees the error; the edit fields still hold their attempt.
-			editingId = id;
 			editError = result.error ?? 'Failed to update exercise.';
+			return;
 		}
+		editingId = null;
 	}
 
 	async function handleDelete(item: ExerciseDef) {
+		if (libraryBusy) return;
 		if (!confirm(`Warning: are you sure you want to delete "${item.name}"?`)) return;
 
 		rowError = null;
@@ -194,7 +201,7 @@
 					{#if addError}
 						<p class="text-xs text-error">{addError}</p>
 					{/if}
-					<button type="submit" class="btn btn-primary" disabled={!newName.trim()}
+					<button type="submit" class="btn btn-primary" disabled={libraryBusy || !newName.trim()}
 						>Add exercise</button
 					>
 				</form>
@@ -277,13 +284,13 @@
 																<p class="text-xs text-error">{editError}</p>
 															{/if}
 															<div class="flex gap-2">
-																<button
-																	type="submit"
-																	class="btn btn-sm btn-primary"
-																	disabled={!editName.trim()}
-																>
-																	Save
-																</button>
+<button
+									type="submit"
+									class="btn btn-sm btn-primary"
+									disabled={libraryBusy || !editName.trim()}
+								>
+									Save
+								</button>
 																<button
 																	type="button"
 																	class="btn btn-ghost btn-sm"
@@ -305,20 +312,22 @@
 																{/if}
 															</span>
 															<div class="flex shrink-0 items-center gap-1">
-																<button
-																	type="button"
-																	class="btn btn-square btn-ghost btn-xs"
-																	aria-label={`Edit ${item.name}`}
-																	onclick={() => startEdit(item)}
-																>
-																	<EditBoxLineIcon class="size-4" />
-																</button>
-																<button
-																	type="button"
-																	class="btn btn-square text-error btn-ghost btn-xs"
-																	aria-label={`Delete ${item.name}`}
-																	onclick={() => handleDelete(item)}
-																>
+<button
+									type="button"
+									class="btn btn-square btn-ghost btn-xs"
+									aria-label={`Edit ${item.name}`}
+									disabled={libraryBusy}
+									onclick={() => startEdit(item)}
+								>
+									<EditBoxLineIcon class="size-4" />
+								</button>
+								<button
+									type="button"
+									class="btn btn-square text-error btn-ghost btn-xs"
+									aria-label={`Delete ${item.name}`}
+									disabled={libraryBusy}
+									onclick={() => handleDelete(item)}
+								>
 																	<Delete3LineIcon class="size-4" />
 																</button>
 															</div>
