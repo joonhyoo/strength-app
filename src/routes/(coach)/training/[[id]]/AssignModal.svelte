@@ -15,7 +15,14 @@
 	let programs = $state<ProgramSummary[] | null>(null);
 	let selectedProgramId = $state('');
 	let conflicts = $state<string[] | null>(null);
+	// The conflict preview couldn't be fetched — shown instead of a skeleton that
+	// would never resolve, and Confirm stays disabled (no preview, no assign).
+	let checkFailed = $state(false);
 	let totalSessions = $state(0);
+	// Set while the assign runs; the modal stays open so a failure can be shown
+	// here with the selection intact, rather than after the dialog has gone.
+	let assigning = $state(false);
+	let assignError = $state('');
 	let loadToken = 0;
 
 	const startDate = $derived(program.selectedWeekStart);
@@ -32,22 +39,31 @@
 		const date = startDate;
 		if (!id) return;
 		conflicts = null;
+		checkFailed = false;
 		const token = ++loadToken;
-		checkAssignConflicts(id, athleteId, date).then((result) => {
-			if (token !== loadToken || !result) return;
-			totalSessions = result.dates.length;
-			conflicts = result.conflicts;
-		});
+		checkAssignConflicts(id, athleteId, date)
+			.then((result) => {
+				if (token !== loadToken) return;
+				totalSessions = result.dates.length;
+				conflicts = result.conflicts;
+			})
+			.catch(() => {
+				if (token === loadToken) checkFailed = true;
+			});
 	});
 
 	async function confirmAssign() {
-		if (!selectedProgramId) return;
-		// Close now; the calendar + timeline refresh once the server has built the
-		// schedule, or show an inline error if it couldn't.
-		program.closeAssignModal();
+		if (!selectedProgramId || assigning) return;
+		assigning = true;
+		assignError = '';
 		const res = await assignProgram(selectedProgramId, athleteId, startDate);
-		if (res.ok) await program.onScheduleChanged();
-		else program.opError = res.error || 'Could not assign the program.';
+		if (!res.ok) {
+			assigning = false;
+			assignError = res.error || 'Could not assign the program.';
+			return;
+		}
+		// Closes this modal, then refreshes the calendar dots and the visible week.
+		await program.onScheduleChanged();
 	}
 
 	let dialog = $state() as HTMLDialogElement;
@@ -60,7 +76,15 @@
 	});
 </script>
 
-<dialog bind:this={dialog} class="modal" onclose={() => program.closeAssignModal()}>
+<!-- Esc is ignored while the assign is in flight, so its outcome can't be lost. -->
+<dialog
+	bind:this={dialog}
+	class="modal"
+	oncancel={(e) => {
+		if (assigning) e.preventDefault();
+	}}
+	onclose={() => program.closeAssignModal()}
+>
 	<div class="modal-box">
 		<h3 class="mb-4 font-display text-lg font-bold uppercase">Assign program</h3>
 
@@ -85,7 +109,12 @@
 					</select>
 				</label>
 
-				{#if conflicts === null}
+				{#if checkFailed}
+					<div class="rounded-lg bg-error/10 p-3 text-error">
+						Could not check this schedule for conflicts. Close this dialog and reopen it to try
+						again.
+					</div>
+				{:else if conflicts === null}
 					<div class="h-14 w-full skeleton"></div>
 				{:else if conflicts.length === 0}
 					<div class="rounded-lg bg-success/10 p-3">
@@ -110,10 +139,15 @@
 				{/if}
 			{/if}
 
+			{#if assignError}
+				<p class="text-xs text-error">{assignError}</p>
+			{/if}
+
 			<div class="modal-action">
 				<button
 					type="button"
 					class="btn btn-outline btn-error"
+					disabled={assigning}
 					onclick={() => program.closeAssignModal()}
 				>
 					Cancel
@@ -121,9 +155,12 @@
 				<button
 					type="button"
 					class="btn btn-primary"
-					disabled={!selectedProgramId || conflicts === null}
+					disabled={!selectedProgramId || conflicts === null || assigning}
 					onclick={confirmAssign}
 				>
+					{#if assigning}
+						<span class="loading loading-xs loading-spinner"></span>
+					{/if}
 					Confirm assign
 				</button>
 			</div>

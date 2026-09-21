@@ -1,5 +1,5 @@
 import type { Exercise, ExerciseCategory } from '$lib/types';
-import { postApi } from './api';
+import { fetchApi, postApi } from './api';
 
 /** Every `/api/workout` call, normalised to `{ ok, data | error }` — see `postApi`. */
 const postWorkout = (action: string, data: Record<string, unknown>) =>
@@ -23,6 +23,9 @@ export async function addExerciseToDay(athleteId: string, dateKey: string, exerc
 	});
 }
 
+// The server owns `complete` and any logged weight/reps on an edit (see
+// updateExercise in workoutActions/exercises.ts), so only the coach-authored
+// fields are sent.
 export async function updateExercise(athleteExerciseId: string, exercise: Exercise) {
 	return postWorkout('updateExercise', {
 		athleteExerciseId,
@@ -30,14 +33,12 @@ export async function updateExercise(athleteExerciseId: string, exercise: Exerci
 			activity: exercise.activity,
 			category: exercise.category,
 			note: exercise.note,
-			complete: exercise.complete,
 			plan:
 				exercise.category === 'weight'
 					? exercise.plan.length > 0
 						? exercise.plan
 						: Array(exercise.performed.length || 3).fill(5)
-					: [],
-			performed: exercise.performed
+					: []
 		}
 	});
 }
@@ -67,22 +68,21 @@ export async function pasteDay(
 	return postWorkout('pasteDay', { sourceAthleteId, sourceDateKey, destAthleteId, destDateKey });
 }
 
-export async function checkPasteWeekConflicts(
+// Rejects on failure (see `fetchApi`): a failed check must never read as "no
+// conflicts", or the paste would replace the destination week without the
+// coach's confirmation.
+export const checkPasteWeekConflicts = (
 	sourceAthleteId: string,
 	sourceWeekStart: string,
 	destAthleteId: string,
 	destWeekStart: string
-): Promise<{ total: number; conflicts: string[] }> {
-	const res = await postWorkout('checkPasteWeekConflicts', {
+) =>
+	fetchApi<{ total: number; conflicts: string[] }>('/api/workout', 'checkPasteWeekConflicts', {
 		sourceAthleteId,
 		sourceWeekStart,
 		destAthleteId,
 		destWeekStart
 	});
-	return res.ok
-		? ((res.data as { total: number; conflicts: string[] }) ?? { total: 0, conflicts: [] })
-		: { total: 0, conflicts: [] };
-}
 
 export async function pasteWeek(
 	sourceAthleteId: string,

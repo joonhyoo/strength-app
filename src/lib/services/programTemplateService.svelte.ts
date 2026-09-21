@@ -5,7 +5,7 @@ import type {
 	Breadcrumb,
 	AssignmentDate
 } from '$lib/types';
-import { postApi } from './api';
+import { fetchApi, postApi } from './api';
 
 export type { ColorKey, ProgramDetail, Breadcrumb, AssignmentDate };
 
@@ -24,9 +24,15 @@ export interface ProgramExerciseInput {
 	plan: number[];
 }
 
-/** Every `/api/program` call, normalised to `{ ok, data | error }` — see `postApi`. */
+/** Every `/api/program` write, normalised to `{ ok, data | error }` — see `postApi`. */
 const postProgram = (action: string, data: Record<string, unknown>) =>
 	postApi('/api/program', action, data);
+
+/** A `/api/program` read whose result gates a confirmation. It rejects on
+ *  failure (see `fetchApi`) so an outage can never pass for "no conflicts" —
+ *  callers catch and say the check failed. */
+const readProgram = <T>(action: string, data: Record<string, unknown>) =>
+	fetchApi<T>('/api/program', action, data);
 
 export async function listPrograms() {
 	const res = await postProgram('listPrograms', {});
@@ -114,23 +120,23 @@ export async function reorderProgramExercise(programExerciseId: string, toIndex:
 	return postProgram('reorderProgramExercise', { programExerciseId, toIndex });
 }
 
-export async function checkAssignConflicts(
-	programId: string,
-	athleteId: string,
-	startDate: string
-) {
-	const res = await postProgram('checkAssignConflicts', { programId, athleteId, startDate });
-	return res.ok ? (res.data as { dates: AssignmentDate[]; conflicts: string[] }) : null;
-}
+export const checkAssignConflicts = (programId: string, athleteId: string, startDate: string) =>
+	readProgram<{ dates: AssignmentDate[]; conflicts: string[] }>('checkAssignConflicts', {
+		programId,
+		athleteId,
+		startDate
+	});
 
 export async function assignProgram(programId: string, athleteId: string, startDate: string) {
 	return postProgram('assignProgram', { programId, athleteId, startDate });
 }
 
-export async function checkShiftConflicts(athleteId: string, fromDate: string, shiftWeeks: number) {
-	const res = await postProgram('checkShiftConflicts', { athleteId, fromDate, shiftWeeks });
-	return res.ok ? (res.data as { moving: string[]; conflicts: string[] }) : null;
-}
+export const checkShiftConflicts = (athleteId: string, fromDate: string, shiftWeeks: number) =>
+	readProgram<{ moving: string[]; conflicts: string[] }>('checkShiftConflicts', {
+		athleteId,
+		fromDate,
+		shiftWeeks
+	});
 
 export async function shiftSchedule(athleteId: string, fromDate: string, shiftWeeks: number) {
 	return postProgram('shiftSchedule', { athleteId, fromDate, shiftWeeks });

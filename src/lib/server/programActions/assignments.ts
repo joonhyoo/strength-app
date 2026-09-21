@@ -19,8 +19,11 @@ function rpcError(log: ApiContext['log'], name: string, message: string | undefi
 		log.warn('rpc.rejected', { rpc: name, reason: message });
 		return error(400, RPC_ERROR_MESSAGE[message]);
 	}
+	// Not one of the known rejections above, so it's the server's failure, not the
+	// caller's: a 500 lets the client show its own "could not X" message instead
+	// of this generic one, and the access log records it as an error.
 	log.error('rpc.failed', new Error(message ?? 'unknown'), { rpc: name });
-	return error(400, 'Request failed.');
+	return error(500, 'Request failed.');
 }
 
 export async function checkAssignConflicts({ data, supabase, log }: ApiContext) {
