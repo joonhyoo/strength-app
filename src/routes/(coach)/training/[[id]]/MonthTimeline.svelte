@@ -3,11 +3,11 @@
 	import RightFillIcon from '@iconify-svelte/mingcute/right-fill';
 	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
-	import { getCoachProgramState, type DayEntry } from '$lib/coachProgramState.svelte';
+	import { getCoachProgramState } from '$lib/coachProgramState.svelte';
 	import { parseKey, toKey, monthGridKeys } from '$lib/dateKey';
 	import { formatPlan } from '$lib/formatPlan';
-	import type { Athlete, Exercise } from '$lib/types';
-	import { dndzone, type DndEvent } from 'svelte-dnd-action';
+	import type { Athlete } from '$lib/types';
+	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 
 	const FLIP_MS = 200;
@@ -55,13 +55,6 @@
 	function openAdd(date: Date) {
 		program.selectDate(date);
 		program.openModal();
-	}
-
-	function handleDndFinalize(day: DayEntry, e: CustomEvent<DndEvent<Exercise>>) {
-		day.exercises = e.detail.items;
-		const id = e.detail.info.id;
-		const toIndex = day.exercises.findIndex((x) => x.id === id);
-		if (id && toIndex >= 0) program.reorderExercise(day.dateKey, id, toIndex);
 	}
 </script>
 
@@ -145,7 +138,7 @@
 										dropTargetStyle: {}
 									}}
 									onconsider={(e) => (day.exercises = e.detail.items)}
-									onfinalize={(e) => handleDndFinalize(day, e)}
+									onfinalize={(e) => program.finalizeReorder(day, e.detail.items, e.detail.info.id)}
 								>
 									{#each day.exercises as exercise (exercise.id)}
 										<div

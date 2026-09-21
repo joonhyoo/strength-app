@@ -262,7 +262,7 @@
 				</button>
 				<button type="submit" class="btn btn-primary" disabled={!canSave || saving}>
 					{#if saving}
-						<span class="loading loading-spinner loading-sm"></span>
+						<span class="loading loading-sm loading-spinner"></span>
 					{/if}
 					Save
 				</button>

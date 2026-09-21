@@ -43,62 +43,62 @@
 	<title>Strength App — Athletes</title>
 </svelte:head>
 
-<div class="my-4 flex flex-col gap-4 lg:flex-row lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-		<aside class="w-full max-w-full shrink-0 lg:max-w-xs card h-fit bg-base-100 shadow-sm">
-			<div class="card-body">
-				<h1 class="mb-2 font-display text-xl font-bold uppercase">Athletes</h1>
+<div class="my-4 flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:overflow-hidden">
+	<aside class="card h-fit w-full max-w-full shrink-0 bg-base-100 shadow-sm lg:max-w-xs">
+		<div class="card-body">
+			<h1 class="mb-2 font-display text-xl font-bold uppercase">Athletes</h1>
 
-				<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase">
-					Invite athlete
-				</span>
-				<form
-					method="POST"
-					action="?/invite_athlete"
-					use:enhance={enhanceReplace({
-						onSubmit: () => (inviting = true),
-						onDone: () => (inviting = false)
-					})}
-					class="mt-2 flex gap-2"
-				>
-					<input
-						name="email"
-						type="email"
-						placeholder="athlete@email.com"
-						class="input w-full"
-						required
-					/>
-					<button type="submit" class="btn btn-primary" disabled={inviting}>
-						{inviting ? 'Inviting...' : 'Invite'}
-					</button>
-				</form>
-				{#if form?.message && form?.action !== 'remove_athlete'}
-					<p class="mt-1 text-xs text-error">{form.message}</p>
-				{/if}
+			<span class="text-xs font-semibold tracking-wide text-base-content/60 uppercase">
+				Invite athlete
+			</span>
+			<form
+				method="POST"
+				action="?/invite_athlete"
+				use:enhance={enhanceReplace({
+					onSubmit: () => (inviting = true),
+					onDone: () => (inviting = false)
+				})}
+				class="mt-2 flex gap-2"
+			>
+				<input
+					name="email"
+					type="email"
+					placeholder="athlete@email.com"
+					class="input w-full"
+					required
+				/>
+				<button type="submit" class="btn btn-primary" disabled={inviting}>
+					{inviting ? 'Inviting...' : 'Invite'}
+				</button>
+			</form>
+			{#if form?.message && form?.action !== 'remove_athlete'}
+				<p class="mt-1 text-xs text-error">{form.message}</p>
+			{/if}
 
-				{#if pendingInvites === null}
-					<div class="mt-3 flex flex-col gap-2">
-						<div class="h-4 w-full skeleton"></div>
-						<div class="h-4 w-2/3 skeleton"></div>
-					</div>
-				{:else if pendingInvites.length}
-					<ul class="mt-3 flex flex-col gap-1">
-						{#each pendingInvites as invite (invite.id)}
-							<li class="flex items-center justify-between gap-2 text-sm">
-								<span class="truncate">{invite.email}</span>
-								<form method="POST" action="?/revoke_invite" use:enhance={enhanceReplace({})}>
-									<input type="hidden" name="email" value={invite.email} />
-									<button type="submit" class="btn btn-ghost btn-sm">Revoke</button>
-								</form>
-							</li>
-						{/each}
-					</ul>
-				{:else}
-					<p class="mt-1 text-sm text-base-content/60">No pending invites.</p>
-				{/if}
-			</div>
-		</aside>
+			{#if pendingInvites === null}
+				<div class="mt-3 flex flex-col gap-2">
+					<div class="h-4 w-full skeleton"></div>
+					<div class="h-4 w-2/3 skeleton"></div>
+				</div>
+			{:else if pendingInvites.length}
+				<ul class="mt-3 flex flex-col gap-1">
+					{#each pendingInvites as invite (invite.id)}
+						<li class="flex items-center justify-between gap-2 text-sm">
+							<span class="truncate">{invite.email}</span>
+							<form method="POST" action="?/revoke_invite" use:enhance={enhanceReplace({})}>
+								<input type="hidden" name="email" value={invite.email} />
+								<button type="submit" class="btn btn-ghost btn-sm">Revoke</button>
+							</form>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="mt-1 text-sm text-base-content/60">No pending invites.</p>
+			{/if}
+		</div>
+	</aside>
 
-		<div class="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-y-contain">
+	<div class="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-y-contain">
 		<div class="card bg-base-100 shadow-sm">
 			<div class="card-body">
 				<div class="flex items-center justify-between gap-2">
@@ -174,5 +174,5 @@
 				{/if}
 			</div>
 		</div>
-		</div>
+	</div>
 </div>

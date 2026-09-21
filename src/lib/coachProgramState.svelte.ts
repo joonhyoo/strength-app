@@ -293,6 +293,15 @@ class CoachProgramState {
 		});
 	}
 
+	/** Both timelines call this from their dndzone `onfinalize` — the day's
+	 *  list already holds the new order (dndzone applied it during `consider`),
+	 *  so this just persists it through the queue and snaps back on failure. */
+	finalizeReorder(day: DayEntry, items: Exercise[], draggedId: string | null) {
+		day.exercises = items;
+		const toIndex = day.exercises.findIndex((x) => x.id === draggedId);
+		if (draggedId && toIndex >= 0) this.reorderExercise(day.dateKey, draggedId, toIndex);
+	}
+
 	/**
 	 * Loads the Monday–Sunday week containing `weekStart` into weekDays: paints
 	 * whatever each day has cached, then reconciles every day (and its
@@ -478,7 +487,9 @@ class CoachProgramState {
 		const weekStart = this.selectedWeekStart;
 		this.opError = null;
 
-		const res = await runWrite(() => pasteDayRequest(cb.athleteId, cb.dateKey, athleteId, destDateKey));
+		const res = await runWrite(() =>
+			pasteDayRequest(cb.athleteId, cb.dateKey, athleteId, destDateKey)
+		);
 		if (!res.ok) {
 			this.opError = res.error || 'Could not paste the day.';
 			return;
@@ -496,7 +507,9 @@ class CoachProgramState {
 		const weekStart = this.selectedWeekStart;
 		this.opError = null;
 
-		const res = await runWrite(() => pasteWeekRequest(cb.athleteId, cb.weekStart, athleteId, weekStart));
+		const res = await runWrite(() =>
+			pasteWeekRequest(cb.athleteId, cb.weekStart, athleteId, weekStart)
+		);
 		if (!res.ok) {
 			this.opError = res.error || 'Could not paste the week.';
 			return;

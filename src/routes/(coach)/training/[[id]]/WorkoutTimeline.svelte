@@ -8,10 +8,9 @@
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import { getCoachProgramState, type DayEntry } from '$lib/coachProgramState.svelte';
 	import { toKey } from '$lib/dateKey';
-	import type { Exercise } from '$lib/types';
 	import { CATEGORY_LABEL } from '$lib/data/categories';
 	import { formatPlan } from '$lib/formatPlan';
-	import { dndzone, type DndEvent } from 'svelte-dnd-action';
+	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 
 	const program = getCoachProgramState();
@@ -29,13 +28,6 @@
 	// Plain (non-reactive) DOM refs for scrolling a day's section into view —
 	// same pattern as OtpInput.svelte's `inputs` array.
 	let dayEls: Record<string, HTMLElement> = {};
-
-	function handleDndFinalize(day: DayEntry, e: CustomEvent<DndEvent<Exercise>>) {
-		day.exercises = e.detail.items;
-		const id = e.detail.info.id;
-		const toIndex = day.exercises.findIndex((x) => x.id === id);
-		if (id && toIndex >= 0) program.reorderExercise(day.dateKey, id, toIndex);
-	}
 
 	// Bring the focused day's section into view whenever it changes — a
 	// calendar click (or a day's own Copy/Paste/Add action re-focusing it)
@@ -128,13 +120,10 @@
 							dropTargetStyle: {}
 						}}
 						onconsider={(e) => (day.exercises = e.detail.items)}
-						onfinalize={(e) => handleDndFinalize(day, e)}
+						onfinalize={(e) => program.finalizeReorder(day, e.detail.items, e.detail.info.id)}
 					>
 						{#each day.exercises as exercise, i (exercise.id)}
-							<div
-								class="flex min-w-0 items-center gap-4"
-								animate:flip={{ duration: FLIP_MS }}
-							>
+							<div class="flex min-w-0 items-center gap-4" animate:flip={{ duration: FLIP_MS }}>
 								<div class="flex flex-col items-center self-stretch">
 									<span class="w-px flex-1 bg-base-300 {i === 0 ? 'invisible' : ''}"></span>
 									<CategoryIcon category={exercise.category} />
@@ -174,20 +163,20 @@
 												<DotGridLineIcon class="size-5" />
 											</span>
 										{/if}
-<button
-									class="btn btn-square text-secondary btn-ghost btn-xs"
-									aria-label={`Edit ${exercise.activity}`}
-									disabled={program.busy}
-									onclick={() => exercise.id && program.openEdit(exercise)}
-								>
-									<EditBoxLineIcon class="size-4" />
-								</button>
-								<button
-									class="btn btn-square text-error btn-ghost btn-xs"
-									aria-label={`Remove ${exercise.activity}`}
-									disabled={program.busy}
-									onclick={() => exercise.id && program.removeExercise(exercise.id)}
-								>
+										<button
+											class="btn btn-square text-secondary btn-ghost btn-xs"
+											aria-label={`Edit ${exercise.activity}`}
+											disabled={program.busy}
+											onclick={() => exercise.id && program.openEdit(exercise)}
+										>
+											<EditBoxLineIcon class="size-4" />
+										</button>
+										<button
+											class="btn btn-square text-error btn-ghost btn-xs"
+											aria-label={`Remove ${exercise.activity}`}
+											disabled={program.busy}
+											onclick={() => exercise.id && program.removeExercise(exercise.id)}
+										>
 											<Delete3LineIcon class="size-4" />
 										</button>
 									</div>

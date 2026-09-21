@@ -146,8 +146,8 @@
 	<title>Strength App — Library</title>
 </svelte:head>
 
-<div class="my-4 flex min-w-0 flex-col gap-4 lg:flex-row lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-	<div class="w-full max-w-full shrink-0 lg:max-w-xs card-body flex flex-col gap-4">
+<div class="my-4 flex min-w-0 flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:overflow-hidden">
+	<div class="card-body flex w-full max-w-full shrink-0 flex-col gap-4 lg:max-w-xs">
 		<div class="">
 			<h1 class="mb-4 font-display text-xl font-bold uppercase">Library</h1>
 			<div class="flex divide-x divide-border overflow-hidden rounded-sm border border-border">
@@ -209,144 +209,146 @@
 		{/if}
 	</div>
 
-	<div class="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-y-contain">
-	{#if tab === 'programs'}
-		<div>
-			<ProgramEditor />
-		</div>
-	{:else}
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body">
-				<h2 class="card-title font-display text-xl uppercase">Exercise catalog</h2>
-				{#if exercises === null}
-					<div class="mt-2 flex flex-col gap-2">
-						{#each [0, 1, 2, 3] as n (n)}
-							<div class="h-5 w-full skeleton"></div>
-						{/each}
-					</div>
-				{:else if exercises.length === 0}
-					<p class="pt-3 text-base-content/60">No exercises yet.</p>
-				{:else}
-					<div class="relative mt-2 mb-5 w-full max-w-md">
-						<input
-							type="search"
-							placeholder="Search exercises…"
-							class="input input-md w-full pr-8 [&::-webkit-search-cancel-button]:appearance-none"
-							bind:value={query}
-						/>
-						{#if query}
-							<button
-								type="button"
-								class="btn absolute top-1/2 right-1 -translate-y-1/2 px-1 btn-ghost btn-xs"
-								aria-label="Clear search"
-								onclick={() => (query = '')}
-							>
-								<CloseLineIcon class="size-4" />
-							</button>
-						{/if}
-					</div>
-					{#if !filteredExercises || filteredExercises.length === 0}
-						<p class="text-base-content/60">No exercises match your search.</p>
-					{:else}
-						<div class="flex flex-wrap gap-8">
-							{#each CATEGORY_OPTIONS as cat (cat)}
-								{@const { icon: CatIcon, color } = CATEGORY_ICON[cat]}
-								{@const items = filteredExercises.filter((ex) => ex.category === cat)}
-								{#if items.length > 0}
-									<div class="w-full max-w-md rounded-md border-2 border-border p-3">
-										<h3 class="text-xs font-semibold tracking-wide text-base-content/60 uppercase">
-											{CATEGORY_LABEL[cat]} · {items.length}
-										</h3>
-										<ul class="flex flex-col divide-y divide-base-200">
-											{#each items as item (item.id)}
-												<li class="py-2">
-													{#if editingId === item.id}
-														<form class="flex flex-col gap-2" onsubmit={saveEdit}>
-															<div class="flex gap-2">
-																<input
-																	class="input input-sm w-full"
-																	type="text"
-																	bind:value={editName}
-																/>
-																<select class="select select-sm" bind:value={editCategory}>
-																	{#each CATEGORY_OPTIONS as c (c)}
-																		<option value={c}>{CATEGORY_LABEL[c]}</option>
-																	{/each}
-																</select>
-															</div>
-															<input
-																class="input input-sm w-full"
-																type="url"
-																placeholder="Video link (optional)"
-																bind:value={editVideoUrl}
-															/>
-															{#if editError}
-																<p class="text-xs text-error">{editError}</p>
-															{/if}
-															<div class="flex gap-2">
-<button
-									type="submit"
-									class="btn btn-sm btn-primary"
-									disabled={libraryBusy || !editName.trim()}
-								>
-									Save
-								</button>
-																<button
-																	type="button"
-																	class="btn btn-ghost btn-sm"
-																	onclick={cancelEdit}
-																>
-																	Cancel
-																</button>
-															</div>
-														</form>
-													{:else}
-														<div class="flex items-center justify-between gap-2 text-base">
-															<span class="flex min-w-0 flex-1 items-center gap-2">
-																<CatIcon class="size-5 {color} shrink-0" />
-																<span class="truncate">{item.name}</span>
-																{#if item.videoUrl}
-																	<span title="Has video" class="shrink-0 text-base-content/40">
-																		<PlayCircleFillIcon class="size-5" />
-																	</span>
-																{/if}
-															</span>
-															<div class="flex shrink-0 items-center gap-1">
-<button
-									type="button"
-									class="btn btn-square btn-ghost btn-xs"
-									aria-label={`Edit ${item.name}`}
-									disabled={libraryBusy}
-									onclick={() => startEdit(item)}
-								>
-									<EditBoxLineIcon class="size-4" />
-								</button>
-								<button
-									type="button"
-									class="btn btn-square text-error btn-ghost btn-xs"
-									aria-label={`Delete ${item.name}`}
-									disabled={libraryBusy}
-									onclick={() => handleDelete(item)}
-								>
-																	<Delete3LineIcon class="size-4" />
-																</button>
-															</div>
-														</div>
-														{#if rowError?.id === item.id}
-															<p class="mt-1 text-xs text-error">{rowError.message}</p>
-														{/if}
-													{/if}
-												</li>
-											{/each}
-										</ul>
-									</div>
-								{/if}
+	<div class="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-y-contain">
+		{#if tab === 'programs'}
+			<div>
+				<ProgramEditor />
+			</div>
+		{:else}
+			<div class="card bg-base-100 shadow-sm">
+				<div class="card-body">
+					<h2 class="card-title font-display text-xl uppercase">Exercise catalog</h2>
+					{#if exercises === null}
+						<div class="mt-2 flex flex-col gap-2">
+							{#each [0, 1, 2, 3] as n (n)}
+								<div class="h-5 w-full skeleton"></div>
 							{/each}
 						</div>
+					{:else if exercises.length === 0}
+						<p class="pt-3 text-base-content/60">No exercises yet.</p>
+					{:else}
+						<div class="relative mt-2 mb-5 w-full max-w-md">
+							<input
+								type="search"
+								placeholder="Search exercises…"
+								class="input input-md w-full pr-8 [&::-webkit-search-cancel-button]:appearance-none"
+								bind:value={query}
+							/>
+							{#if query}
+								<button
+									type="button"
+									class="btn absolute top-1/2 right-1 -translate-y-1/2 px-1 btn-ghost btn-xs"
+									aria-label="Clear search"
+									onclick={() => (query = '')}
+								>
+									<CloseLineIcon class="size-4" />
+								</button>
+							{/if}
+						</div>
+						{#if !filteredExercises || filteredExercises.length === 0}
+							<p class="text-base-content/60">No exercises match your search.</p>
+						{:else}
+							<div class="flex flex-wrap gap-8">
+								{#each CATEGORY_OPTIONS as cat (cat)}
+									{@const { icon: CatIcon, color } = CATEGORY_ICON[cat]}
+									{@const items = filteredExercises.filter((ex) => ex.category === cat)}
+									{#if items.length > 0}
+										<div class="w-full max-w-md rounded-md border-2 border-border p-3">
+											<h3
+												class="text-xs font-semibold tracking-wide text-base-content/60 uppercase"
+											>
+												{CATEGORY_LABEL[cat]} · {items.length}
+											</h3>
+											<ul class="flex flex-col divide-y divide-base-200">
+												{#each items as item (item.id)}
+													<li class="py-2">
+														{#if editingId === item.id}
+															<form class="flex flex-col gap-2" onsubmit={saveEdit}>
+																<div class="flex gap-2">
+																	<input
+																		class="input input-sm w-full"
+																		type="text"
+																		bind:value={editName}
+																	/>
+																	<select class="select select-sm" bind:value={editCategory}>
+																		{#each CATEGORY_OPTIONS as c (c)}
+																			<option value={c}>{CATEGORY_LABEL[c]}</option>
+																		{/each}
+																	</select>
+																</div>
+																<input
+																	class="input input-sm w-full"
+																	type="url"
+																	placeholder="Video link (optional)"
+																	bind:value={editVideoUrl}
+																/>
+																{#if editError}
+																	<p class="text-xs text-error">{editError}</p>
+																{/if}
+																<div class="flex gap-2">
+																	<button
+																		type="submit"
+																		class="btn btn-sm btn-primary"
+																		disabled={libraryBusy || !editName.trim()}
+																	>
+																		Save
+																	</button>
+																	<button
+																		type="button"
+																		class="btn btn-ghost btn-sm"
+																		onclick={cancelEdit}
+																	>
+																		Cancel
+																	</button>
+																</div>
+															</form>
+														{:else}
+															<div class="flex items-center justify-between gap-2 text-base">
+																<span class="flex min-w-0 flex-1 items-center gap-2">
+																	<CatIcon class="size-5 {color} shrink-0" />
+																	<span class="truncate">{item.name}</span>
+																	{#if item.videoUrl}
+																		<span title="Has video" class="shrink-0 text-base-content/40">
+																			<PlayCircleFillIcon class="size-5" />
+																		</span>
+																	{/if}
+																</span>
+																<div class="flex shrink-0 items-center gap-1">
+																	<button
+																		type="button"
+																		class="btn btn-square btn-ghost btn-xs"
+																		aria-label={`Edit ${item.name}`}
+																		disabled={libraryBusy}
+																		onclick={() => startEdit(item)}
+																	>
+																		<EditBoxLineIcon class="size-4" />
+																	</button>
+																	<button
+																		type="button"
+																		class="btn btn-square text-error btn-ghost btn-xs"
+																		aria-label={`Delete ${item.name}`}
+																		disabled={libraryBusy}
+																		onclick={() => handleDelete(item)}
+																	>
+																		<Delete3LineIcon class="size-4" />
+																	</button>
+																</div>
+															</div>
+															{#if rowError?.id === item.id}
+																<p class="mt-1 text-xs text-error">{rowError.message}</p>
+															{/if}
+														{/if}
+													</li>
+												{/each}
+											</ul>
+										</div>
+									{/if}
+								{/each}
+							</div>
+						{/if}
 					{/if}
-				{/if}
+				</div>
 			</div>
-		</div>
-	{/if}
+		{/if}
 	</div>
 </div>

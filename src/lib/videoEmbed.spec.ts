@@ -17,23 +17,27 @@ describe('resolveVideoEmbed', () => {
 	});
 
 	it('rewrites a youtube embed url to an embeddable nocookie url', () => {
-		expect(resolveVideoEmbed('https://www.youtube.com/embed/dQw4w9WgXcQ?si=TJcHJrkXHlEOE092')).toEqual({
+		expect(
+			resolveVideoEmbed('https://www.youtube.com/embed/dQw4w9WgXcQ?si=TJcHJrkXHlEOE092')
+		).toEqual({
 			kind: 'iframe',
 			src: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ'
 		});
 	});
 
 	it('rewrites a youtube shorts url to an embeddable nocookie url', () => {
-		expect(resolveVideoEmbed('https://youtube.com/shorts/SK-ev8_x0KA?si=efv45TqfVxhiTi5M')).toEqual({
-			kind: 'iframe',
-			src: 'https://www.youtube-nocookie.com/embed/SK-ev8_x0KA'
-		});
+		expect(resolveVideoEmbed('https://youtube.com/shorts/SK-ev8_x0KA?si=efv45TqfVxhiTi5M')).toEqual(
+			{
+				kind: 'iframe',
+				src: 'https://www.youtube-nocookie.com/embed/SK-ev8_x0KA'
+			}
+		);
 	});
 
 	it('returns null for a non-http(s) url, never handing back a link that could navigate away', () => {
 		expect(resolveVideoEmbed('javascript:alert(1)')).toBeNull();
 	});
-  
+
 	it('returns null for a blank youtube url', () => {
 		expect(resolveVideoEmbed('https://www.youtube.com')).toBeNull();
 	});
