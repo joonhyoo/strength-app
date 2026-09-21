@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import AddFillIcon from '@iconify-svelte/mingcute/add-fill';
+	import ExerciseForm from '$lib/components/ExerciseForm.svelte';
 	import { getProgramBuilderState } from '$lib/programBuilderState.svelte';
 	import { locateExercise } from '$lib/programBuilderTree';
 	import {
@@ -11,37 +11,6 @@
 	} from '$lib/data/exerciseLibrary.svelte';
 	import type { ProgramExerciseInput } from '$lib/services/programTemplateService.svelte';
 	import type { ExerciseCategory } from '$lib/types';
-	import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '$lib/data/categories';
-
-	const NOTE_MAX_HEIGHT_PX = 192; // matches max-h-48
-
-	// Matches the athlete workout modal's ghost nav-button treatment
-	// (train/WorkoutModal.svelte's navBtn) — color-only feedback, no
-	// border or background, so it stays consistent across the app.
-	const stepBtn =
-		'flex size-9 cursor-pointer items-center justify-center rounded-full text-base-content/80 transition-colors duration-150 active:text-base-content/45';
-
-	const supportsFieldSizing = typeof CSS !== 'undefined' && CSS.supports('field-sizing', 'content');
-
-	// `value` is unused in the body (resize reads node.scrollHeight directly)
-	// but is required so `update` re-fires when the bound value changes.
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	function autoGrowNote(node: HTMLTextAreaElement, value: string) {
-		if (supportsFieldSizing) return {};
-
-		const resize = () => {
-			node.style.height = 'auto';
-			node.style.height = `${Math.min(node.scrollHeight, NOTE_MAX_HEIGHT_PX)}px`;
-		};
-
-		resize();
-		node.addEventListener('input', resize);
-
-		return {
-			update: resize,
-			destroy: () => node.removeEventListener('input', resize)
-		};
-	}
 
 	const builder = getProgramBuilderState();
 
@@ -231,144 +200,21 @@
 				submit();
 			}}
 		>
-			{#if !isNote && !creatingNew}
-				<label class="flex w-full flex-col gap-1.5">
-					<span class="label">Exercise</span>
-					<select class="select w-full" bind:value={selectedName}>
-						{#each CATEGORY_OPTIONS as cat (cat)}
-							{@const items = library.filter((item) => item.category === cat)}
-							{#if items.length > 0}
-								<optgroup label={CATEGORY_LABEL[cat]}>
-									{#each items as item (item.name)}
-										<option value={item.name}>{item.name}</option>
-									{/each}
-								</optgroup>
-							{/if}
-						{/each}
-					</select>
-					<span class="text-xs text-base-content/60">
-						Category: {CATEGORY_LABEL[category]}
-					</span>
-				</label>
-
-				<label class="flex w-full flex-col gap-1.5">
-					<span class="label">Video link (optional)</span>
-					<input
-						class="input w-full"
-						type="url"
-						placeholder="https://youtube.com/watch?v=..."
-						bind:value={videoUrl}
-					/>
-					<span class="text-xs text-base-content/60">
-						Shown to the athlete under this exercise. Plays inside the app.
-					</span>
-				</label>
-			{/if}
-
-			{#if !isNote && creatingNew}
-				<label class="flex w-full flex-col gap-1.5">
-					<span class="label">Exercise name</span>
-					<input
-						class="input w-full"
-						type="text"
-						placeholder="e.g. Barbell Back Squat"
-						bind:value={newName}
-					/>
-				</label>
-
-				<label class="flex w-full flex-col gap-1.5">
-					<span class="label">Category</span>
-					<select class="select w-full" bind:value={newCategory}>
-						{#each CATEGORY_OPTIONS as cat (cat)}
-							<option value={cat}>{CATEGORY_LABEL[cat]}</option>
-						{/each}
-					</select>
-				</label>
-
-				<label class="flex w-full flex-col gap-1.5">
-					<span class="label">Video link (optional)</span>
-					<input
-						class="input w-full"
-						type="url"
-						placeholder="https://youtube.com/watch?v=..."
-						bind:value={videoUrl}
-					/>
-					<span class="text-xs text-base-content/60">
-						Shown to the athlete under this exercise. Plays inside the app.
-					</span>
-				</label>
-			{/if}
-
-			{#if !isNote && !isEditing}
-				<label class="flex items-center gap-2">
-					<input type="checkbox" class="toggle toggle-sm" bind:checked={creatingNew} />
-					New exercise
-				</label>
-			{/if}
-
-			{#if isWeight}
-				<div class="grid grid-cols-2 gap-4">
-					<label class="flex w-full flex-col gap-1.5">
-						<span class="label">Sets</span>
-						<div class="flex items-center justify-center gap-4">
-							<button
-								type="button"
-								class={stepBtn}
-								aria-label="Decrease sets"
-								onclick={() => (sets = Math.max(1, sets - 1))}
-							>
-								<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
-							</button>
-							<input class="input w-16 text-center" type="number" min="1" bind:value={sets} />
-							<button
-								type="button"
-								class={stepBtn}
-								aria-label="Increase sets"
-								onclick={() => (sets += 1)}
-							>
-								<AddFillIcon class="size-4" />
-							</button>
-						</div>
-					</label>
-					<label class="flex w-full flex-col gap-1.5">
-						<span class="label">Reps per set</span>
-						<div class="flex items-center justify-center gap-4">
-							<button
-								type="button"
-								class={stepBtn}
-								aria-label="Decrease reps"
-								onclick={() => (reps = Math.max(1, reps - 1))}
-							>
-								<span class="block h-1 w-4 rounded-full bg-current" aria-hidden="true"></span>
-							</button>
-							<input class="input w-16 text-center" type="number" min="1" bind:value={reps} />
-							<button
-								type="button"
-								class={stepBtn}
-								aria-label="Increase reps"
-								onclick={() => (reps += 1)}
-							>
-								<AddFillIcon class="size-4" />
-							</button>
-						</div>
-					</label>
-				</div>
-			{/if}
-
-			<label class="flex w-full flex-col gap-1.5">
-				<span class="label">{isNote ? 'Note for the athlete' : 'Note'}</span>
-				<textarea
-					use:autoGrowNote={note}
-					class="textarea field-sizing-content max-h-48 w-full resize-none"
-					rows={isNote ? 4 : 3}
-					placeholder={isNote
-						? 'e.g. Deload week — leave 2 reps in the tank on every set.'
-						: isWeight
-							? 'e.g. 4s eccentric, explode up.'
-							: 'e.g. 3 x 5\nReset between every jump.'}
-					bind:value={note}
-				></textarea>
-			</label>
+			<ExerciseForm
+				{library}
+				{category}
+				{isNote}
+				{isEditing}
+				{isWeight}
+				bind:creatingNew
+				bind:selectedName
+				bind:newName
+				bind:newCategory
+				bind:videoUrl
+				bind:sets
+				bind:reps
+				bind:note
+			/>
 
 			{#if error}
 				<p class="text-sm text-error">{error}</p>
