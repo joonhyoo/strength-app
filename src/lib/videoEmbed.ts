@@ -1,8 +1,7 @@
-/** Resolves a coach-entered video link into something the athlete's exercise
- *  modal can play in place, never a link that navigates the athlete out of
- *  the app. YouTube/Vimeo pages get rewritten to their `iframe`-embeddable
- *  form; anything else is assumed to be a direct video file and handed to a
- *  native `<video>` element. */
+/** Resolves coach-entered video link into an embedded link that shows up
+ *  on the athlete's exercise modal that can play in place. We avoid
+ *  redirecting users. YouTube videos are the only supported format for
+ *  now; everything else won't show anything. */
 export type VideoEmbed = { kind: 'iframe'; src: string } | { kind: 'video'; src: string };
 
 export function resolveVideoEmbed(url: string | undefined | null): VideoEmbed | null {
@@ -22,7 +21,7 @@ export function resolveVideoEmbed(url: string | undefined | null): VideoEmbed | 
 	if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
 		const id =
 			parsed.searchParams.get('v') ??
-			parsed.pathname.match(/^\/(?:shorts|embed|live)\/([^/]+)/)?.[1];
+			parsed.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1];
 		if (id) return { kind: 'iframe', src: `https://www.youtube-nocookie.com/embed/${id}` };
 	}
 
@@ -31,12 +30,5 @@ export function resolveVideoEmbed(url: string | undefined | null): VideoEmbed | 
 		if (id) return { kind: 'iframe', src: `https://www.youtube-nocookie.com/embed/${id}` };
 	}
 
-	if (host === 'vimeo.com') {
-		const id = parsed.pathname.split('/').filter(Boolean).pop();
-		if (id && /^\d+$/.test(id))
-			return { kind: 'iframe', src: `https://player.vimeo.com/video/${id}` };
-	}
-
-	// Anything else is treated as a direct video file link.
-	return { kind: 'video', src: trimmed };
+	return null;
 }
