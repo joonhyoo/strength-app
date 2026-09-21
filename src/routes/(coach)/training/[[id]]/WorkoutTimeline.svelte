@@ -124,18 +124,15 @@
 						use:dndzone={{
 							items: day.exercises,
 							flipDurationMs: FLIP_MS,
-							dragDisabled: day.exercises.length < 2,
+							dragDisabled: day.exercises.length < 2 || program.busy,
 							dropTargetStyle: {}
 						}}
 						onconsider={(e) => (day.exercises = e.detail.items)}
 						onfinalize={(e) => handleDndFinalize(day, e)}
 					>
 						{#each day.exercises as exercise, i (exercise.id)}
-							{@const pending = !!exercise.id && program.pendingExerciseIds.has(exercise.id)}
 							<div
 								class="flex min-w-0 items-center gap-4"
-								class:opacity-60={pending}
-								inert={pending}
 								animate:flip={{ duration: FLIP_MS }}
 							>
 								<div class="flex flex-col items-center self-stretch">
@@ -177,18 +174,20 @@
 												<DotGridLineIcon class="size-5" />
 											</span>
 										{/if}
-										<button
-											class="btn btn-square text-secondary btn-ghost btn-xs"
-											aria-label={`Edit ${exercise.activity}`}
-											onclick={() => exercise.id && program.openEdit(exercise)}
-										>
-											<EditBoxLineIcon class="size-4" />
-										</button>
-										<button
-											class="btn btn-square text-error btn-ghost btn-xs"
-											aria-label={`Remove ${exercise.activity}`}
-											onclick={() => exercise.id && program.removeExercise(exercise.id)}
-										>
+<button
+									class="btn btn-square text-secondary btn-ghost btn-xs"
+									aria-label={`Edit ${exercise.activity}`}
+									disabled={program.busy}
+									onclick={() => exercise.id && program.openEdit(exercise)}
+								>
+									<EditBoxLineIcon class="size-4" />
+								</button>
+								<button
+									class="btn btn-square text-error btn-ghost btn-xs"
+									aria-label={`Remove ${exercise.activity}`}
+									disabled={program.busy}
+									onclick={() => exercise.id && program.removeExercise(exercise.id)}
+								>
 											<Delete3LineIcon class="size-4" />
 										</button>
 									</div>
@@ -202,12 +201,18 @@
 					<button
 						type="button"
 						class="btn btn-dash btn-primary"
+						disabled={program.busy}
 						onclick={() => openAddExercise(day)}
 					>
 						<AddFillIcon class="size-4" />
 						Add exercise
 					</button>
-					<button type="button" class="btn btn-dash" onclick={() => openAddNote(day)}>
+					<button
+						type="button"
+						class="btn btn-dash"
+						disabled={program.busy}
+						onclick={() => openAddNote(day)}
+					>
 						<Message3LineIcon class="size-5" />
 						Add note
 					</button>

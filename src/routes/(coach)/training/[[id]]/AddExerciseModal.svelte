@@ -58,6 +58,10 @@
 	let reps = $state(5);
 	let note = $state('');
 	let complete = $state(false);
+	// A write is in flight — Save/Delete disable and a spinner shows until it
+	// settles; the modal stays open on failure so the coach can retry.
+	let saving = $state(false);
+	let error = $state('');
 
 	// Seed the form once, when the modal opens (it remounts on every open). The body is
 	// untracked so it never subscribes to the exercise catalog: submit() mutates that catalog
@@ -136,7 +140,7 @@
 	});
 
 	async function submit() {
-		if (!canSave) return;
+		if (!canSave || saving) return;
 
 		// Capture every reactive value before the first await. addExerciseDefinition() reassigns
 		// the shared `exercises` state, whose flush re-runs the seeding $effect before this
@@ -163,33 +167,68 @@
 		const dateKey = program.selectedDateKey;
 		const editingId = program.editingExercise?.id;
 
-		// Close now — the day list updates optimistically and reconciles in the
-		// background (same as the library's ProgramExerciseModal).
-		program.closeModal();
+		saving = true;
+		error = '';
+		try {
+			if (existing && videoUrlChanged) {
+				const vres = await updateExerciseDefinition({
+					id: existing.id,
+					name: existing.name,
+					category: existing.category,
+					videoUrl: trimmedVideoUrl || undefined
+				});
+				if (!vres.ok) {
+					error = vres.error ?? 'Could not save the video link.';
+					return;
+				}
+			}
 
-		if (existing && videoUrlChanged) {
-			void updateExerciseDefinition({
-				id: existing.id,
-				name: existing.name,
-				category: existing.category,
-				videoUrl: trimmedVideoUrl || undefined
-			});
+			if (editingId) {
+				const res = await program.updateExercise(editingId, exercise);
+				if (!res.ok) {
+					error = res.error ?? 'Could not save the exercise.';
+					return;
+				}
+			} else {
+				// A brand-new catalog row must exist before the day references it — the
+				// day-add's getOrCreateExercise would otherwise race this create on the
+				// unique exercise name.
+				if (creating) {
+					const cres = await addExerciseDefinition({
+						name: exercise.activity,
+						category: exercise.category,
+						videoUrl: trimmedVideoUrl || undefined
+					});
+					if (!cres.ok) {
+						error = cres.error ?? 'Could not create the exercise.';
+						return;
+					}
+				}
+				const res = await program.addExercise(dateKey, exercise);
+				if (!res.ok) {
+					error = res.error ?? 'Could not add the exercise.';
+					return;
+				}
+			}
+			// Every write landed — only now does the modal close; the day list
+			// refreshes from server truth (see coachProgramState's refetchDay).
+			program.closeModal();
+		} finally {
+			saving = false;
 		}
+	}
 
-		if (editingId) {
-			program.updateExercise(editingId, exercise);
-		} else if (creating) {
-			// A brand-new catalog row must exist before the day references it — the
-			// day-add's getOrCreateExercise would otherwise race this create on the
-			// unique exercise name.
-			await addExerciseDefinition({
-				name: exercise.activity,
-				category: exercise.category,
-				videoUrl: trimmedVideoUrl || undefined
-			});
-			program.addExercise(dateKey, exercise);
+	async function confirmDelete() {
+		const id = editingExercise?.id;
+		if (!id || saving) return;
+		saving = true;
+		error = '';
+		const res = await program.removeExercise(id);
+		saving = false;
+		if (!res.ok) {
+			error = res.error ?? 'Could not remove the exercise.';
 		} else {
-			program.addExercise(dateKey, exercise);
+			program.closeModal();
 		}
 	}
 </script>
@@ -357,23 +396,35 @@
 				></textarea>
 			</label>
 
+			{#if error}
+				<p class="rounded-lg bg-error/10 px-3 py-2 text-error">{error}</p>
+			{/if}
+
 			<div class="modal-action">
 				{#if isEditing}
 					<button
 						type="button"
 						class="btn mr-auto btn-outline btn-error"
-						onclick={() => {
-							if (editingExercise?.id) program.removeExercise(editingExercise.id);
-							program.closeModal();
-						}}
+						disabled={saving}
+						onclick={confirmDelete}
 					>
 						Delete
 					</button>
 				{/if}
-				<button type="button" class="btn btn-outline" onclick={() => program.closeModal()}>
+				<button
+					type="button"
+					class="btn btn-outline"
+					disabled={saving}
+					onclick={() => program.closeModal()}
+				>
 					Cancel
 				</button>
-				<button type="submit" class="btn btn-primary" disabled={!canSave}>Save</button>
+				<button type="submit" class="btn btn-primary" disabled={!canSave || saving}>
+					{#if saving}
+						<span class="loading loading-spinner loading-sm"></span>
+					{/if}
+					Save
+				</button>
 			</div>
 		</form>
 	</div>

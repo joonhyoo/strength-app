@@ -141,24 +141,22 @@
 									use:dndzone={{
 										items: day.exercises,
 										flipDurationMs: FLIP_MS,
-										dragDisabled: day.exercises.length < 2,
+										dragDisabled: day.exercises.length < 2 || program.busy,
 										dropTargetStyle: {}
 									}}
 									onconsider={(e) => (day.exercises = e.detail.items)}
 									onfinalize={(e) => handleDndFinalize(day, e)}
 								>
 									{#each day.exercises as exercise (exercise.id)}
-										{@const pending = !!exercise.id && program.pendingExerciseIds.has(exercise.id)}
 										<div
 											class="flex min-w-0 cursor-grab items-center gap-1 rounded p-0.5 active:cursor-grabbing"
-											class:opacity-60={pending}
-											inert={pending}
 											animate:flip={{ duration: FLIP_MS }}
 										>
 											<CategoryIcon category={exercise.category} size="sm" />
 											<button
 												type="button"
 												class="min-w-0 flex-1 cursor-pointer text-left"
+												disabled={program.busy}
 												onclick={() => exercise.id && program.openEdit(exercise)}
 											>
 												{#if exercise.category === 'note'}
@@ -190,7 +188,8 @@
 
 							<button
 								type="button"
-								class="flex min-w-0 cursor-pointer items-center gap-1 rounded p-0.5 text-left text-base-content/50 hover:text-primary"
+								class="flex min-w-0 cursor-pointer items-center gap-1 rounded p-0.5 text-left text-base-content/50 hover:text-primary disabled:cursor-not-allowed"
+								disabled={program.busy}
 								onclick={() => openAdd(cellDate)}
 							>
 								<span class="shrink-0 rounded-full p-2">
