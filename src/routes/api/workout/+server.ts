@@ -23,8 +23,8 @@ export const POST = postHandler('/api/workout', async (ctx) => {
 			return exerciseActions.removeExercise(ctx);
 		case 'reorderExercise':
 			return exerciseActions.reorderExercise(ctx);
-		case 'setExerciseComplete':
-			return exerciseActions.setExerciseComplete(ctx);
+		case 'setSetDone':
+			return exerciseActions.setSetDone(ctx);
 		case 'updateSet':
 			return exerciseActions.updateSet(ctx);
 

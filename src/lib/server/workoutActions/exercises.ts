@@ -50,13 +50,17 @@ export async function addExercise({ data, supabase, log }: ApiContext) {
 				athlete_workout_id: workout.id,
 				exercise_id: exerciseRecord.id,
 				position,
-				note: exercise.note,
-				complete: exercise.complete
+				note: exercise.note
 			})
 			.select('id')
 			.single()
 	);
 
+	// Every exercise is a list of units, so every non-note exercise gets set
+	// rows here: one per planned set for weight, or the single tap-target unit
+	// for conditioning (which prescribes no reps, hence the null target). A
+	// note gets none — it has nothing to perform. Mirrored by assign_program's
+	// conditional, so a scheduled circuit arrives tappable.
 	if (exercise.category === 'weight' && exercise.plan.length > 0) {
 		const sets = exercise.plan.map((targetReps: number, i: number) => ({
 			athlete_exercise_id: athleteExercise.id,
@@ -64,6 +68,14 @@ export async function addExercise({ data, supabase, log }: ApiContext) {
 			target_reps: targetReps
 		}));
 		await dbWrite(log, 'workout.addExercise.sets', supabase.from('athlete_sets').insert(sets));
+	} else if (exercise.category !== 'note') {
+		await dbWrite(
+			log,
+			'workout.addExercise.unit',
+			supabase
+				.from('athlete_sets')
+				.insert({ athlete_exercise_id: athleteExercise.id, set_number: 1, target_reps: null })
+		);
 	}
 
 	return json({ data: athleteExercise });
@@ -71,14 +83,19 @@ export async function addExercise({ data, supabase, log }: ApiContext) {
 
 /**
  * Edits a scheduled exercise's lift, note, and target plan. The athlete's own
- * log lives on the same rows — `athlete_sets.weight` / `.reps`, and
- * `athlete_exercises.complete` — so this must never rewrite them wholesale:
- *  - `complete` is not written at all (only the athlete toggles it, and the
- *    coach's edit form holds a snapshot that can be stale by the time it's saved);
+ * log lives on the same rows — `athlete_sets.weight` / `.reps` and `.done` — so
+ * this must never rewrite them wholesale:
+ *  - `done` is not written at all (only the athlete taps it, and the coach's
+ *    edit form holds a snapshot that can be stale by the time it's saved);
  *  - sets are diffed against the new plan instead of deleted and re-inserted, so
  *    editing just a note (or adding a set) keeps what was already logged.
  * Swapping in a *different* catalog exercise is the exception: whatever was
  * logged belonged to the old lift, so its sets start afresh.
+ *
+ * The diff is scoped to `weight` on purpose. A conditioning exercise's single
+ * unit carries a null target_reps and is not part of any plan, so running the
+ * diff against it would compute a surplus delete and remove the athlete's
+ * unit — silently unticking a circuit the moment its note was edited.
  */
 export async function updateExercise({ data, supabase, log }: ApiContext) {
 	const { athleteExerciseId, exercise } = data;
@@ -111,7 +128,14 @@ export async function updateExercise({ data, supabase, log }: ApiContext) {
 			.eq('id', athleteExerciseId)
 	);
 
-	if (current.exercise_id !== exerciseRecord.id) {
+	const isWeight = exercise.category === 'weight';
+	const swapped = current.exercise_id !== exerciseRecord.id;
+	const isNote = exercise.category === 'note';
+
+	// A swap throws away whatever was logged (it belonged to the old lift), so
+	// the unit rows go too and are rebuilt immediately below. A non-swap keeps
+	// them, which is what preserves the athlete's log through an ordinary edit.
+	if (swapped) {
 		await dbWrite(
 			log,
 			'workout.updateExercise.clearSets',
@@ -119,7 +143,28 @@ export async function updateExercise({ data, supabase, log }: ApiContext) {
 		);
 	}
 
-	const plan: number[] = exercise.category === 'weight' ? exercise.plan : [];
+	// Swapping INTO a non-weight category (or out of one) has to leave the
+	// exercise in the shape addExercise would have created: weight keeps one
+	// row per planned set, conditioning gets its single tap-target unit, a note
+	// gets none. Category can't change otherwise — a catalog exercise's
+	// category is fixed, so a same-lift edit is always weight→weight or
+	// conditioning→conditioning.
+	if (swapped && !isWeight) {
+		if (!isNote) {
+			await dbWrite(
+				log,
+				'workout.updateExercise.unit',
+				supabase
+					.from('athlete_sets')
+					.insert({ athlete_exercise_id: athleteExerciseId, set_number: 1, target_reps: null })
+			);
+		}
+		return json({ data: { success: true } });
+	}
+
+	if (!isWeight) return json({ data: { success: true } });
+
+	const plan: number[] = exercise.plan;
 	const existing = await dbList(
 		log,
 		'workout.updateExercise.sets',
@@ -220,12 +265,18 @@ export async function reorderExercise({ data, supabase, log }: ApiContext) {
 	return json({ data: { success: true } });
 }
 
-export async function setExerciseComplete({ data, supabase, log }: ApiContext) {
-	const { athleteExerciseId, complete } = data;
+/**
+ * Taps one unit of work. Scoped by athlete_sets.id rather than by exercise id
+ * so this stays correct unchanged if a category ever grows more than one
+ * tappable unit — "a circuit is an exercise with one set" is the model, not
+ * an assumption baked in here.
+ */
+export async function setSetDone({ data, supabase, log }: ApiContext) {
+	const { setId, done } = data;
 	await dbWrite(
 		log,
-		'workout.setComplete',
-		supabase.from('athlete_exercises').update({ complete }).eq('id', athleteExerciseId)
+		'workout.setDone',
+		supabase.from('athlete_sets').update({ done }).eq('id', setId)
 	);
 	return json({ data: { success: true } });
 }

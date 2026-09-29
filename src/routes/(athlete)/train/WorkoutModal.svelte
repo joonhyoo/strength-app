@@ -5,7 +5,7 @@
 	import CloseFillIcon from '@iconify-svelte/mingcute/close-fill';
 	import CheckFillIcon from '@iconify-svelte/mingcute/check-fill';
 	import { getWorkoutState } from '$lib/workoutState.svelte';
-	import { CONDITIONING_CATEGORIES } from '$lib/complete';
+	import { isConditioningCategory } from '$lib/complete';
 	import { resolveVideoEmbed } from '$lib/videoEmbed';
 	import ExerciseHistoryModal from './ExerciseHistoryModal.svelte';
 
@@ -187,10 +187,12 @@
 		workout.selected !== null && workout.selected.category !== 'note'
 	);
 
-	// Only conditioning completion is a manual toggle; `weight` is auto-derived, so its
-	// button reflects state but is dimmed + non-interactive.
+	// Only a conditioning unit is tapped by hand; a weight set completes itself
+	// once it has a weight, so its button reflects state but is dimmed and
+	// non-interactive. A conditioning exercise has exactly one unit, so the
+	// tapped index is always 0.
 	const completeInteractive = $derived(
-		workout.selected !== null && CONDITIONING_CATEGORIES.includes(workout.selected.category)
+		workout.selected !== null && isConditioningCategory(workout.selected.category)
 	);
 
 	// Transparent hit target inside the shared pill — only the icon colour
@@ -283,16 +285,18 @@
 											<input
 												type="number"
 												class="input"
-												value={set.weight}
+												value={set.weight ?? ''}
 												oninput={(e) => workout.logSet(i, 'weight', e.currentTarget.value)}
 												name="weight"
 											/>
 										</td>
 										<td>
+											<!-- `??` not `||`: a logged 0 reps is a real entry, and
+											     the plan is only the placeholder until they type. -->
 											<input
 												type="number"
 												class="input"
-												value={set.reps || workout.selected.plan[i]}
+												value={set.reps ?? workout.selected.plan[i] ?? ''}
 												oninput={(e) => workout.logSet(i, 'reps', e.currentTarget.value)}
 												name="reps"
 											/>
@@ -363,7 +367,7 @@
 						aria-pressed={completeInteractive ? done : undefined}
 						aria-disabled={completeInteractive ? undefined : true}
 						tabindex={completeInteractive ? undefined : -1}
-						onclick={completeInteractive ? () => workout.toggleComplete() : undefined}
+						onclick={completeInteractive ? () => workout.toggleUnitDone(0) : undefined}
 					>
 						<CheckFillIcon class="size-6" />
 					</button>

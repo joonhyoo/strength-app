@@ -7,6 +7,9 @@ export async function clearClientCaches() {
 	if (typeof localStorage !== 'undefined') {
 		for (const key of Object.keys(localStorage)) {
 			if (
+				// Matches CACHE_PREFIX in services/workoutService.svelte.ts, which
+				// bumps its version when the cached day's shape changes — v2 keys
+				// must still be purged here.
 				key.startsWith('workout-day:') ||
 				key.startsWith('status-map:') ||
 				key.startsWith('auth-code-sent:') ||

@@ -80,16 +80,19 @@ export async function pasteWorkoutDay(
 						athlete_workout_id: dest.id,
 						exercise_id: ex.exercise_id,
 						position: ex.position,
-						note: ex.note,
-						// A pasted day schedules a plan, not a completed log — completion
-						// and any actually-performed weight/reps never carry over.
-						complete: false
+						note: ex.note
 					})
 					.select('id')
 					.single()
 			);
 			insertedIds.push(newEx.id);
 
+			// A pasted day schedules a plan, not a completed log: set_number and
+			// target_reps carry over, while `weight`, `reps` and `done` are left at
+			// their defaults so nothing reads as already performed. Every set row
+			// is copied, including a conditioning exercise's single unit — that
+			// unit's existence is what makes it tappable, and the source day
+			// always has one now.
 			if (ex.athlete_sets?.length) {
 				await dbWrite(
 					log,

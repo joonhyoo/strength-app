@@ -16,16 +16,18 @@ export async function addExerciseToDay(athleteId: string, dateKey: string, exerc
 			activity: exercise.activity,
 			category,
 			note: exercise.note,
-			complete: exercise.complete,
-			plan: isWeight ? (exercise.plan.length > 0 ? exercise.plan : Array(3).fill(5)) : [],
-			performed: exercise.performed
+			// A new exercise is a plan, never a log: the server creates the unit
+			// rows (one per set for weight, one tap-target for conditioning), all
+			// unticked and unweighted. `performed` was never sent-and-honoured
+			// anyway — addExercise writes only target_reps.
+			plan: isWeight ? (exercise.plan.length > 0 ? exercise.plan : Array(3).fill(5)) : []
 		}
 	});
 }
 
-// The server owns `complete` and any logged weight/reps on an edit (see
-// updateExercise in workoutActions/exercises.ts), so only the coach-authored
-// fields are sent.
+// The server owns the athlete's log (a set's weight/reps and a unit's `done`)
+// on an edit — see updateExercise in workoutActions/exercises.ts — so only the
+// coach-authored fields are sent.
 export async function updateExercise(athleteExerciseId: string, exercise: Exercise) {
 	return postWorkout('updateExercise', {
 		athleteExerciseId,
@@ -51,8 +53,8 @@ export async function reorderExercise(id: string, toIndex: number) {
 	return postWorkout('reorderExercise', { athleteExerciseId: id, toIndex });
 }
 
-export async function setExerciseComplete(id: string, complete: boolean) {
-	return postWorkout('setExerciseComplete', { athleteExerciseId: id, complete });
+export async function setSetDone(setId: string, done: boolean) {
+	return postWorkout('setSetDone', { setId, done });
 }
 
 export async function updateSet(setId: string, field: 'weight' | 'reps', value: string) {

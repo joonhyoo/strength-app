@@ -9,7 +9,7 @@ export async function getDay({ data, supabase, log }: ApiContext) {
 		supabase
 			.from('athlete_workouts')
 			.select(
-				'id, athlete_exercises(id, exercise_id, note, complete, position, exercises(name, category, video_url), athlete_sets(id, set_number, target_reps, weight, reps))'
+				'id, athlete_exercises(id, exercise_id, note, position, exercises(name, category, video_url), athlete_sets(id, set_number, target_reps, weight, reps, done))'
 			)
 			.eq('athlete_id', athleteId)
 			.eq('scheduled_date', dateKey)
@@ -34,7 +34,7 @@ export async function exerciseHistory({ data, supabase, log }: ApiContext) {
 		supabase
 			.from('athlete_workouts')
 			.select(
-				'scheduled_date, athlete_exercises!inner(id, complete, exercise_id, athlete_sets(set_number, target_reps, weight, reps))'
+				'scheduled_date, athlete_exercises!inner(id, exercise_id, athlete_sets(set_number, target_reps, weight, reps))'
 			)
 			.eq('athlete_id', athleteId)
 			.eq('athlete_exercises.exercise_id', exerciseId)
@@ -59,7 +59,7 @@ export async function getRangeExercises({ data, supabase, log }: ApiContext) {
 		supabase
 			.from('athlete_workouts')
 			.select(
-				'scheduled_date, athlete_exercises(id, exercise_id, note, complete, position, exercises(name, category, video_url), athlete_sets(id, set_number, target_reps, weight, reps))'
+				'scheduled_date, athlete_exercises(id, exercise_id, note, position, exercises(name, category, video_url), athlete_sets(id, set_number, target_reps, weight, reps, done))'
 			)
 			.eq('athlete_id', athleteId)
 			.gte('scheduled_date', from)
@@ -74,7 +74,10 @@ export async function getStatusMap({ data, supabase, log }: ApiContext) {
 	let query = supabase
 		.from('athlete_workouts')
 		.select(
-			'scheduled_date, athlete_exercises(id, complete, exercises(category), athlete_sets(weight))'
+			// Deliberately narrow: this reads every scheduled day in the range, and
+			// day status only needs each set's weight (for a weight exercise) and
+			// done flag (for a conditioning one). See getAthleteStatusMap.
+			'scheduled_date, athlete_exercises(id, exercises(category), athlete_sets(weight, done))'
 		)
 		.eq('athlete_id', athleteId);
 

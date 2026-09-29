@@ -91,9 +91,6 @@
 					<div class="rounded-lg border border-base-300 p-2.5">
 						<div class="mb-1.5 flex items-center justify-between">
 							<span class="text-sm font-semibold">{formatDate(session.dateKey)}</span>
-							{#if session.complete}
-								<span class="text-xs font-medium text-success">Complete</span>
-							{/if}
 						</div>
 						<div class="overflow-x-auto">
 							<table class="table table-xs">

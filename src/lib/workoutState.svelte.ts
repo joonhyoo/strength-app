@@ -1,6 +1,6 @@
 import { getContext, setContext } from 'svelte';
-import { countsTowardCompletion, exerciseComplete } from '$lib/complete';
-import { setExerciseComplete, updateSet } from '$lib/services/programService.svelte';
+import { countsTowardCompletion, exerciseComplete, isSetEntryComplete } from '$lib/complete';
+import { setSetDone, updateSet } from '$lib/services/programService.svelte';
 import { updateCachedWorkoutDay } from '$lib/services/workoutService.svelte';
 import type { Exercise } from '$lib/types';
 
@@ -34,10 +34,19 @@ class WorkoutState {
 		return { athleteId: this.athleteId, dateKey: this.dateKey };
 	}
 
+	/**
+	 * Fraction of the day's units of work the athlete has completed, 0..1.
+	 * Per-unit rather than per-exercise because the units are what the model
+	 * actually tracks — a 5-set lift is 5 units, not one — so a progress bar
+	 * reads "3 of 5 sets" without a second source of truth. Not currently
+	 * rendered anywhere; kept as the one place that number is derived.
+	 */
 	get progress() {
-		const gradable = this.exercises.filter(countsTowardCompletion);
-		if (gradable.length === 0) return 0;
-		return gradable.filter(exerciseComplete).length / gradable.length;
+		const units = this.exercises
+			.filter(countsTowardCompletion)
+			.flatMap((ex) => ex.performed.map((set) => isSetEntryComplete(ex, set)));
+		if (units.length === 0) return 0;
+		return units.filter(Boolean).length / units.length;
 	}
 
 	/** Which day's cache entry logSet/toggleComplete write optimistic edits back into. */
@@ -98,10 +107,13 @@ class WorkoutState {
 		if (this.selectedIndex === null) return;
 		const exercise = this.exercises[this.selectedIndex];
 		const set = exercise.performed[setIndex];
+		// An emptied input clears the field (null = not entered), which is what
+		// un-completes a set. A logged '0' survives both, since '0' is truthy as
+		// a string and the column is text.
 		if (field === 'reps') {
-			set.reps = value ? Number(value) : undefined;
+			set.reps = value ? Number(value) : null;
 		} else {
-			set.weight = value || undefined;
+			set.weight = value || null;
 		}
 		this.syncCache();
 		// The set inputs are one-way (value=, not bind:), so a failed write can't
@@ -113,23 +125,32 @@ class WorkoutState {
 		}
 	}
 
-	toggleComplete() {
+	/**
+	 * Taps one unit of work. Only conditioning exercises have a tappable unit
+	 * (their single one); a weight set is completed by entering its weight in
+	 * `logSet`, so the UI hides this button for them — see `completeInteractive`
+	 * in WorkoutModal.
+	 */
+	toggleUnitDone(setIndex: number) {
 		if (this.selectedIndex === null) return;
 		const exercise = this.exercises[this.selectedIndex];
-		const id = exercise.id;
-		const next = !exercise.complete;
-		exercise.complete = next;
+		const set = exercise.performed[setIndex];
+		if (!set) return;
+		const id = set.id;
+		const next = !set.done;
+		set.done = next;
 		this.syncCache();
 		if (!id) return;
-		void setExerciseComplete(id, next).then((res) => {
+		void setSetDone(id, next).then((res) => {
 			if (res.ok) {
 				this.saveError = null;
 				return;
 			}
 			// Put it back — the complete button reads this via exerciseComplete().
-			const ex = this.exercises.find((e) => e.id === id);
-			if (ex) {
-				ex.complete = !next;
+			const ex = this.exercises.find((e) => e.id === exercise.id);
+			const back = ex?.performed[setIndex];
+			if (back) {
+				back.done = !next;
 				this.syncCache();
 			}
 			this.saveError = 'Couldn’t save — check your connection.';
