@@ -20,7 +20,39 @@ export interface Athlete {
 // completion. It is deliberately NOT in CATEGORY_OPTIONS (src/lib/data/categories.ts):
 // a note isn't a reusable catalog exercise, so it's never offered in the
 // "pick / create an exercise" selects.
-export type ExerciseCategory = 'warmup' | 'circuit' | 'plyo' | 'weight' | 'note';
+export type ConditioningCategory = 'warmup' | 'circuit' | 'plyo';
+
+export type ExerciseCategory = ConditioningCategory | 'weight' | 'note';
+
+/**
+ * One unit of work, and the athlete's log of it — the list every exercise is
+ * made of, whether that list is 1 long or 3.
+ *
+ *  - `weight`: one per set, index-aligned to `Exercise.plan`, complete when a
+ *    weight is entered. This is where the log lives.
+ *  - conditioning (`warmup`/`circuit`/`plyo`): exactly one, whose only
+ *    requirement is the athlete's own tap (`done`).
+ *  - `note`: none. A note is coach-authored text with nothing to perform, and is
+ *    excluded from completion math entirely.
+ *
+ * `done` is deliberately carried on every unit rather than on the exercise: a
+ * per-exercise flag has to mean "the athlete tapped this" for conditioning while
+ * meaning nothing at all for weight and note, which is the ambiguity
+ * `isSetEntryComplete` in $lib/complete.ts now resolves in one place.
+ */
+export interface SetEntry {
+	/** athlete_sets.id — absent on a set a coach has added but not yet saved. */
+	id?: string;
+	setNumber: number;
+	/** null = not entered. athlete_sets.weight is `text`, so '0' is a real
+	 *  entry and only a null (or '') means the athlete skipped this set. */
+	weight: string | null;
+	/** Actual reps; null until logged. The UI falls back to plan[i] meanwhile. */
+	reps: number | null;
+	/** Only read for a conditioning unit. A weight set is completed by its
+	 *  `weight`, never by this. */
+	done: boolean;
+}
 
 export interface Exercise {
 	id?: string;
@@ -31,18 +63,16 @@ export interface Exercise {
 	exerciseId?: string;
 	category: ExerciseCategory;
 	activity: string;
+	/** Target reps per set. Empty for conditioning and note: a conditioning
+	 *  exercise prescribes no reps, and its one unit's target_reps is null
+	 *  (see athlete_sets in 20260929041935_set_entry_done.sql). */
 	plan: number[];
-	performed: Prescription[];
+	/** See SetEntry. Same length as `plan` for weight; length 1 for conditioning;
+	 *  empty for a note. */
+	performed: SetEntry[];
 	note: string;
-	complete: boolean;
 	/** Optional demo-video link from the catalog row (exercises.video_url). */
 	videoUrl?: string;
-}
-
-export interface Prescription {
-	id?: string;
-	weight?: string;
-	reps?: number;
 }
 
 // Stored in cycles.color_key (CHECK-constrained — see

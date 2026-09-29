@@ -37,7 +37,6 @@ export type Database = {
       athlete_exercises: {
         Row: {
           athlete_workout_id: string
-          complete: boolean
           exercise_id: string
           id: string
           note: string | null
@@ -45,7 +44,6 @@ export type Database = {
         }
         Insert: {
           athlete_workout_id: string
-          complete?: boolean
           exercise_id: string
           id?: string
           note?: string | null
@@ -53,7 +51,6 @@ export type Database = {
         }
         Update: {
           athlete_workout_id?: string
-          complete?: boolean
           exercise_id?: string
           id?: string
           note?: string | null
@@ -79,26 +76,29 @@ export type Database = {
       athlete_sets: {
         Row: {
           athlete_exercise_id: string
+          done: boolean
           id: string
           reps: number | null
           set_number: number
-          target_reps: number
+          target_reps: number | null
           weight: string | null
         }
         Insert: {
           athlete_exercise_id: string
+          done?: boolean
           id?: string
           reps?: number | null
           set_number: number
-          target_reps: number
+          target_reps?: number | null
           weight?: string | null
         }
         Update: {
           athlete_exercise_id?: string
+          done?: boolean
           id?: string
           reps?: number | null
           set_number?: number
-          target_reps?: number
+          target_reps?: number | null
           weight?: string | null
         }
         Relationships: [

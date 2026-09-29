@@ -26,7 +26,6 @@
 	let sets = $state(3);
 	let reps = $state(5);
 	let note = $state('');
-	let complete = $state(false);
 	// A write is in flight — Save/Delete disable and a spinner shows until it
 	// settles; the modal stays open on failure so the coach can retry.
 	let saving = $state(false);
@@ -51,7 +50,6 @@
 				sets = editing.plan.length || 3;
 				reps = (editing.plan[0] as number) ?? 5;
 				note = editing.note;
-				complete = editing.complete;
 			} else {
 				creatingNew = false;
 				selectedName = library[0]?.name ?? '';
@@ -60,7 +58,6 @@
 				sets = 3;
 				reps = 5;
 				note = '';
-				complete = false;
 			}
 		});
 	});
@@ -121,9 +118,12 @@
 			category,
 			activity: exerciseName,
 			plan: isWeight ? Array(sets).fill(reps) : [],
-			performed: isWeight ? Array.from({ length: sets }, () => ({ weight: undefined, reps })) : [],
-			note: note.trim(),
-			complete: isNote ? false : complete
+			// Empty: this is a plan, and the server creates the unit rows itself
+			// (one per set for weight, one tap-target for conditioning). Seeding
+			// the log here was always dead — addExercise writes only target_reps,
+			// and the reps inputs already fall back to `plan[i]`.
+			performed: [],
+			note: note.trim()
 		};
 
 		// Picking an existing catalog exercise (whether adding it fresh or
